@@ -1,6 +1,12 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const Register: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleLogin = () => {
+    navigate("/login");
+  };
   return (
     <div className="h-screen bg-cover bg-center flex justify-center items-center bg-gradient-to-r from-red-500 to-pink-50">
       <div className="h-[80%] w-[70%] bg-white flex justify-center items-center text-black shadow-[0_6px_15px_rgba(100,100,100,0.3)] rounded-2xl">
@@ -22,40 +28,47 @@ const Register: React.FC = () => {
             </p>
           </div>
           <div className="mt-6">
-            <button className="px-6 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold transition duration-300">
+            <button className="px-6 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold transition duration-300 cursor-pointer">
               Get Started
             </button>
           </div>
         </div>
 
         <div className="h-[100%] w-[50%] bg-red-500 rounded-2xl shadow-[0_6px_15px_rgba(100,100,100,0.5)] flex justify-center flex-col items-center">
-          <h1 className="text-4xl font-bold text-white m-2">
-            Register Account
-          </h1>
-          <input
-            type="text"
-            placeholder="Name"
-            className="w-[60%] border-2 border-white bg-transparent mt-5 text-white placeholder-white rounded-2xl p-2 focus:outline-none"
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            className="w-[60%] border-2 border-white bg-transparent mt-3 text-white placeholder-white rounded-2xl p-2 focus:outline-none "
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            className="w-[60%] border-2 border-white bg-transparent mt-3 text-white placeholder-white rounded-2xl p-2 focus:outline-none"
-          />
-          <p className="text-white m-3">
-            Already have an account?{" "}
-            <a className=" hover:font-bold" href="/">
-              Login
-            </a>
-          </p>
-          <button className="w-[30%] border-2 border-white bg-transparent mt-8 text-white rounded-full px-6 py-2 hover:bg-white hover:text-red-500 transition-all cursor-pointer">
-            Sign In
-          </button>
+          <div className="w-[100%] flex justify-center flex-col items-center">
+            <h1 className="text-4xl font-bold text-white m-2">
+              Register Account
+            </h1>
+            <input
+              type="text"
+              placeholder="Name"
+              className="w-[60%] border-2 border-white bg-transparent mt-5 text-white placeholder-white rounded-2xl p-2 focus:outline-none"
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              className="w-[60%] border-2 border-white bg-transparent mt-3 text-white placeholder-white rounded-2xl p-2 focus:outline-none "
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              className="w-[60%] border-2 border-white bg-transparent mt-3 text-white placeholder-white rounded-2xl p-2 focus:outline-none"
+            />
+            <p className="text-white m-3">
+              Already have an account?{" "}
+              <a
+                onClick={() => {
+                  handleLogin();
+                }}
+                className=" hover:font-bold cursor-pointer"
+              >
+                Login
+              </a>
+            </p>
+            <button className=" border-2 border-white bg-transparent mt-8 text-white rounded-full px-8 py-2 hover:bg-white hover:text-red-500 transition-all cursor-pointer">
+              Sign In
+            </button>
+          </div>
         </div>
       </div>
     </div>
