@@ -1,13 +1,21 @@
 const mongoose = require("mongoose");
 
-mongoose.connect("mongodb://localhost:27017/filesharingsystem");
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("MongoDB connected successfully");
+  } catch (error) {
+    console.error("MongoDB connection failed:", error);
 
-mongoose.connection.on("connected", () => {
-  console.log("MongoDB connection successful");
-});
+    process.exit(1);
+  }
 
-mongoose.connecttion.on("error", (err) => {
-  console.log(`Error connnecting to MongoDB: ${err}`);
-});
+  mongoose.connection.on("error", (err) => {
+    console.error(`MongoDB connection error: ${err.message}`);
+  });
+};
 
-module.exports = mongoose;
+module.exports = connectDB;

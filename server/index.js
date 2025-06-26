@@ -1,11 +1,20 @@
 const express = require("express");
-const cors = require("cors");
 const app = express();
+const cors = require("cors");
+const dotenv = require("dotenv");
+const connectDB = require("./config/db");
+dotenv.config();
+
+// Connect to MongoDB
+connectDB();
 
 app.use(cors());
+app.use(express.json());
 
-const PORT = process.env.PORT || 5000;
+app.get("/", (req, res) => {
+  res.send("Welcome to the API!");
+});
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`Server is running on port ${process.env.PORT || 3000}`);
 });
