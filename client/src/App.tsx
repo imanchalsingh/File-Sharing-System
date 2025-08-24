@@ -23,7 +23,7 @@ function App() {
         {/* Protected Home Layout */}
         <Route path="/home" element={<Home />}>
           <Route path="myfiles" element={<MyFiles />} /> {/* /home/myfiles */}
-          <Route path="/home/content" element={<HomeContent />} />
+          <Route path="/home" element={<HomeContent />} />
         </Route>
       </Routes>
     </Router>

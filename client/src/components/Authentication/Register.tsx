@@ -25,19 +25,23 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-      await axios.post("http://localhost:5000/api/auth/register", {
+      // 🔑 Backend ke sahi endpoint pe hit karo
+      const res = await axios.post("http://localhost:500/register", {
         username,
         email,
         password,
       });
-      alert("Registration successful! Please login.");
-      navigate("/login");
+
+      if (res.data) {
+        alert("Registration successful! Please login.");
+        navigate("/login");
+      }
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        // Log full error for debugging
         console.error("Registration error:", error.response);
         setErrorMsg(
           error.response?.data?.error ||
+            error.response?.data?.message ||
             "Registration failed. Please check your details."
         );
       } else {
@@ -49,84 +53,69 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-cover bg-center flex justify-center items-center bg-gradient-to-r  from-pink-50 to-red-300">
-      <div className="h-[80%] w-[70%] bg-white flex justify-center items-center text-black shadow-[0_6px_15px_rgba(100,100,100,0.3)] rounded-2xl">
-        <div className="h-full w-1/2 bg-white rounded-2xl flex flex-col justify-evenly items-center px-8 py-6 shadow-lg">
-          <div className="text-center">
-            <h1 className="text-4xl font-extrabold text-gray-800 mb-2">
-              Welcome to <span className="text-red-600">ShareVault</span>
-            </h1>
-            <p className="text-gray-600 text-base">
-              Where your files are safe and easy to share.
-            </p>
-          </div>
-          <div className="text-center mt-4 space-y-2">
-            <p className="text-gray-700 text-lg">
-              Upload, store, and share your files with confidence.
-            </p>
-            <p className="text-gray-700 text-lg">
-              Secure access. Easy sharing. All in one place.
-            </p>
-          </div>
-          <div className="mt-6">
-            <button
-              className="px-6 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white font-semibold transition duration-300 cursor-pointer"
-              onClick={() => navigate("/register")}
-            >
-              Get Started
-            </button>
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#e6ecff] to-[#f9f9ff] font-[Josefin Sans] p-4">
+      <div className="w-full max-w-4xl bg-white/80 backdrop-blur-xl shadow-2xl rounded-2xl flex flex-col md:flex-row overflow-hidden">
+        {/* Left Illustration */}
+        <div className="hidden md:flex w-1/2 items-center justify-center p-6">
+          <img
+            src="https://media1.tenor.com/m/p0G_bmA2vSYAAAAd/login.gif"
+            alt="illustration"
+            // className="w-[80%] drop-shadow-2xl"
+          />
         </div>
 
-        <div className="h-[100%] w-[50%] bg-red-500 rounded-2xl shadow-[0_6px_15px_rgba(100,100,100,0.5)] flex justify-center flex-col items-center">
-          <div className="w-[100%] flex justify-center flex-col items-center">
-            <h1 className="text-4xl font-bold text-white m-2">
-              Register Account
-            </h1>
+        {/* Right Form */}
+        <div className="w-full md:w-1/2 flex flex-col justify-center p-8 md:p-12">
+          <h1 className="text-3xl font-extrabold text-gray-800 mb-2">
+            Create your account
+          </h1>
+          <p className="text-gray-500 mb-6">
+            Sign up to get started with your journey
+          </p>
+
+          <div className="space-y-4">
             <input
               type="text"
-              placeholder="Name"
+              placeholder="Full Name"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-[60%] border-2 border-white bg-transparent mt-5 text-white placeholder-white rounded-2xl p-2 focus:outline-none"
-              autoComplete="username"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#4a6bd1] focus:outline-none shadow-sm"
             />
             <input
               type="email"
-              placeholder="Email"
+              placeholder="Email Address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-[60%] border-2 border-white bg-transparent mt-3 text-white placeholder-white rounded-2xl p-2 focus:outline-none "
-              autoComplete="email"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#4a6bd1] focus:outline-none shadow-sm"
             />
             <input
               type="password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-[60%] border-2 border-white bg-transparent mt-3 text-white placeholder-white rounded-2xl p-2 focus:outline-none"
-              autoComplete="new-password"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#4a6bd1] focus:outline-none shadow-sm"
             />
-            {errorMsg && (
-              <p className="text-red-400 text-sm mt-2">{errorMsg}</p>
-            )}
-            <p className="text-white m-3">
-              Already have an account?{" "}
-              <a
-                onClick={handleLogin}
-                className=" hover:font-bold cursor-pointer"
-              >
-                Login
-              </a>
-            </p>
-            <button
-              className=" border-2 border-white bg-transparent mt-8 text-white rounded-full px-8 py-2 hover:bg-white hover:text-red-500 transition-all cursor-pointer"
-              onClick={handleRegister}
-              disabled={loading}
-            >
-              {loading ? "Registering..." : "Sign Up"}
-            </button>
           </div>
+
+          {errorMsg && <p className="text-red-500 text-sm mt-2">{errorMsg}</p>}
+
+          <button
+            onClick={handleRegister}
+            disabled={loading}
+            className="w-full mt-6 py-3 bg-[#4a6bd1] hover:bg-[#3158cd] text-white font-semibold rounded-xl shadow-lg transition-all disabled:opacity-50"
+          >
+            {loading ? "Signing Up..." : "Sign Up"}
+          </button>
+
+          <p className="text-center text-gray-600 text-sm mt-6">
+            Already have an account?{" "}
+            <span
+              onClick={handleLogin}
+              className="text-[#4a6bd1] hover:underline cursor-pointer font-medium"
+            >
+              Login
+            </span>
+          </p>
         </div>
       </div>
     </div>
