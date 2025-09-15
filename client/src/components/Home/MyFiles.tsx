@@ -34,8 +34,11 @@ const MyFiles: React.FC = () => {
       formData.append("file", file);
 
       try {
-        const res = await axios.post("https://file-sharing-system-tll7.onrender.com/", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
+        const res = await axios.post("/upload", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          },
         });
 
         const newUrl = res.data.url;

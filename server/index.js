@@ -9,9 +9,12 @@ import { v2 as cloudinary } from "cloudinary";
 import streamifier from "streamifier";
 
 const app = express();
+
+// CORS setup
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   })
 );
@@ -47,30 +50,35 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // File Upload API using Cloudinary
-app.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+app.post(
+  "/upload",
+  authenticateUser,
+  upload.single("file"),
+  async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-  try {
-    const streamUpload = (reqFile) => {
-      return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "myfiles" },
-          (error, result) => {
-            if (result) resolve(result);
-            else reject(error);
-          }
-        );
-        streamifier.createReadStream(reqFile.buffer).pipe(stream);
-      });
-    };
+    try {
+      const streamUpload = (reqFile) => {
+        return new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: "myfiles" },
+            (error, result) => {
+              if (result) resolve(result);
+              else reject(error);
+            }
+          );
+          streamifier.createReadStream(reqFile.buffer).pipe(stream);
+        });
+      };
 
-    const result = await streamUpload(req.file);
-    res.json({ url: result.secure_url }); // Public Cloudinary URL
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Upload failed" });
+      const result = await streamUpload(req.file);
+      res.json({ url: result.secure_url }); // Public Cloudinary URL
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Upload failed" });
+    }
   }
-});
+);
 
 // Start server
 const PORT = process.env.PORT || 5000;

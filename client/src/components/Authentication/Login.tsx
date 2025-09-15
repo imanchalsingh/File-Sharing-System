@@ -15,12 +15,12 @@ const Login: React.FC = () => {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      const response = await axios.post("https://file-sharing-system-tll7.onrender.com/", {
+      const response = await axios.post("https://file-sharing-system-tll7.onrender.com/login", {
         email,
         password,
       });
 
-      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("authToken", response.data.authToken);
       alert("Login successful!");
       navigate("/home");
     } catch (error: unknown) {

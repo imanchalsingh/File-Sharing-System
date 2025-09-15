@@ -36,7 +36,7 @@ const HomeContent: React.FC = () => {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.6 }}
             className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight order-1"
-            style={{ fontFamily: "Notable"  }}
+            style={{ fontFamily: "Notable" }}
           >
             <span className="bg-gradient-to-l from-[#032282] to-[#4270fa] bg-clip-text text-transparent drop-shadow-md">
               Share Files.
@@ -64,7 +64,7 @@ const HomeContent: React.FC = () => {
             className="flex justify-center w-full lg:hidden order-3"
           >
             <motion.img
-              src='{img}'
+              src={img}
               alt="File Sharing Illustration"
               className="w-[220px] sm:w-[280px] md:w-[360px] drop-shadow-2xl"
               animate={{ y: [0, -15, 0] }}
@@ -123,7 +123,9 @@ const HomeContent: React.FC = () => {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {[
             {
-              icon: <FaCloudUploadAlt className="text-[#496ace] text-4xl mb-3" />,
+              icon: (
+                <FaCloudUploadAlt className="text-[#496ace] text-4xl mb-3" />
+              ),
               title: "Fast Uploads",
               desc: "Upload files quickly with optimized cloud servers.",
             },
