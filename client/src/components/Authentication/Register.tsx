@@ -26,7 +26,7 @@ const Register: React.FC = () => {
     setLoading(true);
     try {
       // 🔑 Backend ke sahi endpoint pe hit karo
-      const res = await axios.post("http://localhost:500/register", {
+      const res = await axios.post("https://file-sharing-system-tll7.onrender.com/", {
         username,
         email,
         password,
