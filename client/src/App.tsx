@@ -10,6 +10,7 @@ import Register from "./components/Authentication/Register";
 import Login from "./components/Authentication/Login";
 import MyFiles from "./components/Home/MyFiles"; // Page
 import HomeContent from "./components/Home/HomeContent"; // Default Content
+import LandingPage from "./components/Home/LandingPage";
 // Set up axios defaults
 axios.defaults.baseURL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -32,6 +33,7 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         {/* Protected Home Layout */}
+        <Route path="landingpage" element={<LandingPage />} />
         <Route path="/home" element={<Home />}>
           <Route path="myfiles" element={<MyFiles />} /> {/* /home/myfiles */}
           <Route path="/home" element={<HomeContent />} />
