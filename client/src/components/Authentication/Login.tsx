@@ -15,7 +15,7 @@ const Login: React.FC = () => {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      const response = await axios.post("https://file-sharing-system-tll7.onrender.com/login", {
+      const response = await axios.post("http://localhost:5000/login", {
         email,
         password,
       });
