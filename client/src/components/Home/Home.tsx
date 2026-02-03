@@ -1,88 +1,271 @@
-import React, { useState } from "react";
-import { LogOut, Menu, X } from "lucide-react";
-import { Outlet, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import {
+  LogOut,
+  Menu,
+  X,
+  Home as HomeIcon,
+  Folder,
+  Share2,
+  Users,
+  Settings,
+  BarChart3,
+  Cloud,
+  Shield,
+  Zap,
+  Globe,
+  User,
+  HardDrive,
+} from "lucide-react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
-import { FaHome } from "react-icons/fa";
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [user] = useState({
+    name: "John Doe",
+    email: localStorage.getItem("userEmail") || "user@example.com",
+    storage: 3.2,
+    storageLimit: 10,
+  });
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setIsOpen(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const navItems = [
+    {
+      icon: <HomeIcon className="w-5 h-5" />,
+      label: "Dashboard",
+      path: "/home",
+    },
+    {
+      icon: <Folder className="w-5 h-5" />,
+      label: "My Files",
+      path: "/home/myfiles",
+    },
+    {
+      icon: <Share2 className="w-5 h-5" />,
+      label: "Shared Files",
+      path: "/home/shared",
+    },
+    {
+      icon: <Users className="w-5 h-5" />,
+      label: "Teams",
+      path: "/home/teams",
+    },
+    {
+      icon: <BarChart3 className="w-5 h-5" />,
+      label: "Analytics",
+      path: "/home/analytics",
+    },
+    {
+      icon: <Settings className="w-5 h-5" />,
+      label: "Settings",
+      path: "/home/settings",
+    },
+  ];
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userEmail");
+    navigate("/login");
+  };
 
   return (
-    <div className="h-screen flex">
+    <div className="h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex overflow-hidden">
       {/* Sidebar */}
       <div
-        className={`${
-          isOpen ? "w-64" : "w-16"
-        } h-screen bg-gradient-to-b from-[#bfc7df66] to-[#8ca0de60] shadow-[0_6px_15px_rgba(100,100,100,0.3)] rounded-r-2xl p-4 transition-all duration-300 flex flex-col justify-start`}
+        className={`
+          ${isOpen ? "w-64" : "w-20"} 
+          h-screen bg-gray-800/80 backdrop-blur-xl
+          border-r border-gray-700
+          transition-all duration-300 ease-in-out
+          flex flex-col
+          ${isMobile ? (isOpen ? "fixed z-50" : "hidden") : ""}
+        `}
       >
-        <button
-          className="mb-6 text-black cursor-pointer"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-
-        {isOpen && (
-          <div className="space-y-4 ">
-            <button
-              onClick={() => navigate("/home/myfiles")}
-              className="w-full text-left px-4 py-2 rounded-lg bg-white/60 hover:bg-white/80 text-[#3158cd] hover:text-[#133aaf]  transition-all duration-300 shadow-sm cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <FaHome className="text-2xl" />{" "}
-                <span
-                  style={{ fontFamily: "Josefin sans" }}
-                  className="font-bold"
-                >
-                  My Files
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-gray-700">
+          <div className="flex items-center justify-between">
+            {isOpen && (
+              <div className="flex items-center space-x-2">
+                <Cloud className="w-8 h-8 text-[#3498db]" />
+                <span className="text-xl font-bold text-white">
+                  SecureShare
                 </span>
               </div>
+            )}
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+            >
+              {isOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
-        )}
+        </div>
+
+        {/* Navigation */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <nav className="space-y-2">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => {
+                    navigate(item.path);
+                    if (isMobile) setIsOpen(false);
+                  }}
+                  className={`
+                    w-full flex items-center ${isOpen ? "justify-start px-4" : "justify-center"} 
+                    py-3 rounded-xl transition-all duration-200
+                    ${
+                      isActive
+                        ? "bg-gradient-to-r from-[#3498db]/20 to-[#2ecc71]/10 text-white border-l-4 border-[#3498db]"
+                        : "text-gray-400 hover:text-white hover:bg-gray-700/50"
+                    }
+                  `}
+                >
+                  <div className={`${isActive ? "text-[#3498db]" : ""}`}>
+                    {item.icon}
+                  </div>
+                  {isOpen && (
+                    <span className="ml-3 font-medium">{item.label}</span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* User Profile */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-full flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
+            </div>
+            {isOpen && (
+              <div className="ml-3 flex-1 overflow-hidden">
+                <div className="text-white font-medium truncate">
+                  {user.name}
+                </div>
+                <div className="text-gray-400 text-sm truncate">
+                  {user.email}
+                </div>
+              </div>
+            )}
+            {isOpen && (
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                title="Logout"
+              >
+                <LogOut size={18} />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Dynamic Page Content */}
-      <div className="flex-1 p-2 overflow-y-auto">
-        <nav className="bg-white/70 backdrop-blur-md p-3 rounded-2xl mb-3 shadow-md flex justify-between items-center">
-          {/* Brand */}
-          <h1
-            style={{
-              fontFamily: "'Lavishly Yours', cursive",
-              cursor: "pointer",
-            }}
-            className="text-3xl md:text-4xl font-bold text-[#3158cd]"
-            onClick={() => navigate("/home")}
-          >
-            <span className="bg-gradient-to-l from-gray-800 to-[#4270fa] bg-clip-text text-transparent drop-shadow-md">
-              ShareVault{" "}
-            </span>
+      {/* Overlay for mobile */}
+      {isMobile && isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
 
-            <span
-              className="hidden sm:inline text-lg md:text-xl"
-              style={{ fontFamily: "Josefin Sans, sans-serif" }}
-            >
-              - File Sharing System
-            </span>
-          </h1>
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Top Navigation */}
+        <header className="bg-gray-800/80 backdrop-blur-xl border-b border-gray-700 p-4">
+          {/* Stats Banner */}
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
+              <div className="flex items-center">
+                <div className="p-2 bg-[#3498db]/20 rounded-lg mr-3">
+                  <HardDrive className="w-5 h-5 text-[#3498db]" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">
+                    {user.storage} GB
+                  </div>
+                  <div className="text-gray-400 text-sm">Storage Used</div>
+                </div>
+              </div>
+            </div>
 
-          {/* Logout Button */}
-          <button
-            onClick={() => {
-              localStorage.removeItem("authToken");
-              navigate("/login");
-            }}
-            className="ml-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#3158cd] text-white hover:bg-[#133aaf]  transition-all duration-300 shadow-sm cursor-pointer text-sm md:text-base"
-          >
-            {/* Text hidden on mobile */}
-            <span className="hidden sm:inline">Logout</span>
-            {/* Icon always visible */}
-            <LogOut className="w-5 h-5" />
-          </button>
-        </nav>
-        {/* Render the selected page */}
-        {window.location.pathname === "/home" ? <HomeContent /> : <Outlet />}
+            <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
+              <div className="flex items-center">
+                <div className="p-2 bg-[#2ecc71]/20 rounded-lg mr-3">
+                  <Zap className="w-5 h-5 text-[#2ecc71]" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">142</div>
+                  <div className="text-gray-400 text-sm">Files</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
+              <div className="flex items-center">
+                <div className="p-2 bg-[#9b59b6]/20 rounded-lg mr-3">
+                  <Share2 className="w-5 h-5 text-[#9b59b6]" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">28</div>
+                  <div className="text-gray-400 text-sm">Shared</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
+              <div className="flex items-center">
+                <div className="p-2 bg-[#f39c12]/20 rounded-lg mr-3">
+                  <Shield className="w-5 h-5 text-[#f39c12]" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-white">256-bit</div>
+                  <div className="text-gray-400 text-sm">Encryption</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {location.pathname === "/home" ? <HomeContent /> : <Outlet />}
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-gray-700 p-4 bg-gray-800/50">
+          <div className="flex items-center justify-between text-gray-400 text-sm">
+            <div className="flex items-center space-x-4">
+              <span>© 2026 SecureShare</span>
+              <span className="text-[#2ecc71] flex items-center">
+                <Globe className="w-3 h-3 mr-1" />
+                All files encrypted
+              </span>
+            </div>
+            <div className="flex items-center space-x-6">
+              <span className="text-[#3498db]">99.9% Uptime</span>
+              <span>{new Date().toLocaleDateString()}</span>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );
