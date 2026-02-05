@@ -10,11 +10,8 @@ import {
   Settings,
   BarChart3,
   Cloud,
-  Shield,
-  Zap,
   Globe,
   User,
-  HardDrive,
 } from "lucide-react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
@@ -189,62 +186,6 @@ const Home: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Top Navigation */}
-        <header className="bg-gray-800/80 backdrop-blur-xl border-b border-gray-700 p-4">
-          {/* Stats Banner */}
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
-              <div className="flex items-center">
-                <div className="p-2 bg-[#3498db]/20 rounded-lg mr-3">
-                  <HardDrive className="w-5 h-5 text-[#3498db]" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-white">
-                    {user.storage} GB
-                  </div>
-                  <div className="text-gray-400 text-sm">Storage Used</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
-              <div className="flex items-center">
-                <div className="p-2 bg-[#2ecc71]/20 rounded-lg mr-3">
-                  <Zap className="w-5 h-5 text-[#2ecc71]" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-white">142</div>
-                  <div className="text-gray-400 text-sm">Files</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
-              <div className="flex items-center">
-                <div className="p-2 bg-[#9b59b6]/20 rounded-lg mr-3">
-                  <Share2 className="w-5 h-5 text-[#9b59b6]" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-white">28</div>
-                  <div className="text-gray-400 text-sm">Shared</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
-              <div className="flex items-center">
-                <div className="p-2 bg-[#f39c12]/20 rounded-lg mr-3">
-                  <Shield className="w-5 h-5 text-[#f39c12]" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-white">256-bit</div>
-                  <div className="text-gray-400 text-sm">Encryption</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-6">
           {location.pathname === "/home" ? <HomeContent /> : <Outlet />}
