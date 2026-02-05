@@ -7,6 +7,8 @@ import cors from "cors";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import streamifier from "streamifier";
+import analyticsRoutes from "./routes/analytics.js";
+
 
 const app = express();
 
@@ -24,7 +26,10 @@ connectDB();
 
 // Middleware
 app.use(express.json());
+// In your server.js or app.js
 
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/track", analyticsRoutes);
 // Routes
 app.use("/", router);
 
