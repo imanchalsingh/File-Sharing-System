@@ -22,6 +22,10 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL,
+  });
+
   const handleRegisterRedirect = () => {
     navigate("/register");
   };
@@ -36,7 +40,7 @@ const Login: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:5000/login", {
+      const response = await api.post("http://localhost:5000/login", {
         email,
         password,
       });
