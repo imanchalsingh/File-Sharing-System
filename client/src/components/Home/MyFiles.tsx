@@ -180,13 +180,13 @@ const MyFiles: React.FC = () => {
   };
 
   // Function to track view
-  const trackView = async (fileId: string) => {
+  const trackView = async (fileId: string, _fileName: string, _fileUrl: string) => {
     try {
       const timestamp = new Date().toISOString();
 
       // Update local state
-      setFiles((prevFiles) =>
-        prevFiles.map((file) =>
+      setFiles((prevFiles) => {
+        const updated = prevFiles.map((file) =>
           file.id === fileId
             ? {
                 ...file,
@@ -194,8 +194,12 @@ const MyFiles: React.FC = () => {
                 viewHistory: [...(file.viewHistory || []), { timestamp }],
               }
             : file,
-        ),
-      );
+        );
+
+        localStorage.setItem("uploadedFiles", JSON.stringify(updated));
+
+        return updated;
+      });
 
       // Save to localStorage
       const updatedFiles = files.map((file) =>
