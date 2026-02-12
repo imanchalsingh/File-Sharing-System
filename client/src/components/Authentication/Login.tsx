@@ -89,7 +89,6 @@ const Login: React.FC = () => {
 
   const demoAccounts = [
     { email: "demo@secureshare.com", password: "demo123", role: "Demo User" },
-    { email: "admin@secureshare.com", password: "admin123", role: "Admin" },
   ];
 
   return (
