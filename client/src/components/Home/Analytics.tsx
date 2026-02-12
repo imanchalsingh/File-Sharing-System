@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   BarChart3,
-  PieChart,
   TrendingUp,
   Share2,
   Download,
@@ -15,17 +14,18 @@ import {
   Target,
   Zap,
   HardDrive,
-  BarChart,
   Database,
 } from "lucide-react";
 import {
+  BarChart,
   Bar,
-  Pie,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
+  PieChart,
+  Pie,
   ResponsiveContainer,
   AreaChart,
   Area,
@@ -737,7 +737,7 @@ const Analytics: React.FC = () => {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={(entry) => `${entry.type}`}
+                    label={(entry: any) => `${entry.type}`}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="shares"
