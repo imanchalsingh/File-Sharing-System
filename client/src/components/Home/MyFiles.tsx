@@ -105,7 +105,7 @@ const MyFiles: React.FC = () => {
 
       // Send to backend API (if available)
       try {
-        await api.post("http://localhost:5000/api/track/share", {
+        await api.post("/api/track/share", {
           fileId,
           fileName,
           fileUrl,
@@ -163,7 +163,7 @@ const MyFiles: React.FC = () => {
 
       // Send to backend API (if available)
       try {
-        await api.post("http://localhost:5000/api/track/download", {
+        await api.post("/api/track/download", {
           fileId,
           fileName,
           fileUrl,
