@@ -5,9 +5,6 @@ import {
   X,
   Home as HomeIcon,
   Folder,
-  Share2,
-  Users,
-  Settings,
   BarChart3,
   Cloud,
   Globe,
@@ -22,7 +19,6 @@ const Home: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [user] = useState({
-    name: "John Doe",
     email: localStorage.getItem("userEmail") || "user@example.com",
     storage: 3.2,
     storageLimit: 10,
@@ -53,24 +49,9 @@ const Home: React.FC = () => {
       path: "/home/myfiles",
     },
     {
-      icon: <Share2 className="w-5 h-5" />,
-      label: "Shared Files",
-      path: "/home/shared",
-    },
-    {
-      icon: <Users className="w-5 h-5" />,
-      label: "Teams",
-      path: "/home/teams",
-    },
-    {
       icon: <BarChart3 className="w-5 h-5" />,
       label: "Analytics",
       path: "/home/analytics",
-    },
-    {
-      icon: <Settings className="w-5 h-5" />,
-      label: "Settings",
-      path: "/home/settings",
     },
   ];
 
@@ -155,9 +136,6 @@ const Home: React.FC = () => {
             </div>
             {isOpen && (
               <div className="ml-3 flex-1 overflow-hidden">
-                <div className="text-white font-medium truncate">
-                  {user.name}
-                </div>
                 <div className="text-gray-400 text-sm truncate">
                   {user.email}
                 </div>
