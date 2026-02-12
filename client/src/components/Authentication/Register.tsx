@@ -46,7 +46,7 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await api.post("http://localhost:5000/register", {
+      const res = await api.post("/register", {
         username,
         email,
         password,
@@ -54,7 +54,7 @@ const Register: React.FC = () => {
 
       if (res.data) {
         alert("Registration successful! Please login.");
-        navigate("/login");
+        navigate("/home");
       }
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
