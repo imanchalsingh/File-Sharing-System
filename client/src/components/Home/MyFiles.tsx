@@ -17,7 +17,7 @@ import {
   List,
   Eye,
   BarChart3,
-  Link as LinkIcon
+  Link as LinkIcon,
 } from "lucide-react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
@@ -48,6 +48,11 @@ const MyFiles: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showFileStats, setShowFileStats] = useState<string | null>(null);
 
+  // fetch live url
+  const api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL,
+  });
+
   // Load saved files on component mount
   useEffect(() => {
     const stored = localStorage.getItem("uploadedFiles");
@@ -57,40 +62,50 @@ const MyFiles: React.FC = () => {
   }, []);
 
   // Function to track link copy
-  const trackLinkCopy = async (fileId: string, fileName: string, fileUrl: string) => {
+  const trackLinkCopy = async (
+    fileId: string,
+    fileName: string,
+    fileUrl: string,
+  ) => {
     try {
       const timestamp = new Date().toISOString();
-      
+
       // Update local state
-      setFiles(prevFiles => 
-        prevFiles.map(file => 
-          file.id === fileId 
-            ? { 
-                ...file, 
+      setFiles((prevFiles) =>
+        prevFiles.map((file) =>
+          file.id === fileId
+            ? {
+                ...file,
                 shareCount: (file.shareCount || 0) + 1,
                 lastAccessed: timestamp,
-                shareHistory: [...(file.shareHistory || []), { timestamp, source: 'direct_copy' }]
-              } 
-            : file
-        )
+                shareHistory: [
+                  ...(file.shareHistory || []),
+                  { timestamp, source: "direct_copy" },
+                ],
+              }
+            : file,
+        ),
       );
 
       // Save to localStorage
-      const updatedFiles = files.map(file => 
-        file.id === fileId 
-          ? { 
-              ...file, 
+      const updatedFiles = files.map((file) =>
+        file.id === fileId
+          ? {
+              ...file,
               shareCount: (file.shareCount || 0) + 1,
               lastAccessed: timestamp,
-              shareHistory: [...(file.shareHistory || []), { timestamp, source: 'direct_copy' }]
-            } 
-          : file
+              shareHistory: [
+                ...(file.shareHistory || []),
+                { timestamp, source: "direct_copy" },
+              ],
+            }
+          : file,
       );
       localStorage.setItem("uploadedFiles", JSON.stringify(updatedFiles));
 
       // Send to backend API (if available)
       try {
-        await axios.post("http://localhost:5000/api/track/share", {
+        await api.post("http://localhost:5000/api/track/share", {
           fileId,
           fileName,
           fileUrl,
@@ -100,49 +115,55 @@ const MyFiles: React.FC = () => {
           userAgent: navigator.userAgent,
         });
       } catch (apiError) {
-        console.log("API not available, tracking locally",apiError);
+        console.log("API not available, tracking locally", apiError);
       }
-
     } catch (error) {
       console.error("Failed to track share:", error);
     }
   };
 
   // Function to track download
-  const trackDownload = async (fileId: string, fileName: string, fileUrl: string) => {
+  const trackDownload = async (
+    fileId: string,
+    fileName: string,
+    fileUrl: string,
+  ) => {
     try {
       const timestamp = new Date().toISOString();
-      
+
       // Update local state
-      setFiles(prevFiles => 
-        prevFiles.map(file => 
-          file.id === fileId 
-            ? { 
-                ...file, 
+      setFiles((prevFiles) =>
+        prevFiles.map((file) =>
+          file.id === fileId
+            ? {
+                ...file,
                 downloadCount: (file.downloadCount || 0) + 1,
                 lastAccessed: timestamp,
-                downloadHistory: [...(file.downloadHistory || []), { timestamp }]
-              } 
-            : file
-        )
+                downloadHistory: [
+                  ...(file.downloadHistory || []),
+                  { timestamp },
+                ],
+              }
+            : file,
+        ),
       );
 
       // Save to localStorage
-      const updatedFiles = files.map(file => 
-        file.id === fileId 
-          ? { 
-              ...file, 
+      const updatedFiles = files.map((file) =>
+        file.id === fileId
+          ? {
+              ...file,
               downloadCount: (file.downloadCount || 0) + 1,
               lastAccessed: timestamp,
-              downloadHistory: [...(file.downloadHistory || []), { timestamp }]
-            } 
-          : file
+              downloadHistory: [...(file.downloadHistory || []), { timestamp }],
+            }
+          : file,
       );
       localStorage.setItem("uploadedFiles", JSON.stringify(updatedFiles));
 
       // Send to backend API (if available)
       try {
-        await axios.post("http://localhost:5000/api/track/download", {
+        await api.post("http://localhost:5000/api/track/download", {
           fileId,
           fileName,
           fileUrl,
@@ -151,9 +172,8 @@ const MyFiles: React.FC = () => {
           userAgent: navigator.userAgent,
         });
       } catch (apiError) {
-        console.log("API not available, tracking locally",apiError);
+        console.log("API not available, tracking locally", apiError);
       }
-
     } catch (error) {
       console.error("Failed to track download:", error);
     }
@@ -163,32 +183,31 @@ const MyFiles: React.FC = () => {
   const trackView = async (fileId: string) => {
     try {
       const timestamp = new Date().toISOString();
-      
+
       // Update local state
-      setFiles(prevFiles => 
-        prevFiles.map(file => 
-          file.id === fileId 
-            ? { 
-                ...file, 
+      setFiles((prevFiles) =>
+        prevFiles.map((file) =>
+          file.id === fileId
+            ? {
+                ...file,
                 viewCount: (file.viewCount || 0) + 1,
-                viewHistory: [...(file.viewHistory || []), { timestamp }]
-              } 
-            : file
-        )
+                viewHistory: [...(file.viewHistory || []), { timestamp }],
+              }
+            : file,
+        ),
       );
 
       // Save to localStorage
-      const updatedFiles = files.map(file => 
-        file.id === fileId 
-          ? { 
-              ...file, 
+      const updatedFiles = files.map((file) =>
+        file.id === fileId
+          ? {
+              ...file,
               viewCount: (file.viewCount || 0) + 1,
-              viewHistory: [...(file.viewHistory || []), { timestamp }]
-            } 
-          : file
+              viewHistory: [...(file.viewHistory || []), { timestamp }],
+            }
+          : file,
       );
       localStorage.setItem("uploadedFiles", JSON.stringify(updatedFiles));
-
     } catch (error) {
       console.error("Failed to track view:", error);
     }
@@ -209,8 +228,8 @@ const MyFiles: React.FC = () => {
         // Simulate upload progress
         const progressInterval = setInterval(() => {
           setUploadProgress((prev) => {
-            const newProgress = prev + (100 / selectedFilesList.length / 10);
-            return newProgress > (index + 1) * (100 / selectedFilesList.length) 
+            const newProgress = prev + 100 / selectedFilesList.length / 10;
+            return newProgress > (index + 1) * (100 / selectedFilesList.length)
               ? (index + 1) * (100 / selectedFilesList.length)
               : newProgress;
           });
@@ -226,7 +245,7 @@ const MyFiles: React.FC = () => {
           id: Date.now().toString() + index,
           name: file.name,
           url: mockUrl,
-          type: file.type.split('/')[0],
+          type: file.type.split("/")[0],
           size: formatFileSize(file.size),
           uploaded: new Date().toLocaleDateString(),
           shareCount: 0,
@@ -234,18 +253,17 @@ const MyFiles: React.FC = () => {
           viewCount: 0,
           shareHistory: [],
           downloadHistory: [],
-          viewHistory: []
+          viewHistory: [],
         };
 
         uploadedFiles.push(newFile);
         setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
-
       } catch (err) {
         console.error("Upload failed", err);
       }
     }
 
-    setFiles(prev => {
+    setFiles((prev) => {
       const updated = [...uploadedFiles, ...prev];
       localStorage.setItem("uploadedFiles", JSON.stringify(updated));
       return updated;
@@ -258,15 +276,15 @@ const MyFiles: React.FC = () => {
 
   // Delete file
   const handleDelete = (id: string) => {
-    const updated = files.filter(file => file.id !== id);
+    const updated = files.filter((file) => file.id !== id);
     setFiles(updated);
-    setSelectedFiles(prev => prev.filter(fileId => fileId !== id));
+    setSelectedFiles((prev) => prev.filter((fileId) => fileId !== id));
     localStorage.setItem("uploadedFiles", JSON.stringify(updated));
   };
 
   // Delete selected files
   const handleDeleteSelected = () => {
-    const updated = files.filter(file => !selectedFiles.includes(file.id));
+    const updated = files.filter((file) => !selectedFiles.includes(file.id));
     setFiles(updated);
     setSelectedFiles([]);
     localStorage.setItem("uploadedFiles", JSON.stringify(updated));
@@ -274,36 +292,44 @@ const MyFiles: React.FC = () => {
 
   // Toggle file selection
   const toggleFileSelection = (id: string) => {
-    setSelectedFiles(prev =>
+    setSelectedFiles((prev) =>
       prev.includes(id)
-        ? prev.filter(fileId => fileId !== id)
-        : [...prev, id]
+        ? prev.filter((fileId) => fileId !== id)
+        : [...prev, id],
     );
   };
 
   // Share file with tracking
-  const handleShare = async (fileId: string, fileUrl: string, fileName: string) => {
+  const handleShare = async (
+    fileId: string,
+    fileUrl: string,
+    fileName: string,
+  ) => {
     // Copy to clipboard
     await navigator.clipboard.writeText(fileUrl);
-    
+
     // Track the copy
     await trackLinkCopy(fileId, fileName, fileUrl);
-    
+
     // Show success message
     alert("Link copied to clipboard!");
   };
 
   // Download file with tracking
-  const handleDownload = async (fileId: string, fileUrl: string, fileName: string) => {
+  const handleDownload = async (
+    fileId: string,
+    fileUrl: string,
+    fileName: string,
+  ) => {
     try {
       // Track download first
       await trackDownload(fileId, fileName, fileUrl);
-      
+
       // Then proceed with download
       const response = await fetch(fileUrl);
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = fileName;
       document.body.appendChild(link);
@@ -316,31 +342,35 @@ const MyFiles: React.FC = () => {
   };
 
   // View image with tracking
-  const handleImagePreview = (fileId: string, fileUrl: string, fileName: string) => {
+  const handleImagePreview = (
+    fileId: string,
+    fileUrl: string,
+    fileName: string,
+  ) => {
     trackView(fileId, fileName, fileUrl);
     setActiveImage(fileUrl);
   };
 
   // Filter files based on search
-  const filteredFiles = files.filter(file =>
-    file.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredFiles = files.filter((file) =>
+    file.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Format file size
   function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
 
   // Get file icon based on type
   const getFileIcon = (type: string) => {
     switch (type) {
-      case 'image':
+      case "image":
         return <ImageIcon className="w-5 h-5" />;
-      case 'application':
+      case "application":
         return <FileText className="w-5 h-5" />;
       default:
         return <File className="w-5 h-5" />;
@@ -350,34 +380,37 @@ const MyFiles: React.FC = () => {
   // Get file type color
   const getFileTypeColor = (type: string) => {
     switch (type) {
-      case 'image':
-        return '#3498db';
-      case 'application':
-        return '#2ecc71';
-      case 'video':
-        return '#e74c3c';
+      case "image":
+        return "#3498db";
+      case "application":
+        return "#2ecc71";
+      case "video":
+        return "#e74c3c";
       default:
-        return '#9b59b6';
+        return "#9b59b6";
     }
   };
 
   // Get file stats
   const getFileStats = (fileId: string) => {
-    const file = files.find(f => f.id === fileId);
+    const file = files.find((f) => f.id === fileId);
     if (!file) return null;
-    
+
     const today = new Date().toDateString();
-    const todayShares = file.shareHistory?.filter(share => 
-      new Date(share.timestamp).toDateString() === today
-    ).length || 0;
+    const todayShares =
+      file.shareHistory?.filter(
+        (share) => new Date(share.timestamp).toDateString() === today,
+      ).length || 0;
 
-    const todayDownloads = file.downloadHistory?.filter(download => 
-      new Date(download.timestamp).toDateString() === today
-    ).length || 0;
+    const todayDownloads =
+      file.downloadHistory?.filter(
+        (download) => new Date(download.timestamp).toDateString() === today,
+      ).length || 0;
 
-    const todayViews = file.viewHistory?.filter(view => 
-      new Date(view.timestamp).toDateString() === today
-    ).length || 0;
+    const todayViews =
+      file.viewHistory?.filter(
+        (view) => new Date(view.timestamp).toDateString() === today,
+      ).length || 0;
 
     return {
       totalShares: file.shareCount || 0,
@@ -386,22 +419,28 @@ const MyFiles: React.FC = () => {
       todayShares,
       todayDownloads,
       todayViews,
-      lastAccessed: file.lastAccessed ? new Date(file.lastAccessed).toLocaleString() : 'Never'
+      lastAccessed: file.lastAccessed
+        ? new Date(file.lastAccessed).toLocaleString()
+        : "Never",
     };
   };
 
   // Get total stats for header
   const totalStats = {
     totalShares: files.reduce((sum, file) => sum + (file.shareCount || 0), 0),
-    totalDownloads: files.reduce((sum, file) => sum + (file.downloadCount || 0), 0),
+    totalDownloads: files.reduce(
+      (sum, file) => sum + (file.downloadCount || 0),
+      0,
+    ),
     totalViews: files.reduce((sum, file) => sum + (file.viewCount || 0), 0),
     todayShares: files.reduce((sum, file) => {
       const today = new Date().toDateString();
-      const todayShares = file.shareHistory?.filter(share => 
-        new Date(share.timestamp).toDateString() === today
-      ).length || 0;
+      const todayShares =
+        file.shareHistory?.filter(
+          (share) => new Date(share.timestamp).toDateString() === today,
+        ).length || 0;
       return sum + todayShares;
-    }, 0)
+    }, 0),
   };
 
   return (
@@ -415,7 +454,7 @@ const MyFiles: React.FC = () => {
               {files.length} files • {selectedFiles.length} selected
             </p>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             {/* View Toggle */}
             <div className="flex bg-gray-800 rounded-lg p-1">
@@ -438,7 +477,7 @@ const MyFiles: React.FC = () => {
               <div className="hidden sm:block w-32">
                 <div className="text-xs text-gray-400 mb-1">Uploading...</div>
                 <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <motion.div 
+                  <motion.div
                     className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71]"
                     initial={{ width: 0 }}
                     animate={{ width: `${uploadProgress}%` }}
@@ -458,7 +497,9 @@ const MyFiles: React.FC = () => {
                 <Folder className="w-5 h-5 text-[#3498db]" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-white">{files.length}</div>
+                <div className="text-2xl font-bold text-white">
+                  {files.length}
+                </div>
                 <div className="text-gray-400 text-sm">Total Files</div>
               </div>
             </div>
@@ -498,7 +539,9 @@ const MyFiles: React.FC = () => {
                 <BarChart3 className="w-5 h-5 text-[#f39c12]" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-white">{totalStats.todayShares}</div>
+                <div className="text-2xl font-bold text-white">
+                  {totalStats.todayShares}
+                </div>
                 <div className="text-gray-400 text-sm">Today's Copies</div>
               </div>
             </div>
@@ -561,9 +604,11 @@ const MyFiles: React.FC = () => {
         {/* Upload Progress (Mobile) */}
         {isUploading && (
           <div className="mt-4 sm:hidden">
-            <div className="text-sm text-gray-400 mb-1">Uploading... {uploadProgress.toFixed(0)}%</div>
+            <div className="text-sm text-gray-400 mb-1">
+              Uploading... {uploadProgress.toFixed(0)}%
+            </div>
             <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <motion.div 
+              <motion.div
                 className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71]"
                 initial={{ width: 0 }}
                 animate={{ width: `${uploadProgress}%` }}
@@ -594,8 +639,8 @@ const MyFiles: React.FC = () => {
                     transition={{ duration: 0.2 }}
                     className={`relative group rounded-xl overflow-hidden border ${
                       selectedFiles.includes(file.id)
-                        ? 'border-[#3498db] ring-2 ring-[#3498db]/20'
-                        : 'border-gray-700 hover:border-gray-600'
+                        ? "border-[#3498db] ring-2 ring-[#3498db]/20"
+                        : "border-gray-700 hover:border-gray-600"
                     } bg-gray-800/30 transition-all duration-300 hover:scale-[1.02]`}
                   >
                     {/* Selection Checkbox */}
@@ -603,11 +648,13 @@ const MyFiles: React.FC = () => {
                       onClick={() => toggleFileSelection(file.id)}
                       className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center ${
                         selectedFiles.includes(file.id)
-                          ? 'bg-[#3498db] text-white'
-                          : 'bg-gray-900/80 text-gray-400 hover:text-white'
+                          ? "bg-[#3498db] text-white"
+                          : "bg-gray-900/80 text-gray-400 hover:text-white"
                       }`}
                     >
-                      {selectedFiles.includes(file.id) && <CheckCircle className="w-4 h-4" />}
+                      {selectedFiles.includes(file.id) && (
+                        <CheckCircle className="w-4 h-4" />
+                      )}
                     </button>
 
                     {/* Stats Badge */}
@@ -625,27 +672,31 @@ const MyFiles: React.FC = () => {
                     )}
 
                     {/* File Preview */}
-                    <div 
+                    <div
                       className="h-40 relative overflow-hidden cursor-pointer"
-                      onClick={() => handleImagePreview(file.id, file.url, file.name)}
+                      onClick={() =>
+                        handleImagePreview(file.id, file.url, file.name)
+                      }
                     >
-                      {file.type === 'image' ? (
+                      {file.type === "image" ? (
                         <img
                           src={file.url}
                           alt={file.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
                       ) : (
-                        <div 
+                        <div
                           className="w-full h-full flex items-center justify-center"
-                          style={{ backgroundColor: `${getFileTypeColor(file.type)}20` }}
+                          style={{
+                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                          }}
                         >
                           <div style={{ color: getFileTypeColor(file.type) }}>
                             {getFileIcon(file.type)}
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Overlay Actions */}
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-2">
                         <button
@@ -685,9 +736,11 @@ const MyFiles: React.FC = () => {
                     <div className="p-3">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center">
-                          <div 
+                          <div
                             className="p-1.5 rounded-lg mr-2"
-                            style={{ backgroundColor: `${getFileTypeColor(file.type)}20` }}
+                            style={{
+                              backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            }}
                           >
                             <div style={{ color: getFileTypeColor(file.type) }}>
                               {getFileIcon(file.type)}
@@ -702,18 +755,27 @@ const MyFiles: React.FC = () => {
                         <span>{file.size}</span>
                         <span>{file.uploaded}</span>
                       </div>
-                      
+
                       {/* Mini Stats */}
                       <div className="flex justify-between text-xs">
-                        <div className="flex items-center text-[#3498db]" title="Link Copies">
+                        <div
+                          className="flex items-center text-[#3498db]"
+                          title="Link Copies"
+                        >
                           <LinkIcon className="w-3 h-3 mr-1" />
                           {file.shareCount || 0}
                         </div>
-                        <div className="flex items-center text-[#2ecc71]" title="Downloads">
+                        <div
+                          className="flex items-center text-[#2ecc71]"
+                          title="Downloads"
+                        >
                           <Download className="w-3 h-3 mr-1" />
                           {file.downloadCount || 0}
                         </div>
-                        <div className="flex items-center text-[#f39c12]" title="Views">
+                        <div
+                          className="flex items-center text-[#f39c12]"
+                          title="Views"
+                        >
                           <Eye className="w-3 h-3 mr-1" />
                           {file.viewCount || 0}
                         </div>
@@ -734,14 +796,14 @@ const MyFiles: React.FC = () => {
                 <div className="col-span-2">Uploaded</div>
                 <div className="col-span-2">Actions</div>
               </div>
-              
+
               <div className="divide-y divide-gray-700">
                 {filteredFiles.map((file) => {
                   return (
                     <div
                       key={file.id}
                       className={`grid grid-cols-12 gap-4 p-4 items-center hover:bg-gray-800/50 transition-colors ${
-                        selectedFiles.includes(file.id) ? 'bg-[#3498db]/10' : ''
+                        selectedFiles.includes(file.id) ? "bg-[#3498db]/10" : ""
                       }`}
                     >
                       <div className="col-span-4 flex items-center">
@@ -756,48 +818,67 @@ const MyFiles: React.FC = () => {
                           )}
                         </button>
                         <div className="flex items-center">
-                          <div 
+                          <div
                             className="p-2 rounded-lg mr-3"
-                            style={{ backgroundColor: `${getFileTypeColor(file.type)}20` }}
+                            style={{
+                              backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            }}
                           >
                             <div style={{ color: getFileTypeColor(file.type) }}>
                               {getFileIcon(file.type)}
                             </div>
                           </div>
                           <div>
-                            <div className="text-white font-medium truncate max-w-[200px]">{file.name}</div>
-                            <div className="text-gray-400 text-xs">{file.size}</div>
+                            <div className="text-white font-medium truncate max-w-[200px]">
+                              {file.name}
+                            </div>
+                            <div className="text-gray-400 text-xs">
+                              {file.size}
+                            </div>
                           </div>
                         </div>
                       </div>
                       <div className="col-span-2">
-                        <span className="px-2 py-1 rounded text-xs font-medium" style={{ 
-                          backgroundColor: `${getFileTypeColor(file.type)}20`,
-                          color: getFileTypeColor(file.type)
-                        }}>
+                        <span
+                          className="px-2 py-1 rounded text-xs font-medium"
+                          style={{
+                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            color: getFileTypeColor(file.type),
+                          }}
+                        >
                           {file.type.toUpperCase()}
                         </span>
                       </div>
                       <div className="col-span-1 text-center">
-                        <div className="text-white font-bold">{file.shareCount || 0}</div>
+                        <div className="text-white font-bold">
+                          {file.shareCount || 0}
+                        </div>
                         <div className="text-gray-400 text-xs">Copies</div>
                       </div>
                       <div className="col-span-1 text-center">
-                        <div className="text-white font-bold">{file.downloadCount || 0}</div>
+                        <div className="text-white font-bold">
+                          {file.downloadCount || 0}
+                        </div>
                         <div className="text-gray-400 text-xs">Downloads</div>
                       </div>
-                      <div className="col-span-2 text-gray-400 text-sm">{file.uploaded}</div>
+                      <div className="col-span-2 text-gray-400 text-sm">
+                        {file.uploaded}
+                      </div>
                       <div className="col-span-2">
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => handleDownload(file.id, file.url, file.name)}
+                            onClick={() =>
+                              handleDownload(file.id, file.url, file.name)
+                            }
                             className="p-1.5 hover:bg-gray-700 rounded"
                             title="Download"
                           >
                             <Download className="w-4 h-4 text-gray-400 hover:text-white" />
                           </button>
                           <button
-                            onClick={() => handleShare(file.id, file.url, file.name)}
+                            onClick={() =>
+                              handleShare(file.id, file.url, file.name)
+                            }
                             className="p-1.5 hover:bg-gray-700 rounded"
                             title="Share"
                           >
@@ -834,9 +915,13 @@ const MyFiles: React.FC = () => {
           <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-800/50 flex items-center justify-center">
             <Folder className="w-12 h-12 text-gray-400" />
           </div>
-          <h3 className="text-xl font-medium text-white mb-2">No files found</h3>
+          <h3 className="text-xl font-medium text-white mb-2">
+            No files found
+          </h3>
           <p className="text-gray-400 mb-6">
-            {searchQuery ? "Try a different search term" : "Upload your first file to get started"}
+            {searchQuery
+              ? "Try a different search term"
+              : "Upload your first file to get started"}
           </p>
           <label className="inline-block">
             <input
@@ -871,7 +956,9 @@ const MyFiles: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">File Statistics</h3>
+                <h3 className="text-xl font-bold text-white">
+                  File Statistics
+                </h3>
                 <button
                   onClick={() => setShowFileStats(null)}
                   className="p-2 hover:bg-gray-700 rounded-lg"
@@ -881,25 +968,31 @@ const MyFiles: React.FC = () => {
               </div>
 
               {(() => {
-                const file = files.find(f => f.id === showFileStats);
+                const file = files.find((f) => f.id === showFileStats);
                 if (!file) return null;
                 const stats = getFileStats(file.id);
-                
+
                 return (
                   <>
                     <div className="mb-6">
                       <div className="flex items-center mb-4">
-                        <div 
+                        <div
                           className="p-2 rounded-lg mr-3"
-                          style={{ backgroundColor: `${getFileTypeColor(file.type)}20` }}
+                          style={{
+                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                          }}
                         >
                           <div style={{ color: getFileTypeColor(file.type) }}>
                             {getFileIcon(file.type)}
                           </div>
                         </div>
                         <div>
-                          <h4 className="text-white font-medium truncate">{file.name}</h4>
-                          <p className="text-gray-400 text-sm">{file.size} • {file.uploaded}</p>
+                          <h4 className="text-white font-medium truncate">
+                            {file.name}
+                          </h4>
+                          <p className="text-gray-400 text-sm">
+                            {file.size} • {file.uploaded}
+                          </p>
                         </div>
                       </div>
 
@@ -908,31 +1001,44 @@ const MyFiles: React.FC = () => {
                           <div className="text-2xl font-bold text-[#3498db] mb-1">
                             {stats?.totalShares || 0}
                           </div>
-                          <div className="text-gray-400 text-sm">Total Link Copies</div>
+                          <div className="text-gray-400 text-sm">
+                            Total Link Copies
+                          </div>
                         </div>
                         <div className="bg-gray-700/50 p-4 rounded-lg">
                           <div className="text-2xl font-bold text-[#2ecc71] mb-1">
                             {stats?.totalDownloads || 0}
                           </div>
-                          <div className="text-gray-400 text-sm">Total Downloads</div>
+                          <div className="text-gray-400 text-sm">
+                            Total Downloads
+                          </div>
                         </div>
                         <div className="bg-gray-700/50 p-4 rounded-lg">
                           <div className="text-2xl font-bold text-[#f39c12] mb-1">
                             {stats?.todayShares || 0}
                           </div>
-                          <div className="text-gray-400 text-sm">Today's Copies</div>
+                          <div className="text-gray-400 text-sm">
+                            Today's Copies
+                          </div>
                         </div>
                         <div className="bg-gray-700/50 p-4 rounded-lg">
                           <div className="text-2xl font-bold text-[#9b59b6] mb-1">
                             {stats?.totalViews || 0}
                           </div>
-                          <div className="text-gray-400 text-sm">Total Views</div>
+                          <div className="text-gray-400 text-sm">
+                            Total Views
+                          </div>
                         </div>
                       </div>
 
                       <div className="text-sm text-gray-400">
-                        <p className="mb-1">Last accessed: {stats?.lastAccessed || 'Never'}</p>
-                        <p>Today: {stats?.todayShares || 0} copies, {stats?.todayDownloads || 0} downloads</p>
+                        <p className="mb-1">
+                          Last accessed: {stats?.lastAccessed || "Never"}
+                        </p>
+                        <p>
+                          Today: {stats?.todayShares || 0} copies,{" "}
+                          {stats?.todayDownloads || 0} downloads
+                        </p>
                       </div>
                     </div>
 
@@ -997,8 +1103,10 @@ const MyFiles: React.FC = () => {
             >
               <button
                 onClick={() => {
-                  const fileId = files.find(f => f.url === activeImage)?.id;
-                  const fileName = files.find(f => f.url === activeImage)?.name;
+                  const fileId = files.find((f) => f.url === activeImage)?.id;
+                  const fileName = files.find(
+                    (f) => f.url === activeImage,
+                  )?.name;
                   if (fileId && fileName) {
                     handleShare(fileId, activeImage, fileName);
                   }
@@ -1010,8 +1118,10 @@ const MyFiles: React.FC = () => {
               </button>
               <button
                 onClick={() => {
-                  const fileId = files.find(f => f.url === activeImage)?.id;
-                  const fileName = files.find(f => f.url === activeImage)?.name;
+                  const fileId = files.find((f) => f.url === activeImage)?.id;
+                  const fileName = files.find(
+                    (f) => f.url === activeImage,
+                  )?.name;
                   if (fileId && fileName) {
                     handleDownload(fileId, activeImage, fileName);
                   }
