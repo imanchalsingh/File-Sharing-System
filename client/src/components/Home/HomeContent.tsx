@@ -14,47 +14,61 @@ import {
   BarChart3,
   Cloud,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
 } from "lucide-react";
 
 const HomeContent: React.FC = () => {
   const navigate = useNavigate();
 
   const heroFeatures = [
-    { icon: <Shield className="w-5 h-5" />, text: "End-to-End Encryption", color: "#3498db" },
-    { icon: <Zap className="w-5 h-5" />, text: "Lightning Fast Transfers", color: "#2ecc71" },
-    { icon: <Globe className="w-5 h-5" />, text: "Global Access", color: "#9b59b6" }
+    {
+      icon: <Shield className="w-5 h-5" />,
+      text: "End-to-End Encryption",
+      color: "#3498db",
+    },
+    {
+      icon: <Zap className="w-5 h-5" />,
+      text: "Lightning Fast Transfers",
+      color: "#2ecc71",
+    },
+    {
+      icon: <Globe className="w-5 h-5" />,
+      text: "Global Access",
+      color: "#9b59b6",
+    },
   ];
 
   const mainFeatures = [
     {
       icon: <Upload className="w-8 h-8" />,
       title: "Instant Upload",
-      description: "Upload files at blazing speeds with our optimized infrastructure",
+      description:
+        "Upload files at blazing speeds with our optimized infrastructure",
       color: "#3498db",
-      stats: "Upload speeds up to 1GB/s"
+      stats: "Upload speeds up to 1GB/s",
     },
     {
       icon: <Lock className="w-8 h-8" />,
       title: "Military Security",
       description: "256-bit AES encryption with zero-knowledge architecture",
       color: "#2ecc71",
-      stats: "256-bit encryption"
+      stats: "256-bit encryption",
     },
     {
       icon: <Users className="w-8 h-8" />,
       title: "Team Collaboration",
       description: "Share files with teams and control permissions granularly",
       color: "#9b59b6",
-      stats: "Unlimited team members"
+      stats: "Unlimited team members",
     },
     {
       icon: <Globe className="w-8 h-8" />,
       title: "Global CDN",
-      description: "Access your files from anywhere with our global content network",
+      description:
+        "Access your files from anywhere with our global content network",
       color: "#f39c12",
-      stats: "100+ locations"
-    }
+      stats: "100+ locations",
+    },
   ];
 
   const advancedFeatures = [
@@ -62,26 +76,28 @@ const HomeContent: React.FC = () => {
       icon: <Smartphone className="w-8 h-8" />,
       title: "Mobile Ready",
       description: "Full mobile support with native apps for iOS and Android",
-      color: "#e74c3c"
+      color: "#e74c3c",
     },
     {
       icon: <Database className="w-8 h-8" />,
       title: "Unlimited Storage",
       description: "Scale your storage needs without limitations",
-      color: "#3498db"
+      color: "#3498db",
     },
     {
       icon: <Share2 className="w-8 h-8" />,
       title: "Easy Sharing",
-      description: "Generate secure links with password protection and expiration",
-      color: "#2ecc71"
+      description:
+        "Generate secure links with password protection and expiration",
+      color: "#2ecc71",
     },
     {
       icon: <BarChart3 className="w-8 h-8" />,
       title: "Advanced Analytics",
-      description: "Track downloads, views, and engagement with detailed reports",
-      color: "#f39c12"
-    }
+      description:
+        "Track downloads, views, and engagement with detailed reports",
+      color: "#f39c12",
+    },
   ];
 
   const securityFeatures = [
@@ -90,7 +106,7 @@ const HomeContent: React.FC = () => {
     "Zero-knowledge architecture",
     "GDPR & HIPAA compliant",
     "Regular security audits",
-    "Real-time threat detection"
+    "Real-time threat detection",
   ];
 
   return (
@@ -99,10 +115,13 @@ const HomeContent: React.FC = () => {
       <section className="relative min-h-[100vh] flex flex-col lg:flex-row items-center justify-between px-4 sm:px-8 lg:px-12 gap-8 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl overflow-hidden border border-gray-700">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 25% 25%, #3498db 2px, transparent 2px)`,
-            backgroundSize: '50px 50px'
-          }}></div>
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `radial-gradient(circle at 25% 25%, #3498db 2px, transparent 2px)`,
+              backgroundSize: "50px 50px",
+            }}
+          ></div>
         </div>
 
         {/* Left Content */}
@@ -120,7 +139,9 @@ const HomeContent: React.FC = () => {
             className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#3498db]/20 to-[#2ecc71]/20 rounded-full border border-gray-700 mb-6"
           >
             <Shield className="w-4 h-4 mr-2 text-[#3498db]" />
-            <span className="text-sm text-gray-300">Trusted by 500K+ users</span>
+            <span className="text-sm text-gray-300">
+              Trusted by 500K+ users
+            </span>
           </motion.div>
 
           {/* Headline */}
@@ -148,8 +169,9 @@ const HomeContent: React.FC = () => {
             transition={{ delay: 0.6, duration: 0.6 }}
             className="mt-6 text-lg sm:text-xl text-gray-300 max-w-xl"
           >
-            Transfer files securely with enterprise-grade encryption. Share large files, 
-            collaborate with teams, and protect your data with military-grade security.
+            Transfer files securely with enterprise-grade encryption. Share
+            large files, collaborate with teams, and protect your data with
+            military-grade security.
           </motion.p>
 
           {/* Feature List */}
@@ -206,7 +228,7 @@ const HomeContent: React.FC = () => {
           <div className="relative">
             {/* Animated Background Circle */}
             <div className="absolute inset-0 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-full opacity-20 blur-3xl animate-pulse"></div>
-            
+
             {/* File Upload Animation */}
             <div className="relative bg-gray-800/50 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 shadow-2xl">
               <div className="flex items-center justify-center mb-6">
@@ -217,19 +239,23 @@ const HomeContent: React.FC = () => {
                   <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#2ecc71] animate-spin"></div>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-300">project_final.zip • 2.4 GB</span>
+                  <span className="text-gray-300">
+                    project_final.zip • 2.4 GB
+                  </span>
                   <span className="text-[#2ecc71]">85%</span>
                 </div>
                 <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-full"
-                    style={{ width: '85%' }}
+                    style={{ width: "85%" }}
                   ></div>
                 </div>
-                <p className="text-sm text-gray-400">Encrypting and uploading securely...</p>
+                <p className="text-sm text-gray-400">
+                  Encrypting and uploading securely...
+                </p>
               </div>
             </div>
           </div>
@@ -266,17 +292,20 @@ const HomeContent: React.FC = () => {
               viewport={{ once: true }}
               className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:-translate-y-2 cursor-pointer group"
             >
-              <div 
+              <div
                 className="p-3 rounded-xl mb-4 inline-block group-hover:scale-110 transition-transform"
                 style={{ backgroundColor: `${feature.color}20` }}
               >
-                <div style={{ color: feature.color }}>
-                  {feature.icon}
-                </div>
+                <div style={{ color: feature.color }}>{feature.icon}</div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">{feature.title}</h3>
+              <h3 className="text-xl font-bold text-white mb-2">
+                {feature.title}
+              </h3>
               <p className="text-gray-400 mb-4">{feature.description}</p>
-              <div className="text-sm font-medium" style={{ color: feature.color }}>
+              <div
+                className="text-sm font-medium"
+                style={{ color: feature.color }}
+              >
                 {feature.stats}
               </div>
             </motion.div>
@@ -316,16 +345,16 @@ const HomeContent: React.FC = () => {
                 className="bg-gray-900/50 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-colors duration-300"
               >
                 <div className="flex items-start">
-                  <div 
+                  <div
                     className="p-3 rounded-lg mr-4 flex-shrink-0"
                     style={{ backgroundColor: `${feature.color}20` }}
                   >
-                    <div style={{ color: feature.color }}>
-                      {feature.icon}
-                    </div>
+                    <div style={{ color: feature.color }}>{feature.icon}</div>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-white mb-2">{feature.title}</h3>
+                    <h3 className="text-xl font-bold text-white mb-2">
+                      {feature.title}
+                    </h3>
                     <p className="text-gray-400">{feature.description}</p>
                   </div>
                 </div>
@@ -355,10 +384,11 @@ const HomeContent: React.FC = () => {
                 </span>
               </h2>
               <p className="text-gray-400 text-lg mb-8">
-                Your files are protected with military-grade encryption and secure global 
-                infrastructure. We follow industry best practices to ensure your data stays safe.
+                Your files are protected with military-grade encryption and
+                secure global infrastructure. We follow industry best practices
+                to ensure your data stays safe.
               </p>
-              
+
               <div className="grid grid-cols-2 gap-4 mb-8">
                 {securityFeatures.slice(0, 4).map((feature, index) => (
                   <div key={index} className="flex items-center">
@@ -387,27 +417,50 @@ const HomeContent: React.FC = () => {
               <h3 className="text-2xl font-bold text-white mb-6 text-center">
                 Security Statistics
               </h3>
-              
+
               <div className="space-y-6">
                 {[
-                  { label: "Encryption Strength", value: "256-bit AES", color: "#3498db", percentage: 100 },
-                  { label: "Uptime SLA", value: "99.9%", color: "#2ecc71", percentage: 99.9 },
-                  { label: "Threat Detection", value: "Real-time", color: "#f39c12", percentage: 100 },
-                  { label: "Data Centers", value: "Global", color: "#9b59b6", percentage: 100 }
+                  {
+                    label: "Encryption Strength",
+                    value: "256-bit AES",
+                    color: "#3498db",
+                    percentage: 100,
+                  },
+                  {
+                    label: "Uptime SLA",
+                    value: "99.9%",
+                    color: "#2ecc71",
+                    percentage: 99.9,
+                  },
+                  {
+                    label: "Threat Detection",
+                    value: "Real-time",
+                    color: "#f39c12",
+                    percentage: 100,
+                  },
+                  {
+                    label: "Data Centers",
+                    value: "Global",
+                    color: "#9b59b6",
+                    percentage: 100,
+                  },
                 ].map((stat, index) => (
                   <div key={index} className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-300">{stat.label}</span>
-                      <span className="font-medium" style={{ color: stat.color }}>
+                      <span
+                        className="font-medium"
+                        style={{ color: stat.color }}
+                      >
                         {stat.value}
                       </span>
                     </div>
                     <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full rounded-full transition-all duration-1000"
-                        style={{ 
+                        style={{
                           width: `${stat.percentage}%`,
-                          backgroundColor: stat.color
+                          backgroundColor: stat.color,
                         }}
                       ></div>
                     </div>
@@ -440,9 +493,10 @@ const HomeContent: React.FC = () => {
             Ready to Share Files Securely?
           </h2>
           <p className="text-gray-400 text-lg mb-8 max-w-2xl mx-auto">
-            Join millions of users who trust us with their files. Get started with 10GB free storage.
+            Join millions of users who trust us with their files. Get started
+            with 10GB free storage.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate("/home/myfiles")}
@@ -450,16 +504,11 @@ const HomeContent: React.FC = () => {
             >
               Start Free Trial
             </button>
-            <button
-              onClick={() => navigate("/home/upload")}
-              className="px-8 py-3 bg-gray-800 border border-gray-700 text-white font-medium rounded-xl hover:bg-gray-700 transition-colors duration-300"
-            >
-              Upload Your First File
-            </button>
           </div>
 
           <p className="mt-8 text-gray-500 text-sm">
-            No credit card required • 10GB free storage • All security features included
+            No credit card required • 10GB free storage • All security features
+            included
           </p>
         </motion.div>
       </section>
