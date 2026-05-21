@@ -1,0 +1,24 @@
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'collegems-client/**/*'
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'collegems-server/**/*'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+
+bug:
+  - head-branch:
+      - 'fix/**'
+      - 'bug/**'
+
+enhancement:
+  - head-branch:
+      - 'feature/**'
+      - 'enhancement/**'
