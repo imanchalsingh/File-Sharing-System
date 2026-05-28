@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   LogOut,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
+import api from "../../services/api";
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -19,11 +21,32 @@ const Home: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [user] = useState({
-    email: localStorage.getItem("userEmail") || "user@example.com",
+  const [user, setUser] = useState({
+    email: "Loading...",
     storage: 3.2,
     storageLimit: 10,
   });
+
+ 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await api.get("/auth", {
+          withCredentials: true,
+        });
+        if (response.data.user) {
+          setUser({
+            email: response.data.user.email,
+            storage: response.data.storageUsed || 3.2,
+            storageLimit: response.data.storageLimit || 10,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -68,10 +91,14 @@ const Home: React.FC = () => {
     },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await api.post("/logout");
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      navigate("/login");
+    }
   };
 
   const handleNavigation = (path: string) => {
@@ -154,7 +181,7 @@ const Home: React.FC = () => {
             {isOpen && (
               <div className="ml-3 flex-1 overflow-hidden">
                 <div className="text-white font-medium truncate">
-                  {user.email.split('@')[0]}
+                  {user.email.split("@")[0]}
                 </div>
                 <div className="text-gray-400 text-sm truncate">
                   {user.email}
@@ -254,7 +281,7 @@ const Home: React.FC = () => {
                 </div>
                 <div className="ml-4">
                   <div className="text-white font-semibold text-lg">
-                    {user.email.split('@')[0]}
+                    {user.email.split("@")[0]}
                   </div>
                   <div className="text-gray-400 text-sm">
                     {user.email}
