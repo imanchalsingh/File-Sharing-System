@@ -8,8 +8,7 @@ import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import streamifier from "streamifier";
 import analyticsRoutes from "./routes/analytics.js";
-import seedDemoUser from "./utils/seedDemoUser.js";
-
+import fileRoutes from "./routes/files.js";
 
 const app = express();
 
@@ -34,6 +33,8 @@ app.use(express.json());
 
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/track", analyticsRoutes);
+app.use("/api/files", fileRoutes);
+
 // Routes
 app.use("/", router);
 

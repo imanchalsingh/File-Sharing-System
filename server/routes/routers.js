@@ -8,6 +8,7 @@ import { validation } from "../middleware/validation.js";
 import { loginValidation } from "../middleware/loginValidation.js";
 import authenticateUser from "../middleware/authenticationUser.js";
 
+
 const router = express.Router();
 
 // Register

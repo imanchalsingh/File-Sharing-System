@@ -147,6 +147,7 @@ export const loginUser = async (req, res) => {
   }
 };
 
+
 // GET USER
 export const getUser = async (req, res) => {
   try {
