@@ -8,6 +8,7 @@ import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import streamifier from "streamifier";
 import analyticsRoutes from "./routes/analytics.js";
+import seedDemoUser from "./utils/seedDemoUser.js";
 
 
 const app = express();
@@ -23,6 +24,9 @@ app.use(
 
 // Connect to database
 connectDB();
+
+// Seed demo user
+seedDemoUser();
 
 // Middleware
 app.use(express.json());
