@@ -1,6 +1,8 @@
+
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
+import api from "../../services/api"; 
 import {
   Shield,
   Zap,
@@ -23,10 +25,6 @@ const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
-  });
 
   const handleLogin = () => {
     navigate("/login");
@@ -54,7 +52,6 @@ const Register: React.FC = () => {
   const handleRegister = async () => {
     setErrorMsg(null);
 
-    // Basic validation
     if (!username || !email || !password) {
       setErrorMsg("All fields are required.");
       return;
@@ -67,14 +64,15 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
+     
       const res = await api.post("/register", {
         username,
         email,
         password,
       });
 
-      if (res.data) {
-        alert("Registration successful! Please login.");
+      if (res.data.success) {
+        alert("Registration successful! Welcome to SecureShare!");
         navigate("/home");
       }
     } catch (error: unknown) {
@@ -83,7 +81,7 @@ const Register: React.FC = () => {
         setErrorMsg(
           error.response?.data?.error ||
             error.response?.data?.message ||
-            "Registration failed. Please check your details.",
+            "Registration failed. Please check your details."
         );
       } else {
         setErrorMsg("Registration failed. Please try again.");
@@ -166,7 +164,7 @@ const Register: React.FC = () => {
                 </p>
               </div>
 
-              <div className="space-y-6">
+              <form className="space-y-6" autoComplete="off">
                 <div>
                   <label className="block text-gray-700 dark:text-gray-300 mb-2 font-medium">
                     Full Name
@@ -175,6 +173,7 @@ const Register: React.FC = () => {
                     <input
                       type="text"
                       value={username}
+                      autoComplete="off"
                       onChange={(e) => setUsername(e.target.value)}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none"
                       placeholder="Enter your full name"
@@ -191,6 +190,7 @@ const Register: React.FC = () => {
                     <input
                       type="email"
                       value={email}
+                      autoComplete="off"
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none"
                       placeholder="you@example.com"
@@ -219,6 +219,7 @@ const Register: React.FC = () => {
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
+                      autoComplete="new-password"
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none pr-10"
                       placeholder="Create a strong password"
@@ -262,10 +263,16 @@ const Register: React.FC = () => {
 
                   <ul className="mt-3 space-y-1">
                     <li
-                      className={`flex items-center text-sm ${password.length >= 6 ? "text-[#2ecc71]" : "text-gray-600 dark:text-gray-400"}`}
+                      className={`flex items-center text-sm ${
+                        password.length >= 6
+                          ? "text-[#2ecc71]"
+                          : "text-gray-500"
+                      }`}
                     >
                       <Check
-                        className={`w-4 h-4 mr-2 ${password.length >= 6 ? "opacity-100" : "opacity-0"}`}
+                        className={`w-4 h-4 mr-2 ${
+                          password.length >= 6 ? "opacity-100" : "opacity-0"
+                        }`}
                       />
                       At least 6 characters
                     </li>
@@ -321,7 +328,7 @@ const Register: React.FC = () => {
                     Privacy Policy
                   </a>
                 </div>
-              </div>
+              </form>
             </div>
 
             {/* Right Column - Features */}

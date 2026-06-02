@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+// import axios from "axios";
+import api from "../../services/api";
 import {
   Cloud,
   Shield,
@@ -24,29 +25,6 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
-  });
-
-  const [theme, setTheme] = useState(
-    document.documentElement.classList.contains("dark") 
-    ? "dark" : "light",
-  );
-
-  const toggleTheme = () => {
-    const isDark = document.documentElement.classList.contains("dark");
-
-    if (isDark) {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-      setTheme("light");
-    } else {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-      setTheme("dark");
-    }
-  };
-
   const handleRegisterRedirect = () => {
     navigate("/register");
   };
@@ -61,27 +39,19 @@ const Login: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await api.post("/login", {
-        email,
-        password,
-      });
+      const response = await api.post(
+        "/login",
+        { email, password },
+        {
+          withCredentials: true,
+        },
+      );
 
-      localStorage.setItem("authToken", response.data.authToken);
-      localStorage.setItem("userEmail", email);
-
-      // Show success message
-      setErrorMsg(null);
-      alert("Login successful! Welcome back.");
-      navigate("/home");
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        setErrorMsg(
-          error.response?.data?.error ||
-            "Login failed. Please check your credentials.",
-        );
-      } else {
-        setErrorMsg("Login failed. Please try again.");
+      if (response.data.success) {
+        alert("Login successful! Welcome back.");
+        navigate("/home");
       }
+    } catch (error: unknown) {
     } finally {
       setLoading(false);
     }
@@ -156,7 +126,7 @@ const Login: React.FC = () => {
                 </p>
               </div>
 
-              <div className="space-y-6">
+              <form className="space-y-6" autoComplete="off">
                 <div>
                   <label className="blocktext-gray-700 dark:text-gray-300 mb-2 font-medium">
                     Email Address
@@ -164,6 +134,7 @@ const Login: React.FC = () => {
                   <div className="relative">
                     <input
                       type="email"
+                      autoComplete="off"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none pl-12"
@@ -186,6 +157,7 @@ const Login: React.FC = () => {
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
+                      autoComplete="new-password"
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none pl-12 pr-10"
                       placeholder="Enter your password"
@@ -300,7 +272,7 @@ const Login: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              </div>
+              </form>
             </div>
 
             {/* Right Column - Features */}
