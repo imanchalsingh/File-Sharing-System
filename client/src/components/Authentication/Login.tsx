@@ -13,6 +13,8 @@ import {
   LogIn,
   Key,
   Mail,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 const Login: React.FC = () => {
@@ -81,15 +83,15 @@ const Login: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 font-sans p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 font-sans p-4">
       <div className="container mx-auto">
         {/* Header */}
         <header className="flex items-center justify-between py-6">
           <Link to="/" className="flex items-center space-x-2 group">
             <Cloud className="w-10 h-10 text-[#3498db] group-hover:rotate-12 transition-transform" />
-            <span className="text-2xl font-bold text-white">SecureShare</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">SecureShare</span>
           </Link>
-          <div className="text-gray-400">
+          <div className="text-gray-600 dark:text-gray-400">
             New to SecureShare?{" "}
             <button
               onClick={handleRegisterRedirect}
@@ -97,28 +99,36 @@ const Login: React.FC = () => {
             >
               Create Account
             </button>
+            <button
+                        onClick={toggleTheme}
+                        className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
+                        hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
+                        hover:text-black dark:hover:text-white transition-colors ml-4"
+                      >
+                        {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+                      </button>
           </div>
         </header>
 
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Left Column - Form */}
-            <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl p-8 border border-gray-700 shadow-2xl">
+            <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-xl rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-2xl">
               <div className="text-center mb-10">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#3498db] to-[#2ecc71] rounded-2xl mb-6">
                   <LogIn className="w-8 h-8 text-white" />
                 </div>
-                <h1 className="text-4xl font-bold text-white mb-3">
+                <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">
                   Welcome Back
                 </h1>
-                <p className="text-gray-400 text-lg">
+                <p className="text-gray-600 dark:text-gray-400 text-lg">
                   Sign in to access your secure file storage
                 </p>
               </div>
 
               <form className="space-y-6" autoComplete="off">
                 <div>
-                  <label className="block text-gray-300 mb-2 font-medium">
+                  <label className="blocktext-gray-700 dark:text-gray-300 mb-2 font-medium">
                     Email Address
                   </label>
                   <div className="relative">
@@ -127,7 +137,7 @@ const Login: React.FC = () => {
                       autoComplete="off"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none transition-all pl-12"
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none pl-12"
                       placeholder="you@example.com"
                     />
                     <Mail className="absolute left-4 top-3 w-5 h-5 text-gray-500" />
@@ -136,7 +146,7 @@ const Login: React.FC = () => {
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="block text-gray-300 font-medium">
+                    <label className="block text-gray-700 dark:text-gray-300 font-medium">
                       Password
                     </label>
                     <button className="text-sm text-[#3498db] hover:text-[#2980b9] transition-colors">
@@ -149,14 +159,14 @@ const Login: React.FC = () => {
                       value={password}
                       autoComplete="new-password"
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-xl text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none transition-all pl-12 pr-10"
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none pl-12 pr-10"
                       placeholder="Enter your password"
                     />
-                    <Key className="absolute left-4 top-3 w-5 h-5 text-gray-500" />
+                    <Key className="absolute left-4 top-3 w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 text-gray-500 hover:text-gray-300 transition-colors"
+                      className="absolute right-3 top-3 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                     >
                       {showPassword ? (
                         <EyeOff className="w-5 h-5" />
@@ -189,7 +199,7 @@ const Login: React.FC = () => {
                 <button
                   onClick={handleLogin}
                   disabled={loading}
-                  className="w-full py-4 bg-gradient-to-r from-[#3498db] to-[#2ecc71] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
+                  className="w-full py-4 bg-gradient-to-r from-[#3498db] to-[#2ecc71] text-white font-bold rounded-xl shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center">
@@ -219,7 +229,7 @@ const Login: React.FC = () => {
                   )}
                 </button>
 
-                <div className="text-center text-gray-400 text-sm">
+                <div className="text-center text-gray-600 dark:text-gray-400 text-sm">
                   By signing in, you agree to our{" "}
                   <a href="#" className="text-[#3498db] hover:underline">
                     Terms of Service
@@ -232,8 +242,8 @@ const Login: React.FC = () => {
 
                 {/* Demo Accounts */}
                 <div className="border-t border-gray-700 pt-6">
-                  <h4 className="text-gray-300 font-medium mb-3 text-center">
-                    Demo Accounts
+                  <h4 className="text-gray-600 dark:text-gray-400 font-medium mb-3 text-center">
+                    Demo Accounts (To be removed in production)
                   </h4>
                   <div className="grid gap-2">
                     {demoAccounts.map((account, index) => (
@@ -268,16 +278,16 @@ const Login: React.FC = () => {
             {/* Right Column - Features */}
             <div className="space-y-8">
               {/* Welcome Card */}
-              <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border border-gray-700 shadow-2xl">
+              <div className="bg-gradient-to-br from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-2xl">
                 <div className="flex items-start mb-6">
                   <div className="p-3 bg-gradient-to-br from-[#3498db] to-[#2ecc71] rounded-xl mr-4">
                     <Lock className="w-8 h-8 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-white mb-2">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                       Secure Access
                     </h3>
-                    <p className="text-gray-400">
+                    <p className="text-gray-600 dark:text-gray-400">
                       Your files are protected with military-grade encryption.
                       Sign in to access your secure file storage and sharing
                       platform.
@@ -286,33 +296,33 @@ const Login: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-800/50 p-4 rounded-xl">
+                  <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-xl">
                     <div className="text-[#2ecc71] font-bold text-2xl mb-1">
                       24/7
                     </div>
-                    <div className="text-gray-400 text-sm">
+                    <div className="text-gray-600 dark:text-gray-400 text-sm">
                       Access Available
                     </div>
                   </div>
-                  <div className="bg-gray-800/50 p-4 rounded-xl">
+                  <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-xl">
                     <div className="text-[#f1c40f] font-bold text-2xl mb-1">
                       100%
                     </div>
-                    <div className="text-gray-400 text-sm">Encrypted</div>
+                    <div className="text-gray-600 dark:text-gray-400 text-sm">Encrypted</div>
                   </div>
-                  <div className="bg-gray-800/50 p-4 rounded-xl">
+                  <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-xl">
                     <div className="text-[#9b59b6] font-bold text-2xl mb-1">
                       Zero
                     </div>
-                    <div className="text-gray-400 text-sm">
+                    <div className="text-gray-600 dark:text-gray-400 text-sm">
                       Knowledge Access
                     </div>
                   </div>
-                  <div className="bg-gray-800/50 p-4 rounded-xl">
+                  <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-xl">
                     <div className="text-[#e74c3c] font-bold text-2xl mb-1">
                       256-bit
                     </div>
-                    <div className="text-gray-400 text-sm">AES Encryption</div>
+                    <div className="text-gray-600 dark:text-gray-400 text-sm">AES Encryption</div>
                   </div>
                 </div>
               </div>
@@ -322,7 +332,7 @@ const Login: React.FC = () => {
                 {featureCards.map((feature, index) => (
                   <div
                     key={index}
-                    className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:scale-105 cursor-pointer group"
+                    className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 hover:scale-105 cursor-pointer group"
                     style={{ borderTopColor: feature.color }}
                   >
                     <div
@@ -331,10 +341,10 @@ const Login: React.FC = () => {
                     >
                       <div style={{ color: feature.color }}>{feature.icon}</div>
                     </div>
-                    <h4 className="text-white font-bold mb-2">
+                    <h4 className="text-gray-900 dark:text-white font-bold mb-2">
                       {feature.title}
                     </h4>
-                    <p className="text-gray-400 text-sm">
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
                       {feature.description}
                     </p>
                   </div>
@@ -342,9 +352,9 @@ const Login: React.FC = () => {
               </div>
 
               {/* Recent Activity Card */}
-              <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-6 border border-gray-700 shadow-xl">
+              <div className="bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-white font-bold">
+                  <h4 className="text-gray-900 dark:text-white font-bold">
                     Recent Security Updates
                   </h4>
                   <div className="px-3 py-1 bg-[#2ecc71]/20 text-[#2ecc71] text-xs rounded-full">
@@ -380,8 +390,8 @@ const Login: React.FC = () => {
                         style={{ backgroundColor: item.color }}
                       ></div>
                       <div className="flex-1">
-                        <p className="text-gray-300 text-sm">{item.text}</p>
-                        <p className="text-gray-500 text-xs mt-1">
+                        <p className="text-gray-700 dark:text-gray-300 text-sm">{item.text}</p>
+                        <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">
                           {item.time}
                         </p>
                       </div>
@@ -391,25 +401,25 @@ const Login: React.FC = () => {
               </div>
 
               {/* Quick Stats */}
-              <div className="bg-gray-800/30 rounded-2xl p-6 border border-gray-700">
-                <h4 className="text-white font-bold mb-4">
+              <div className="bg-white/70 dark:bg-gray-800/30 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
+                <h4 className="text-gray-900 dark:text-white font-bold mb-4">
                   SecureShare at a Glance
                 </h4>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Active Users</span>
-                    <span className="text-white font-bold">500K+</span>
+                    <span className="text-gray-600 dark:text-gray-400">Active Users</span>
+                    <span className="text-gray-900 dark:text-white font-bold">500K+</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Files Secured</span>
-                    <span className="text-white font-bold">10M+</span>
+                    <span className="text-gray-600 dark:text-gray-400">Files Secured</span>
+                    <span className="text-gray-900 dark:text-white font-bold">10M+</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Uptime</span>
+                    <span className="text-gray-600 dark:text-gray-400">Uptime</span>
                     <span className="text-[#2ecc71] font-bold">99.9%</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Support Response</span>
+                    <span className="text-gray-600 dark:text-gray-400">Support Response</span>
                     <span className="text-[#f1c40f] font-bold">
                       Under 1 hour
                     </span>
@@ -421,12 +431,12 @@ const Login: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <footer className="mt-12 pt-8 border-t border-gray-800 text-center text-gray-500 text-sm">
+        <footer className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800 text-center text-gray-600 dark:text-gray-500 text-sm">
           <p>
             © 2024 SecureShare. All access is logged and monitored for security
             purposes.
           </p>
-          <p className="mt-1 text-gray-600">
+          <p className="mt-1 text-gray-500 dark:text-gray-600">
             Your security is our top priority.
           </p>
         </footer>
