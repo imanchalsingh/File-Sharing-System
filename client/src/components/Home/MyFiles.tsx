@@ -527,24 +527,24 @@ const MyFiles: React.FC = () => {
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">My Files</h1>
-            <p className="text-gray-400">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">My Files</h1>
+            <p className="text-gray-600 dark:text-gray-400">
               {files.length} files • {selectedFiles.length} selected
             </p>
           </div>
 
           <div className="flex items-center space-x-4">
             {/* View Toggle */}
-            <div className="flex bg-gray-800 rounded-lg p-1">
+            <div className="flex bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`p-2 rounded ${viewMode === "grid" ? "bg-gray-700 text-white" : "text-gray-400"}`}
+                className={`p-2 rounded ${viewMode === "grid" ? "text-3xl font-bold text-gray-900 dark:text-white mb-2" : "text-gray-600 dark:text-gray-400"}`}
               >
                 <Grid className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`p-2 rounded ${viewMode === "list" ? "bg-gray-700 text-white" : "text-gray-400"}`}
+                className={`p-2 rounded ${viewMode === "list" ? "text-3xl font-bold text-gray-900 dark:text-white mb-2" : "text-gray-600 dark:text-gray-400"}`}
               >
                 <List className="w-5 h-5" />
               </button>
@@ -553,8 +553,8 @@ const MyFiles: React.FC = () => {
             {/* Upload Progress Bar */}
             {isUploading && (
               <div className="hidden sm:block w-32">
-                <div className="text-xs text-gray-400 mb-1">Uploading...</div>
-                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Uploading...</div>
+                <div className="h-2 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
                   <motion.div
                     className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71]"
                     initial={{ width: 0 }}
@@ -569,58 +569,58 @@ const MyFiles: React.FC = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+          <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-[#3498db]/20 rounded-lg mr-3">
                 <Folder className="w-5 h-5 text-[#3498db]" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-white">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
                   {files.length}
                 </div>
-                <div className="text-gray-400 text-sm">Total Files</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm">Total Files</div>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+          <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-[#2ecc71]/20 rounded-lg mr-3">
                 <LinkIcon className="w-5 h-5 text-[#2ecc71]" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-white">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
                   {totalStats.totalShares}
                 </div>
-                <div className="text-gray-400 text-sm">Total Link Copies</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm">Total Link Copies</div>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+          <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-[#9b59b6]/20 rounded-lg mr-3">
                 <Download className="w-5 h-5 text-[#9b59b6]" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-white">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
                   {totalStats.totalDownloads}
                 </div>
-                <div className="text-gray-400 text-sm">Total Downloads</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm">Total Downloads</div>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+          <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-[#f39c12]/20 rounded-lg mr-3">
                 <BarChart3 className="w-5 h-5 text-[#f39c12]" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-white">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
                   {totalStats.todayShares}
                 </div>
-                <div className="text-gray-400 text-sm">Today's Copies</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm">Today's Copies</div>
               </div>
             </div>
           </div>
@@ -628,18 +628,20 @@ const MyFiles: React.FC = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="mb-6 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
+      <div className="mb-6 p-4 bg-white/80 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col md:flex-row gap-4 items-center">
           {/* Search */}
           <div className="flex-1 w-full">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search files..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-900/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3498db] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 
+                rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 
+                focus:ring-[#3498db] focus:border-transparent"
               />
             </div>
           </div>
@@ -655,14 +657,18 @@ const MyFiles: React.FC = () => {
                 onChange={handleFileUpload}
                 disabled={isUploading}
               />
-              <div className="px-4 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] text-white font-medium rounded-lg hover:opacity-90 transition-opacity flex items-center disabled:opacity-50">
+              <div className="px-4 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] 
+              text-white font-medium rounded-lg hover:opacity-90 transition-opacity 
+              flex items-center disabled:opacity-50">
                 <Upload className="w-4 h-4 mr-2" />
                 {isUploading ? "Uploading..." : "Upload Files"}
               </div>
             </label>
 
             {/* Filter */}
-            <button className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 hover:text-white transition-colors">
+            <button className="p-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 
+            dark:hover:bg-gray-600 rounded-lg text-gray-700 dark:text-gray-300 
+            hover:text-black dark:hover:text-white">
               <Filter className="w-5 h-5" />
             </button>
 
@@ -670,7 +676,7 @@ const MyFiles: React.FC = () => {
             {selectedFiles.length > 0 && (
               <button
                 onClick={handleDeleteSelected}
-                className="p-2 bg-[#e74c3c] hover:bg-[#c0392b] text-white rounded-lg transition-colors flex items-center"
+                className="p-2 bg-[#e74c3c] hover:bg-[#c0392b] text-white rounded-lg flex items-center"
               >
                 <Trash2 className="w-5 h-5" />
                 <span className="hidden sm:inline ml-2">Delete Selected</span>
@@ -685,7 +691,7 @@ const MyFiles: React.FC = () => {
             <div className="text-sm text-gray-400 mb-1">
               Uploading... {uploadProgress.toFixed(0)}%
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71]"
                 initial={{ width: 0 }}
@@ -986,13 +992,13 @@ const MyFiles: React.FC = () => {
       {/* Empty State */}
       {filteredFiles.length === 0 && !loading && (
         <div className="text-center py-16">
-          <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-800/50 flex items-center justify-center">
+          <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-100 dark:bg-gray-800/50 flex items-center justify-center">
             <Folder className="w-12 h-12 text-gray-400" />
           </div>
-          <h3 className="text-xl font-medium text-white mb-2">
+          <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
             No files found
           </h3>
-          <p className="text-gray-400 mb-6">
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             {searchQuery
               ? "Try a different search term"
               : "Upload your first file to get started"}
@@ -1026,16 +1032,16 @@ const MyFiles: React.FC = () => {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-700"
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-200 dark:border-gray-700"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                   File Statistics
                 </h3>
                 <button
                   onClick={() => setShowFileStats(null)}
-                  className="p-2 hover:bg-gray-700 rounded-lg"
+                  className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
                 >
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
@@ -1061,51 +1067,51 @@ const MyFiles: React.FC = () => {
                           </div>
                         </div>
                         <div>
-                          <h4 className="text-white font-medium truncate">
+                          <h4 className="text-gray-900 dark:text-white font-medium truncate">
                             {file.name}
                           </h4>
-                          <p className="text-gray-400 text-sm">
+                          <p className="text-gray-400 dark:text-gray-500 text-sm">
                             {file.size} • {file.uploaded}
                           </p>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div className="bg-gray-700/50 p-4 rounded-lg">
+                        <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg">
                           <div className="text-2xl font-bold text-[#3498db] mb-1">
                             {stats?.totalShares || 0}
                           </div>
-                          <div className="text-gray-400 text-sm">
+                          <div className="text-gray-400 dark:text-gray-500 text-sm">
                             Total Link Copies
                           </div>
                         </div>
-                        <div className="bg-gray-700/50 p-4 rounded-lg">
+                        <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg">
                           <div className="text-2xl font-bold text-[#2ecc71] mb-1">
                             {stats?.totalDownloads || 0}
                           </div>
-                          <div className="text-gray-400 text-sm">
+                          <div className="text-gray-400 dark:text-gray-500 text-sm">
                             Total Downloads
                           </div>
                         </div>
-                        <div className="bg-gray-700/50 p-4 rounded-lg">
+                        <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg">
                           <div className="text-2xl font-bold text-[#f39c12] mb-1">
                             {stats?.todayShares || 0}
                           </div>
-                          <div className="text-gray-400 text-sm">
+                          <div className="text-gray-400 dark:text-gray-500 text-sm">
                             Today's Copies
                           </div>
                         </div>
-                        <div className="bg-gray-700/50 p-4 rounded-lg">
+                        <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg">
                           <div className="text-2xl font-bold text-[#9b59b6] mb-1">
                             {stats?.totalViews || 0}
                           </div>
-                          <div className="text-gray-400 text-sm">
+                          <div className="text-gray-400 dark:text-gray-500 text-sm">
                             Total Views
                           </div>
                         </div>
                       </div>
 
-                      <div className="text-sm text-gray-400">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
                         <p className="mb-1">
                           Last accessed: {stats?.lastAccessed || "Never"}
                         </p>
@@ -1128,7 +1134,7 @@ const MyFiles: React.FC = () => {
                       </button>
                       <button
                         onClick={() => setShowFileStats(null)}
-                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+                        className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg"
                       >
                         Close
                       </button>
@@ -1152,7 +1158,7 @@ const MyFiles: React.FC = () => {
             onClick={() => setActiveImage(null)}
           >
             <button
-              className="absolute top-4 right-4 p-2 bg-gray-800/50 rounded-full text-white hover:bg-gray-700 z-10"
+              className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-gray-800/50 rounded-full text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 z-10"
               onClick={() => setActiveImage(null)}
             >
               <X className="w-6 h-6" />
@@ -1169,7 +1175,7 @@ const MyFiles: React.FC = () => {
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="mt-6 flex flex-wrap justify-center gap-3 bg-gray-800/80 backdrop-blur-xl p-4 rounded-xl border border-gray-700"
+              className="mt-6 flex flex-wrap justify-center gap-3 bg-white/90 dark:bg-gray-800/80 backdrop-blur-xl p-4 rounded-xl border border-gray-200 dark:border-gray-700"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -1182,7 +1188,7 @@ const MyFiles: React.FC = () => {
                     handleShare(fileId, activeImage, fileName);
                   }
                 }}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium flex items-center"
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-gray-900 dark:text-whitebg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium flex items-center"
               >
                 <Copy className="w-4 h-4 mr-2" />
                 Copy Link

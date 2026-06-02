@@ -24,6 +24,9 @@ app.use(
 // Connect to database
 connectDB();
 
+// Seed demo user
+seedDemoUser();
+
 // Middleware
 app.use(express.json());
 // In your server.js or app.js

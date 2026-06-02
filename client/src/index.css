@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --sb-bg: #f1f1f1;
   --sb-thumb: #133aaf ;

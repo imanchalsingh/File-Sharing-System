@@ -9,6 +9,8 @@ import {
   Cloud,
   Lock,
   Globe,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -23,6 +25,25 @@ const LandingPage: React.FC = () => {
     }, 500);
     return () => clearInterval(interval);
   }, []);
+
+  const [theme, setTheme] = useState(
+    document.documentElement.classList.contains("dark") 
+    ? "dark" : "light"
+  );
+
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.contains("dark");
+
+    if (isDark) {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      setTheme("light");
+    } else {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+      setTheme("dark");
+    }
+  };
 
   const features = [
     {
@@ -103,7 +124,7 @@ const LandingPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
       {/* Navigation */}
       <nav className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
@@ -143,6 +164,14 @@ const LandingPage: React.FC = () => {
             <button className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity">
               Get Started
             </button>
+            <button
+                        onClick={toggleTheme}
+                        className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
+                        hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
+                        hover:text-black dark:hover:text-white transition-colors ml-4"
+                      >
+                        {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+                      </button>
           </div>
         </div>
       </nav>
@@ -155,14 +184,14 @@ const LandingPage: React.FC = () => {
             Made Simple
           </span>
         </h1>
-        <p className="text-xl text-gray-300 mb-10 max-w-3xl mx-auto">
+        <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-3xl mx-auto">
           Transfer files securely with end-to-end encryption. Share large files,
           collaborate with teams, and protect your data with enterprise-grade
           security.
         </p>
 
         {/* Upload Demo */}
-        <div className="max-w-2xl mx-auto bg-gray-800 rounded-2xl p-8 mb-12 border border-gray-700">
+        <div className="max-w-2xl mx-auto bg-white/80 dark:bg-gray-800 rounded-2xl p-8 mb-12 border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
               <div className="w-24 h-24 rounded-full border-4 border-[#3498db] flex items-center justify-center">
@@ -177,19 +206,19 @@ const LandingPage: React.FC = () => {
               <span>project_final.zip • 2.4 GB</span>
               <span className="text-[#2ecc71]">{uploadProgress}%</span>
             </div>
-            <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71] transition-all duration-300"
                 style={{ width: `${uploadProgress}%` }}
               ></div>
             </div>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Encrypting and uploading securely...
             </p>
           </div>
 
           <button onClick={()=>{
-            navigate('/home')
+            navigate('/login')
           }} className="mt-8 px-8 py-3 bg-gradient-to-r from-[#3498db] to-[#2980b9] rounded-lg font-semibold text-lg hover:opacity-90 transition-opacity w-full">
             <Upload className="inline mr-2 w-5 h-5" />
             Upload Your Files Now
@@ -199,14 +228,14 @@ const LandingPage: React.FC = () => {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
           {stats.map((stat, index) => (
-            <div key={index} className="text-center p-6 bg-gray-800 rounded-xl">
+            <div key={index} className="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
               <div
                 className="text-3xl font-bold mb-2"
                 style={{ color: stat.color }}
               >
                 {stat.value}
               </div>
-              <div className="text-gray-300">{stat.label}</div>
+              <div className="text-gray-600 dark:text-gray-300">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -223,12 +252,12 @@ const LandingPage: React.FC = () => {
             <div
               key={index}
               className={`p-8 rounded-2xl transition-all duration-300 hover:scale-105 cursor-pointer ${
-                activeFeature === index ? "border-2" : "border border-gray-700"
+                activeFeature === index ? "border-2 bg-opacity-20" : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
               }`}
               style={{
-                borderColor: activeFeature === index ? feature.color : "",
+                borderColor: activeFeature === index ? feature.color : undefined,
                 backgroundColor:
-                  activeFeature === index ? `${feature.color}20` : "#1f2937",
+                  activeFeature === index ? `${feature.color}20` : undefined,
               }}
               onClick={() => setActiveFeature(index)}
             >
@@ -244,13 +273,14 @@ const LandingPage: React.FC = () => {
                 </div>
                 <h3 className="text-2xl font-bold">{feature.title}</h3>
               </div>
-              <p className="text-gray-300">{feature.description}</p>
+              <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>
             </div>
           ))}
         </div>
 
         {/* Feature Details */}
-        <div className="mt-16 p-8 bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl border border-gray-700">
+        <div className="mt-16 p-8 bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 
+        dark:to-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap items-center justify-between">
             <div className="flex-1 min-w-[300px]">
               <h3
@@ -259,7 +289,7 @@ const LandingPage: React.FC = () => {
               >
                 {features[activeFeature].title}
               </h3>
-              <p className="text-gray-300 mb-6">
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
                 Experience the power of our file sharing platform with
                 industry-leading features designed for modern teams.
               </p>
@@ -278,13 +308,13 @@ const LandingPage: React.FC = () => {
               </ul>
             </div>
             <div className="flex-1 min-w-[300px] mt-8 md:mt-0">
-              <div className="bg-gray-800 p-6 rounded-xl">
+              <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-xl">
                 <BarChart className="w-12 h-12 mx-auto mb-4 text-[#3498db]" />
                 <div className="space-y-4">
                   {[70, 85, 60, 95].map((height, i) => (
                     <div key={i} className="flex items-center">
-                      <div className="w-24 text-gray-400">Q{i + 1} 2024</div>
-                      <div className="flex-1 h-6 bg-gray-700 rounded-full overflow-hidden">
+                      <div className="w-24 text-gray-600 dark:text-gray-400">Q{i + 1} 2024</div>
+                      <div className="flex-1 h-6 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full"
                           style={{
@@ -308,7 +338,7 @@ const LandingPage: React.FC = () => {
         <h2 className="text-4xl font-bold text-center mb-4">
           Simple, Transparent Pricing
         </h2>
-        <p className="text-gray-400 text-center mb-16 max-w-2xl mx-auto">
+        <p className="text-gray-600 dark:text-gray-400 text-center mb-16 max-w-2xl mx-auto">
           Choose the perfect plan for your needs. All plans include our core
           security features.
         </p>
@@ -317,12 +347,12 @@ const LandingPage: React.FC = () => {
           {plans.map((plan, index) => (
             <div
               key={index}
-              className={`rounded-2xl p-8 relative transition-transform hover:scale-105 ${
-                plan.popular ? "border-2" : "border border-gray-700"
+              className={`rounded-2xl p-8 relative hover:scale-105 ${
+                plan.popular ? "border-2" : "border border-gray-200 dark:border-gray-700"
               }`}
               style={{
                 borderColor: plan.popular ? plan.accent : "",
-                backgroundColor: plan.color,
+                backgroundColor: theme === "dark" ? "#1f2937" : "white",
               }}
             >
               {plan.popular && (
@@ -337,7 +367,7 @@ const LandingPage: React.FC = () => {
               <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
               <div className="mb-6">
                 <span className="text-4xl font-bold">{plan.price}</span>
-                <span className="text-gray-400">/month</span>
+                <span className="text-gray-600 dark:text-gray-400">/month</span>
               </div>
 
               <ul className="space-y-4 mb-8">
@@ -354,8 +384,8 @@ const LandingPage: React.FC = () => {
                   plan.popular ? "text-white" : ""
                 }`}
                 style={{
-                  backgroundColor: plan.popular ? plan.accent : "#4a5568",
-                  color: plan.popular ? "#1a202c" : "white",
+                  backgroundColor: plan.popular ? plan.accent : theme === "dark" ? "#4a5568" : "#e2e8f0",
+                  color: plan.popular ? "#1a202c" : theme === "dark" ? "white" : "black",
                 }}
               >
                 Get Started
@@ -365,12 +395,12 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Security Section */}
-      <section className="container mx-auto px-6 py-20">
+      {/* About Section */}
+      <section id = "about" className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center">
           <Lock className="w-20 h-20 mx-auto mb-8 text-[#3498db]" />
           <h2 className="text-4xl font-bold mb-6">Enterprise-Grade Security</h2>
-          <p className="text-xl text-gray-300 mb-12">
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-12">
             Your files are protected with military-grade encryption and secure
             global infrastructure.
           </p>
@@ -382,7 +412,7 @@ const LandingPage: React.FC = () => {
               { icon: "📊", title: "Activity Logs", color: "#f39c12" },
               { icon: "👥", title: "Role-Based Access", color: "#9b59b6" },
             ].map((item, index) => (
-              <div key={index} className="p-6 bg-gray-800 rounded-xl">
+              <div key={index} className="p-6 bg-white/80 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                 <div className="text-3xl mb-4">{item.icon}</div>
                 <div className="font-semibold" style={{ color: item.color }}>
                   {item.title}
@@ -393,11 +423,12 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="container mx-auto px-6 py-20">
-        <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-gray-800 to-gray-900 border border-gray-700">
+      {/* Contact Section */}
+      <section id= "contact"className="container mx-auto px-6 py-20">
+        <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-white to-gray-100 
+        dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
           <h2 className="text-4xl font-bold mb-6">Ready to Share Securely?</h2>
-          <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-2xl mx-auto">
             Join millions of users who trust us with their files. No credit card
             required to start.
           </p>
@@ -405,11 +436,11 @@ const LandingPage: React.FC = () => {
             <button className="px-8 py-3 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold text-lg hover:opacity-90 transition-opacity">
               Start Free Trial
             </button>
-            <button className="px-8 py-3 border-2 border-gray-600 rounded-lg font-semibold text-lg hover:bg-gray-800 transition-colors">
+            <button className="px-8 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg font-semibold text-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
               Schedule a Demo
             </button>
           </div>
-          <p className="mt-8 text-gray-400 text-sm">
+          <p className="mt-8 text-gray-600 dark:text-gray-400 text-sm">
             Free plan includes 5GB storage • 2GB file size limit • All security
             features
           </p>
@@ -417,7 +448,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800">
+      <footer className="border-t border-gray-200 dark:border-gray-8000">
         <div className="container mx-auto px-6 py-12">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-6 md:mb-0">
@@ -428,19 +459,19 @@ const LandingPage: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               <div>
                 <h4 className="font-semibold mb-4 text-[#3498db]">Product</h4>
-                <ul className="space-y-2 text-gray-400">
+                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       Features
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       Pricing
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       API
                     </a>
                   </li>
@@ -449,19 +480,19 @@ const LandingPage: React.FC = () => {
 
               <div>
                 <h4 className="font-semibold mb-4 text-[#2ecc71]">Company</h4>
-                <ul className="space-y-2 text-gray-400">
+                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       About
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       Blog
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       Careers
                     </a>
                   </li>
@@ -470,19 +501,19 @@ const LandingPage: React.FC = () => {
 
               <div>
                 <h4 className="font-semibold mb-4 text-[#f39c12]">Legal</h4>
-                <ul className="space-y-2 text-gray-400">
+                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       Privacy
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       Terms
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       Security
                     </a>
                   </li>
@@ -491,19 +522,19 @@ const LandingPage: React.FC = () => {
 
               <div>
                 <h4 className="font-semibold mb-4 text-[#9b59b6]">Connect</h4>
-                <ul className="space-y-2 text-gray-400">
+                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       Twitter
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       LinkedIn
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
                       GitHub
                     </a>
                   </li>
@@ -512,7 +543,7 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-12 pt-8 border-t border-gray-800 text-center text-gray-500 text-sm">
+          <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800 text-center text-gray-600 dark:text-gray-500 text-sm">
             © 2024 SecureShare. All rights reserved. File sharing made secure
             and simple.
           </div>

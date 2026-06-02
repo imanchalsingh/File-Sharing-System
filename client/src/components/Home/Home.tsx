@@ -9,9 +9,12 @@ import {
   Cloud,
   Globe,
   User,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
+
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +28,33 @@ const Home: React.FC = () => {
     storageLimit: 10,
   });
 
+  const [theme, setTheme] = useState(
+  document.documentElement.classList.contains("dark")
+    ? "dark"
+    : "light"
+  );
+
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.contains("dark");
+
+    if (isDark) {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      setTheme("light");
+    } else {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+      setTheme("dark");
+    }
+  };
+
   useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    };
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
@@ -82,37 +111,48 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-gray-100 to-white dark:from-gray-900 dark:to-gray-800 flex overflow-hidden">
       {/* Desktop Sidebar */}
       <div
         className={`
           ${isOpen ? "w-64" : "w-20"} 
-          h-screen bg-gray-800/80 backdrop-blur-xl
-          border-r border-gray-700
-          transition-all duration-300 ease-in-out
-          flex flex-col
+          h-screen bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl
+          border-r border-gray-200 dark:border-gray-700
+          ease-in-out flex flex-col
           ${isMobile ? "hidden" : "flex"}
         `}
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-700">
-          <div className="flex items-center justify-between">
-            {isOpen && (
-              <div className="flex items-center space-x-2">
-                <Cloud className="w-8 h-8 text-[#3498db]" />
-                <span className="text-xl font-bold text-white">
-                  SecureShare
-                </span>
-              </div>
-            )}
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
-            >
-              {isOpen ? <X size={20} /> : <Menu size={20} />}
+        <div className="flex items-center justify-between">
+        {isOpen && (
+          <div className="flex items-center space-x-2">
+            <Cloud className="w-8 h-8 text-[#3498db]" />
+            <span className="text-xl font-bold text-gray-900 dark:text-white">
+              SecureShare
+            </span>
+          </div>
+        )}
+
+        <div className={`flex items-center ${isOpen ? "gap-2" : "gap-1"}`}>
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
+            hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
+            hover:text-black dark:hover:text-white transition-colors"
+          >
+            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+          
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
+            hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
+            hover:text-black dark:hover:text-white transition-colors"
+          >
+            {isOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
-        </div>
+        </div>  
 
         {/* Desktop Navigation */}
         <div className="flex-1 overflow-y-auto p-4">
@@ -129,7 +169,7 @@ const Home: React.FC = () => {
                     ${
                       isActive
                         ? "bg-gradient-to-r from-[#3498db]/20 to-[#2ecc71]/10 text-white border-l-4 border-[#3498db]"
-                        : "text-gray-400 hover:text-white hover:bg-gray-700/50"
+                        : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700/50"
                     }
                   `}
                 >
@@ -140,23 +180,24 @@ const Home: React.FC = () => {
                     <span className="ml-3 font-medium">{item.label}</span>
                   )}
                 </button>
+                
               );
             })}
           </nav>
         </div>
 
         {/* Desktop User Profile */}
-        <div className="p-4 border-t border-gray-700">
+        <div className="p-4 border-t border-gray-700 dark:border-gray-700">
           <div className="flex items-center">
             <div className="w-10 h-10 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-full flex items-center justify-center flex-shrink-0">
               <User className="w-5 h-5 text-white" />
             </div>
             {isOpen && (
               <div className="ml-3 flex-1 overflow-hidden">
-                <div className="text-white font-medium truncate">
+                <div className="text-gray-900 dark:text-white font-medium truncate">
                   {user.email.split('@')[0]}
                 </div>
-                <div className="text-gray-400 text-sm truncate">
+                <div className="text-gray-500 dark:text-gray-400 text-sm truncate">
                   {user.email}
                 </div>
               </div>
@@ -164,7 +205,7 @@ const Home: React.FC = () => {
             {isOpen && (
               <button
                 onClick={handleLogout}
-                className="p-2 text-gray-400 hover:text-red-400 transition-colors ml-auto"
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-400 transition-colors ml-auto"
                 title="Logout"
               >
                 <LogOut size={18} />
@@ -176,18 +217,18 @@ const Home: React.FC = () => {
 
       {/* Mobile Header */}
       {isMobile && (
-        <div className="fixed top-0 left-0 right-0 z-40 bg-gray-900 border-b border-gray-700 p-4">
+        <div className="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <button
                 onClick={toggleMobileMenu}
-                className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+                className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
               >
                 <Menu size={24} />
               </button>
               <div className="flex items-center space-x-2">
                 <Cloud className="w-8 h-8 text-[#3498db]" />
-                <span className="text-xl font-bold text-white">
+                <span className="text-xl font-bold text-gray-900 dark:text-white">
                   SecureShare
                 </span>
               </div>
@@ -217,29 +258,29 @@ const Home: React.FC = () => {
           {/* Sidebar */}
           <div
             className={`
-              fixed top-0 left-0 h-full w-72 bg-gray-900 z-50
+              fixed top-0 left-0 h-full w-72 bg-white dark:bg-gray-900 z-50
               transform transition-transform duration-300 ease-in-out
               ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
               flex flex-col
             `}
           >
             {/* Mobile Sidebar Header */}
-            <div className="p-5 border-b border-gray-700">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <Cloud className="w-10 h-10 text-[#3498db]" />
                   <div>
-                    <span className="text-xl font-bold text-white">
+                    <span className="text-xl font-bold text-gray-900 dark:text-white">
                       SecureShare
                     </span>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       {user.email}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={closeMobileMenu}
-                  className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+                  className="p-2 rounded-lg bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -247,16 +288,16 @@ const Home: React.FC = () => {
             </div>
 
             {/* User Info Card */}
-            <div className="p-5 border-b border-gray-700 bg-gradient-to-r from-[#3498db]/10 to-[#2ecc71]/10">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-[#3498db]/10 to-[#2ecc71]/10">
               <div className="flex items-center">
                 <div className="w-14 h-14 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-full flex items-center justify-center flex-shrink-0">
                   <User className="w-7 h-7 text-white" />
                 </div>
                 <div className="ml-4">
-                  <div className="text-white font-semibold text-lg">
+                  <div className="text-gray-900 dark:text-white font-semibold text-lg">
                     {user.email.split('@')[0]}
                   </div>
-                  <div className="text-gray-400 text-sm">
+                  <div className="text-gray-500 dark:text-gray-400 text-sm">
                     {user.email}
                   </div>
                 </div>
@@ -265,7 +306,7 @@ const Home: React.FC = () => {
               {/* Storage Progress */}
               <div className="mt-4">
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-300">Storage</span>
+                  <span className="text-gray-700 dark:text-gray-300">Storage</span>
                   <span className="text-gray-400">{user.storage} GB / {user.storageLimit} GB</span>
                 </div>
                 <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -279,7 +320,7 @@ const Home: React.FC = () => {
 
             {/* Mobile Navigation */}
             <div className="flex-1 overflow-y-auto p-5">
-              <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-4 px-3">
+              <h3 className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-semibold mb-4 px-3">
                 Menu
               </h3>
               <nav className="space-y-2">
@@ -294,11 +335,11 @@ const Home: React.FC = () => {
                         ${
                           isActive
                             ? "bg-gradient-to-r from-[#3498db] to-[#2ecc71] text-white shadow-lg"
-                            : "text-gray-400 hover:text-white hover:bg-gray-800"
+                            : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800"
                         }
                       `}
                     >
-                      <div className={isActive ? "text-white" : "text-gray-400"}>
+                      <div className={isActive ? "text-white" : "text-gray-600 dark:text-gray-400"}>
                         {React.cloneElement(item.icon, { className: "w-6 h-6" })}
                       </div>
                       <span className="ml-4 font-medium text-base">{item.label}</span>
@@ -314,12 +355,12 @@ const Home: React.FC = () => {
 
               {/* Additional Mobile Options */}
               <div className="mt-8">
-                <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-4 px-3">
+                <h3 className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-semibold mb-4 px-3">
                   Account
                 </h3>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center px-4 py-4 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-all duration-200"
+                  className="w-full flex items-center px-4 py-4 rounded-xl text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition-all duration-200"
                 >
                   <LogOut className="w-6 h-6" />
                   <span className="ml-4 font-medium text-base">Logout</span>
@@ -328,10 +369,10 @@ const Home: React.FC = () => {
             </div>
 
             {/* Mobile Footer */}
-            <div className="p-5 border-t border-gray-700">
+            <div className="p-5 border-t border-gray-200 dark:border-gray-700">
               <div className="text-center">
-                <p className="text-sm text-gray-500">© 2026 SecureShare</p>
-                <p className="text-xs text-gray-600 mt-1">All files encrypted</p>
+                <p className="text-sm text-gray-600 dark:text-gray-500">© 2026 SecureShare</p>
+                <p className="text-xs text-gray-500 dark:text-gray-600 mt-1">All files encrypted</p>
               </div>
             </div>
           </div>
@@ -341,14 +382,14 @@ const Home: React.FC = () => {
       {/* Main Content */}
       <div className={`flex-1 overflow-hidden flex flex-col ${isMobile ? 'pt-16' : ''}`}>
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 text-gray-900 dark:text-white">
           {location.pathname === "/home" ? <HomeContent /> : <Outlet />}
         </main>
 
         {/* Footer - Hidden on mobile */}
         {!isMobile && (
-          <footer className="border-t border-gray-700 p-4 bg-gray-800/50">
-            <div className="flex items-center justify-between text-gray-400 text-sm">
+          <footer className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white/50 dark:bg-gray-800/50">
+            <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-sm">
               <div className="flex items-center space-x-4">
                 <span>© 2026 SecureShare</span>
                 <span className="text-[#2ecc71] flex items-center">
