@@ -7,6 +7,6 @@ const redisClient = createClient({
 redisClient.on("error", (err) => console.log("Redis Error:", err));
 redisClient.on("connect", () => console.log("Redis Connected Successfully!"));
 
-await redisClient.connect();
+// await redisClient.connect();
 
 export default redisClient;

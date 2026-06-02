@@ -16,8 +16,14 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 const Login: React.FC = () => {
+  const [theme, setTheme] = useState("light");
+
+const toggleTheme = () => {
+  setTheme(theme === "light" ? "dark" : "light");
+};
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,7 +54,7 @@ const Login: React.FC = () => {
       );
 
       if (response.data.success) {
-        alert("Login successful! Welcome back.");
+        toast.success("Login successful! Welcome back.");
         navigate("/home");
       }
     } catch (error: unknown) {
