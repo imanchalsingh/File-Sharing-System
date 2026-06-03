@@ -1020,6 +1020,7 @@ import {
   Area,
   Line,
 } from "recharts";
+import { analyticsApi } from "../../services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1304,8 +1305,9 @@ const Analytics: React.FC = () => {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-gray-800/90 backdrop-blur-sm border border-gray-700 rounded-lg p-3">
-          <p className="text-white font-medium mb-2">{label}</p>
+        <div className="bg-white dark:bg-gray-800/90 backdrop-blur-sm 
+        border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+          <p className="text-gray-900 dark:text-white font-medium mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between">
               <div className="flex items-center">
@@ -1313,9 +1315,9 @@ const Analytics: React.FC = () => {
                   className="w-3 h-3 rounded-full mr-2"
                   style={{ backgroundColor: entry.color }}
                 />
-                <span className="text-gray-300">{entry.name}:</span>
+                <span className="text-gray-700 dark:text-gray-300">{entry.name}:</span>
               </div>
-              <span className="text-white font-medium ml-4">{entry.value}</span>
+              <span className="text-gray-900 dark:text-white font-medium ml-4">{entry.value}</span>
             </div>
           ))}
         </div>
@@ -1328,13 +1330,14 @@ const Analytics: React.FC = () => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-gray-800/90 backdrop-blur-sm border border-gray-700 rounded-lg p-3">
-          <p className="text-white font-medium mb-2">{data.type}</p>
-          <p className="text-gray-300">
-            Files: <span className="text-white">{data.count}</span>
+        <div className="bg-white dark:bg-gray-800/90 backdrop-blur-sm 
+        border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+          <p className="text-gray-900 dark:text-white font-medium mb-2">{data.type}</p>
+          <p className="text-gray-700 dark:text-gray-300">
+            Files: <span className="text-gray-900 dark:text-white">{data.count}</span>
           </p>
-          <p className="text-gray-300">
-            Total Shares: <span className="text-white">{data.shares}</span>
+          <p className="text-gray-700 dark:text-gray-300">
+            Total Shares: <span className="text-gray-900 dark:text-white">{data.shares}</span>
           </p>
         </div>
       );
@@ -1347,7 +1350,7 @@ const Analytics: React.FC = () => {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin text-[#3498db] mx-auto mb-4" />
-          <p className="text-gray-400">Analyzing your file sharing data...</p>
+          <p className="text-gray-400">Loading analytics from server...</p>
         </div>
       </div>
     );
@@ -1380,7 +1383,7 @@ const Analytics: React.FC = () => {
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
               Analytics Dashboard
             </h1>
             <p className="text-gray-400">
@@ -1391,14 +1394,14 @@ const Analytics: React.FC = () => {
 
           <div className="flex items-center space-x-4">
             <div className="flex bg-gray-800 rounded-lg p-1">
-              {(["day", "week", "month"] as const).map((range) => (
+              {(["day", "week", "month", "year"] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
                   className={`px-3 py-1.5 rounded text-sm font-medium capitalize ${
                     timeRange === range
                       ? "bg-gradient-to-r from-[#3498db] to-[#2ecc71] text-white"
-                      : "text-gray-400 hover:text-white"
+                      : "text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
                   }`}
                 >
                   {range}
@@ -1421,7 +1424,8 @@ const Analytics: React.FC = () => {
           {stats.map((stat, index) => (
             <div
               key={index}
-              className="bg-gray-800/50 rounded-xl p-5 border border-gray-700 hover:border-gray-600 transition-colors"
+              className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700
+              hover:border-gray-300 dark:hover:border-gray-600"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-xl ${stat.bgColor}`}>
@@ -1442,7 +1446,7 @@ const Analytics: React.FC = () => {
                 <span
                   className={`text-sm font-medium px-2 py-1 rounded ${
                     stat.trend === "up"
-                      ? "text-green-400 bg-green-400/10"
+                      ? "text-gray-600 dark:text-gray-400 bg-gray-300/30 dark:bg-gray-400/10"
                       : stat.trend === "down"
                       ? "text-red-400 bg-red-400/10"
                       : "text-gray-400 bg-gray-400/10"
@@ -1451,10 +1455,10 @@ const Analytics: React.FC = () => {
                   {stat.change}
                 </span>
               </div>
-              <div className="text-3xl font-bold text-white mb-1">
+              <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
                 {stat.value.toLocaleString()}
               </div>
-              <div className="text-gray-400 text-sm">{stat.title}</div>
+              <div className="text-gray-600 dark:text-gray-400 text-sm">{stat.title}</div>
             </div>
           ))}
         </div>
@@ -1463,10 +1467,10 @@ const Analytics: React.FC = () => {
       {/* Main Charts */}
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {/* Shares Over Time */}
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-white mb-1">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
                 Shares Over Time
               </h3>
               <p className="text-gray-400 text-sm">Daily link copying activity</p>
@@ -1518,13 +1522,13 @@ const Analytics: React.FC = () => {
         </div>
 
         {/* Top Performing Files */}
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-white mb-1">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
                 Top Shared Files
               </h3>
-              <p className="text-gray-400 text-sm">Most copied links by file</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">Most copied links by file</p>
             </div>
             <Award className="w-5 h-5 text-[#f39c12]" />
           </div>
@@ -1563,13 +1567,13 @@ const Analytics: React.FC = () => {
       {/* Second Row Charts */}
       <div className="grid lg:grid-cols-3 gap-6 mb-8">
         {/* File Type Distribution */}
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-white mb-1">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
                 File Type Analysis
               </h3>
-              <p className="text-gray-400 text-sm">Shares by file type</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">Shares by file type</p>
             </div>
             <Database className="w-5 h-5 text-[#9b59b6]" />
           </div>
@@ -1599,55 +1603,55 @@ const Analytics: React.FC = () => {
           ) : (
             <div className="h-64 flex flex-col items-center justify-center">
               <HardDrive className="w-10 h-10 text-gray-600 mb-4" />
-              <p className="text-gray-500">No file type data</p>
+              <p className="text-gray-500 dark:text-gray-600">No file type data</p>
             </div>
           )}
         </div>
 
         {/* Performance Metrics */}
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-white mb-1">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
                 Performance Metrics
               </h3>
-              <p className="text-gray-400 text-sm">Key sharing statistics</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">Key sharing statistics</p>
             </div>
             <BarChart3 className="w-5 h-5 text-[#2ecc71]" />
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <Share2 className="w-4 h-4 text-[#3498db] mr-3" />
                 <span className="text-gray-300">Avg Shares per File</span>
               </div>
-              <span className="text-white font-bold">
+              <span className="text-gray-900 dark:text-white font-bold">
                 {analyticsData.performanceMetrics.avgSharesPerFile}
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <Target className="w-4 h-4 text-[#f39c12] mr-3" />
                 <span className="text-gray-300">Peak Hour Activity</span>
               </div>
-              <span className="text-white font-bold">
+              <span className="text-gray-900 dark:text-white font-bold">
                 {analyticsData.performanceMetrics.peakHourShares}
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <Smartphone className="w-4 h-4 text-[#9b59b6] mr-3" />
                 <span className="text-gray-300">Direct Copy Rate</span>
               </div>
-              <span className="text-white font-bold">
+              <span className="text-gray-900 dark:text-white font-bold">
                 {analyticsData.performanceMetrics.directCopyRate}%
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <TrendingUp className="w-4 h-4 text-[#2ecc71] mr-3" />
                 <span className="text-gray-300">Conversion Rate</span>
@@ -1660,13 +1664,13 @@ const Analytics: React.FC = () => {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-white mb-1">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
                 Recent Activity
               </h3>
-              <p className="text-gray-400 text-sm">Latest file interactions</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">Latest file interactions</p>
             </div>
             <Zap className="w-5 h-5 text-[#f39c12]" />
           </div>
@@ -1676,7 +1680,7 @@ const Analytics: React.FC = () => {
               {analyticsData.recentActivity.map((activity, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
+                  className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800/50"
                 >
                   <div className="flex items-center">
                     <div
@@ -1693,30 +1697,30 @@ const Analytics: React.FC = () => {
                       )}
                     </div>
                     <div>
-                      <div className="text-white text-sm font-medium truncate max-w-[150px]">
+                      <div className="text-gray-900 dark:text-white text-sm font-medium truncate max-w-[150px]">
                         {activity.file}
                       </div>
-                      <div className="text-gray-400 text-xs capitalize">
+                      <div className="text-gray-600 dark:text-gray-400 text-xs capitalize">
                         {activity.action} • {activity.count} times
                       </div>
                     </div>
                   </div>
-                  <div className="text-gray-400 text-sm">{activity.time}</div>
+                  <div className="text-gray-600 dark:text-gray-400 text-sm">{activity.time}</div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="h-48 flex flex-col items-center justify-center">
               <Clock className="w-10 h-10 text-gray-600 mb-4" />
-              <p className="text-gray-500">No recent activity</p>
-              <p className="text-gray-600 text-sm">Activity will appear here</p>
+              <p className="text-gray-500 dark:text-gray-600">No recent activity</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">Activity will appear here</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Footer Note */}
-      <div className="text-center text-gray-500 text-sm mb-4">
+      <div className="text-center text-gray-600 dark:text-gray-500 text-sm mb-4">
         <p>
           Tracking {uniqueFiles} files with {totalShares} total link copies •
           Last updated:{" "}

@@ -1,6 +1,7 @@
 import User from "../models/UserSchema.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import redisClient from "../config/redis.js";
 
 // REGISTER
 export const registerUser = async (req, res) => {
@@ -88,48 +89,41 @@ export const registerUser = async (req, res) => {
 };
 
 // LOGIN
+
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Validate input
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    // Find user by email (case insensitive)
-    const user = await User.findOne({
-      email: email.toLowerCase().trim(),
-    });
-
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) {
-      return res.status(401).json({ error: "Invalid credentials" }); // 401 for unauthorized
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     // Generate JWT token
-    const payload = {
-      user: {
-        id: user.id,
-        email: user.email,
-      },
-    };
+    const payload = { user: { id: user.id, email: user.email } };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "7d"
+    });
 
-    const authToken = jwt.sign(
-      payload,
-      process.env.JWT_SECRET || process.env.JWT_TOKEN,
-      {
-        expiresIn: process.env.JWT_EXPIRES_IN || "1h",
-      }
-    );
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: false,           
+      sameSite: "lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
 
     res.json({
-      authToken,
+      success: true,
       message: "Login successful",
       user: {
         id: user.id,
@@ -139,13 +133,42 @@ export const loginUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error.message);
-    res.status(500).json({
-      error: "Server Error",
-      message:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    res.status(500).json({ error: "Server Error" });
   }
 };
+
+
+// LOGOUT 
+
+export const logoutUser = async (req, res) => {
+  try {
+    const token = req.cookies?.token;
+    
+    if (token) {
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.exp) {
+        const ttl = decoded.exp - Math.floor(Date.now() / 1000);
+        if (ttl > 0) {
+          await redisClient.setEx(`blacklist:${token}`, ttl, "blocked");
+          console.log("✅ Token blacklisted");
+        }
+      }
+    }
+
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+    });
+
+    res.status(200).json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ error: "Logout failed" });
+  }
+};
+
 
 // GET USER
 export const getUser = async (req, res) => {
