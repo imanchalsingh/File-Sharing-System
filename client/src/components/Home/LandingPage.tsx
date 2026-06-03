@@ -638,104 +638,138 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-8000">
-        <div className="container mx-auto px-6 py-12">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-6 md:mb-0">
-              <Cloud className="w-8 h-8 text-[#3498db]" />
-              <span className="text-xl font-bold">SecureShare</span>
+      <footer className="border-t border-gray-200 dark:border-gray-800 bg-gradient-to-b from-transparent to-gray-100 dark:to-gray-950 mt-20">
+        <div className="container mx-auto px-6 py-16">
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-10">
+
+            {/* Brand Section */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center space-x-3 mb-4">
+                <Cloud className="w-10 h-10 text-[#3498db]" />
+                <span className="text-2xl font-bold bg-gradient-to-r from-[#3498db] to-[#2ecc71] bg-clip-text text-transparent">
+                  SecureShare
+                </span>
+              </div>
+
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed max-w-md mb-6">
+                SecureShare provides fast, reliable, and secure file sharing for
+                individuals, teams, and businesses. Built with privacy-first
+                principles and enterprise-grade protection.
+              </p>
+
+              <div className="flex gap-4">
+                <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <div className="font-bold text-[#3498db]">500K+</div>
+                  <div className="text-xs text-gray-500">Users</div>
+                </div>
+
+                <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <div className="font-bold text-[#2ecc71]">10M+</div>
+                  <div className="text-xs text-gray-500">Files Shared</div>
+                </div>
+
+                <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <div className="font-bold text-[#9b59b6]">99.9%</div>
+                  <div className="text-xs text-gray-500">Uptime</div>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              <div>
-                <h4 className="font-semibold mb-4 text-[#3498db]">Product</h4>
-                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Features
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Pricing
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      API
-                    </a>
-                  </li>
-                </ul>
-              </div>
+            {/* Product */}
+            <div>
+              <h4 className="font-semibold text-lg mb-4 text-[#3498db]">
+                Product
+              </h4>
 
-              <div>
-                <h4 className="font-semibold mb-4 text-[#2ecc71]">Company</h4>
-                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      About
+              <ul className="space-y-3">
+                {["Features", "Pricing", "Security", "API"].map((item) => (
+                  <li key={item}>
+                    <a
+                      href="#"
+                      className="text-gray-600 dark:text-gray-400 hover:text-[#3498db] transition-colors duration-200"
+                    >
+                      {item}
                     </a>
                   </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Blog
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Careers
-                    </a>
-                  </li>
-                </ul>
-              </div>
+                ))}
+              </ul>
+            </div>
 
-              <div>
-                <h4 className="font-semibold mb-4 text-[#f39c12]">Legal</h4>
-                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Privacy
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Terms
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Security
-                    </a>
-                  </li>
-                </ul>
-              </div>
+            {/* Company */}
+            <div>
+              <h4 className="font-semibold text-lg mb-4 text-[#2ecc71]">
+                Company
+              </h4>
 
-              <div>
-                <h4 className="font-semibold mb-4 text-[#9b59b6]">Connect</h4>
-                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Twitter
+              <ul className="space-y-3">
+                {["About", "Blog", "Careers", "Contact"].map((item) => (
+                  <li key={item}>
+                    <a
+                      href="#"
+                      className="text-gray-600 dark:text-gray-400 hover:text-[#2ecc71] transition-colors duration-200"
+                    >
+                      {item}
                     </a>
                   </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      LinkedIn
+                ))}
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div>
+              <h4 className="font-semibold text-lg mb-4 text-[#9b59b6]">
+                Resources
+              </h4>
+
+              <ul className="space-y-3">
+                {[
+                  "Privacy Policy",
+                  "Terms of Service",
+                  "Help Center",
+                  "Documentation",
+                ].map((item) => (
+                  <li key={item}>
+                    <a
+                      href="#"
+                      className="text-gray-600 dark:text-gray-400 hover:text-[#9b59b6] transition-colors duration-200"
+                    >
+                      {item}
                     </a>
                   </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      GitHub
-                    </a>
-                  </li>
-                </ul>
-              </div>
+                ))}
+              </ul>
             </div>
           </div>
 
-          <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800 text-center text-gray-600 dark:text-gray-500 text-sm">
-            © 2024 SecureShare. All rights reserved. File sharing made secure
-            and simple.
+          {/* Divider */}
+          <div className="border-t border-gray-200 dark:border-gray-800 my-10"></div>
+
+          {/* Bottom Footer */}
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+
+            <p className="text-gray-500 dark:text-gray-500 text-sm text-center md:text-left">
+              © 2024 SecureShare. All rights reserved. Secure file sharing made
+              simple and secure.
+            </p>
+
+            <div className="flex items-center gap-6 text-sm">
+              <span className="flex items-center gap-2 text-[#2ecc71]">
+                <Shield className="w-4 h-4" />
+                Enterprise Security
+              </span>
+
+              <span className="flex items-center gap-2 text-[#3498db]">
+                <Lock className="w-4 h-4" />
+                256-bit Encryption
+              </span>
+
+              <span className="flex items-center gap-2 text-[#9b59b6]">
+                <Globe className="w-4 h-4" />
+                Global Access
+              </span>
+            </div>
+
           </div>
         </div>
       </footer>
