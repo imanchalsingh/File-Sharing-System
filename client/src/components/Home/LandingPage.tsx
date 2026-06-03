@@ -15,7 +15,6 @@ import {
   File,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-<<<<<<< HEAD
 
 interface UploadedFile {
   id: string;
@@ -32,20 +31,17 @@ const formatSize = (bytes: number): string => {
   return bytes + " B";
 };
 
-=======
->>>>>>> 2183390d2fcf0c36d833a320cff96b5757e26dbd
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeFeature, setActiveFeature] = useState(0);
-<<<<<<< HEAD
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [theme, setTheme] = useState(
+    document.documentElement.classList.contains("dark") ? "dark" : "light"
+  );
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-=======
-  const [openFAQ, setOpenFAQ] = useState<number | null>(null);
->>>>>>> 2183390d2fcf0c36d833a320cff96b5757e26dbd
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -53,10 +49,6 @@ const LandingPage: React.FC = () => {
     }, 500);
     return () => clearInterval(interval);
   }, []);
-
-  const [theme, setTheme] = useState(
-    document.documentElement.classList.contains("dark") ? "dark" : "light"
-  );
 
   const toggleTheme = () => {
     const isDark = document.documentElement.classList.contains("dark");
@@ -211,41 +203,6 @@ const LandingPage: React.FC = () => {
       accent: "#e74c3c",
     },
   ];
-  const faqs = [
-  {
-    question: "Is my data secure on SecureShare?",
-    answer:
-      "Yes. All files are protected using end-to-end encryption and zero-knowledge architecture.",
-  },
-  {
-    question: "What happens if I delete a file?",
-    answer:
-      "Deleted files are permanently removed from our servers after a short recovery window.",
-  },
-  {
-    question: "Can I access my files on mobile?",
-    answer:
-      "Yes, SecureShare works on all devices including mobile, tablet, and desktop.",
-  },
-  {
-    question: "Is there a free plan available?",
-    answer:
-      "Yes, you get 5GB storage for free with basic sharing features.",
-  },
-  {
-    question: "Can I upgrade or downgrade anytime?",
-    answer:
-      "Yes, you can change your plan anytime from your account settings.",
-  },
-  {
-    question: "Do you offer team collaboration features?",
-    answer:
-      "Yes, Pro and Business plans include team sharing, permissions, and admin controls.",
-  },
-];
-const toggleFAQ = (index: number) => {
-  setOpenFAQ(openFAQ === index ? null : index);
-};
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
@@ -265,21 +222,16 @@ const toggleFAQ = (index: number) => {
             <a href="#contact" className="hover:text-[#3498db] transition-colors">Contact</a>
           </div>
           <div className="flex items-center space-x-4">
-<<<<<<< HEAD
-            <button className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors">Sign In</button>
-            <button className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity">
-=======
             <button 
-              onClick={() => navigate("/login")}
-              className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors"
+              onClick={() => navigate('/login')}
+              className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors font-semibold"
             >
               Sign In
             </button>
             <button 
-              onClick={() => navigate("/register")}
-              className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity"
+              onClick={() => navigate('/login')}
+              className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity text-white"
             >
->>>>>>> 2183390d2fcf0c36d833a320cff96b5757e26dbd
               Get Started
             </button>
             <button
@@ -471,56 +423,6 @@ const toggleFAQ = (index: number) => {
             </div>
           ))}
         </div>
-
-        <div className="mt-16 p-8 bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
-          <div className="flex flex-wrap items-center justify-between">
-            <div className="flex-1 min-w-[300px]">
-              <h3 className="text-3xl font-bold mb-6" style={{ color: features[activeFeature].color }}>
-                {features[activeFeature].title}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Experience the power of our file sharing platform with industry-leading features designed for modern teams.
-              </p>
-              <ul className="space-y-3">
-                {["Real-time collaboration", "Advanced permission controls", "Automatic versioning", "Detailed analytics"].map((item, i) => (
-                  <li key={i} className="flex items-center">
-                    <CheckCircle className="w-5 h-5 mr-3 text-[#2ecc71]" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex-1 min-w-[300px] mt-8 md:mt-0">
-              <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-xl">
-                <BarChart className="w-12 h-12 mx-auto mb-4 text-[#3498db]" />
-                <div className="space-y-4">
-                  {[70, 85, 60, 95].map((height, i) => (
-                    <div key={i} className="flex items-center">
-                      <div className="w-24 text-gray-600 dark:text-gray-400">Q{i + 1} 2024</div>
-                      <div className="flex-1 h-6 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-<<<<<<< HEAD
-                            width: `${height}%`,
-                            background: `linear-gradient(90deg, ${features[activeFeature].color}, ${features[(activeFeature + 1) % features.length].color})`,
-                          }}
-                        />
-=======
-                                  width: `${height}%`,
-                                 background: `linear-gradient(90deg, ${features[activeFeature].color}, ${features[(activeFeature + 1) % features.length].color})`,
-                                }}
-                        ></div>
->>>>>>> 2183390d2fcf0c36d833a320cff96b5757e26dbd
-                      </div>
-                      <div className="w-12 text-right">{height}%</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* Pricing Section */}
@@ -543,7 +445,7 @@ const toggleFAQ = (index: number) => {
             >
               {plan.popular && (
                 <div
-                  className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-4 py-1 rounded-full text-sm font-semibold"
+                  className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-4 py-1 rounded-full text-sm font-semibold text-gray-900"
                   style={{ backgroundColor: plan.accent }}
                 >
                   MOST POPULAR
@@ -563,13 +465,7 @@ const toggleFAQ = (index: number) => {
                 ))}
               </ul>
               <button
-<<<<<<< HEAD
-                className={`w-full py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 ${plan.popular ? "text-white" : ""}`}
-=======
-                className={`w-full py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 ${
-                            plan.popular ? "text-white" : ""
-                }`}
->>>>>>> 2183390d2fcf0c36d833a320cff96b5757e26dbd
+                className={`w-full py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 ${plan.popular ? "text-gray-900" : ""}`}
                 style={{
                   backgroundColor: plan.popular ? plan.accent : theme === "dark" ? "#4a5568" : "#e2e8f0",
                   color: plan.popular ? "#1a202c" : theme === "dark" ? "white" : "black",
@@ -605,52 +501,19 @@ const toggleFAQ = (index: number) => {
           </div>
         </div>
       </section>
-      {/* FAQ Section */}
-<section className="container mx-auto px-6 py-20">
-  <h2 className="text-4xl font-bold text-center mb-12">
-    Frequently Asked Questions
-  </h2>
-
-  <div className="max-w-3xl mx-auto space-y-4">
-    {faqs.map((faq, index) => (
-      <div
-        key={index}
-        className="border border-gray-200 dark:border-gray-700 rounded-xl p-5 bg-white dark:bg-gray-800 transition-all"
-      >
-        <button
-          onClick={() => toggleFAQ(index)}
-          className="w-full flex justify-between items-center text-left"
-        >
-          <span className="font-semibold text-lg">{faq.question}</span>
-          <span className="text-2xl">
-            {openFAQ === index ? "−" : "+"}
-          </span>
-        </button>
-
-        {openFAQ === index && (
-          <p className="mt-3 text-gray-600 dark:text-gray-300">
-            {faq.answer}
-          </p>
-        )}
-      </div>
-    ))}
-  </div>
-</section>
 
       {/* Contact Section */}
       <section id="contact" className="container mx-auto px-6 py-20">
-<<<<<<< HEAD
         <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
-=======
-        <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-white to-gray-100 
-        dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
->>>>>>> 2183390d2fcf0c36d833a320cff96b5757e26dbd
           <h2 className="text-4xl font-bold mb-6">Ready to Share Securely?</h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-2xl mx-auto">
             Join millions of users who trust us with their files. No credit card required to start.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="px-8 py-3 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold text-lg hover:opacity-90 transition-opacity">
+            <button 
+              onClick={() => navigate('/login')}
+              className="px-8 py-3 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold text-lg hover:opacity-90 transition-opacity text-white"
+            >
               Start Free Trial
             </button>
             <button className="px-8 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg font-semibold text-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
@@ -662,7 +525,6 @@ const toggleFAQ = (index: number) => {
           </p>
         </div>
       </section>
-
 
       {/* Footer */}
       <footer className="border-t border-gray-200 dark:border-gray-800">
