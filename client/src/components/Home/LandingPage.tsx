@@ -480,24 +480,213 @@ const LandingPage: React.FC = () => {
 
       {/* About Section */}
       <section id="about" className="container mx-auto px-6 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <Lock className="w-20 h-20 mx-auto mb-8 text-[#3498db]" />
-          <h2 className="text-4xl font-bold mb-6">Enterprise-Grade Security</h2>
-          <p className="text-xl text-gray-600 dark:text-gray-300 mb-12">
-            Your files are protected with military-grade encryption and secure global infrastructure.
+
+        {/* Section Header */}
+        <div className="text-center mb-16">
+          <Cloud className="w-20 h-20 mx-auto mb-6 text-[#3498db] animate-pulse" />
+
+          <h2 className="text-5xl font-bold mb-6">
+            <span className="bg-gradient-to-r from-[#3498db] via-[#9b59b6] to-[#2ecc71] bg-clip-text text-transparent">
+              About SecureShare
+            </span>
+          </h2>
+
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-4xl mx-auto leading-relaxed">
+            SecureShare is a modern file-sharing platform built for individuals,
+            teams, and organizations that demand speed, reliability, and security.
+            Store, transfer, and collaborate on files with enterprise-grade
+            protection and a seamless user experience.
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { icon: "🔒", title: "End-to-End Encryption", color: "#3498db" },
-              { icon: "🌐", title: "Global CDN", color: "#2ecc71" },
-              { icon: "📊", title: "Activity Logs", color: "#f39c12" },
-              { icon: "👥", title: "Role-Based Access", color: "#9b59b6" },
-            ].map((item, index) => (
-              <div key={index} className="p-6 bg-white/80 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="text-3xl mb-4">{item.icon}</div>
-                <div className="font-semibold" style={{ color: item.color }}>{item.title}</div>
+        </div>
+
+        {/* Mission */}
+        <div className="bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-3xl p-10 border border-gray-200 dark:border-gray-700 shadow-xl hover:shadow-2xl transition-all duration-300 mb-12">
+          <h3 className="text-3xl font-bold text-center mb-4">
+            Our Mission
+          </h3>
+
+          <p className="text-lg text-center text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+            To make secure file sharing simple, accessible, and trustworthy by
+            combining powerful collaboration tools with privacy-first architecture
+            and enterprise-grade security.
+          </p>
+        </div>
+
+        {/* Core Features */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {[
+            {
+              icon: <Zap className="w-8 h-8" />,
+              title: "Lightning Fast",
+              description:
+                "Optimized infrastructure ensures fast uploads and downloads.",
+              color: "#f1c40f",
+            },
+            {
+              icon: <Shield className="w-8 h-8" />,
+              title: "Secure by Design",
+              description:
+                "Advanced encryption keeps your files protected at every step.",
+              color: "#3498db",
+            },
+            {
+              icon: <Users className="w-8 h-8" />,
+              title: "Team Collaboration",
+              description:
+                "Share files securely and collaborate with your team in real time.",
+              color: "#9b59b6",
+            },
+            {
+              icon: <Globe className="w-8 h-8" />,
+              title: "Global Access",
+              description:
+                "Access your files from anywhere, on any device.",
+              color: "#2ecc71",
+            },
+          ].map((feature, index) => (
+            <div
+              key={index}
+              className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg hover:border-gray-400 dark:hover:border-gray-600 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 cursor-pointer"
+            >
+              <div
+                className="inline-flex p-3 rounded-xl mb-4 transition-transform duration-300 hover:scale-110"
+                style={{
+                  backgroundColor: `${feature.color}20`,
+                  color: feature.color,
+                }}
+              >
+                {feature.icon}
               </div>
-            ))}
+
+              <h4 className="text-xl font-bold mb-2">
+                {feature.title}
+              </h4>
+
+              <p className="text-gray-600 dark:text-gray-400">
+                {feature.description}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Security & Benefits */}
+        <div className="grid lg:grid-cols-2 gap-8 mb-12">
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-lg hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
+            <div className="flex items-center mb-6">
+              <Lock className="w-7 h-7 mr-3 text-[#3498db]" />
+              <h3 className="text-2xl font-bold">
+                Security Highlights
+              </h3>
+            </div>
+
+            <ul className="space-y-4">
+              {[
+                "End-to-end encryption",
+                "256-bit AES security",
+                "Zero-knowledge architecture",
+                "Role-based access control",
+                "Detailed activity monitoring",
+                "Regular security audits",
+              ].map((item, index) => (
+                <li key={index} className="flex items-center">
+                  <CheckCircle className="w-5 h-5 mr-3 text-[#2ecc71]" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-lg hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
+            <div className="flex items-center mb-6">
+              <Users className="w-7 h-7 mr-3 text-[#9b59b6]" />
+              <h3 className="text-2xl font-bold">
+                Why Choose SecureShare?
+              </h3>
+            </div>
+
+            <ul className="space-y-4">
+              {[
+                "Simple and intuitive experience",
+                "Fast and reliable file transfers",
+                "Enterprise-grade protection",
+                "Collaboration-friendly workflows",
+                "Scalable for teams of all sizes",
+                "Trusted by thousands worldwide",
+              ].map((item, index) => (
+                <li key={index} className="flex items-center">
+                  <CheckCircle className="w-5 h-5 mr-3 text-[#3498db]" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Trust Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+          {[
+            { value: "500K+", label: "Active Users", color: "#3498db" },
+            { value: "10M+", label: "Files Shared", color: "#2ecc71" },
+            { value: "99.9%", label: "Uptime", color: "#f39c12" },
+            { value: "256-bit", label: "Encryption", color: "#9b59b6" },
+          ].map((stat, index) => (
+            <div
+              key={index}
+              className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-200 dark:border-gray-700 text-center shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300 cursor-pointer"
+            >
+              <div
+                className="text-3xl font-bold mb-2"
+                style={{ color: stat.color }}
+              >
+                {stat.value}
+              </div>
+
+              <div className="text-gray-600 dark:text-gray-400">
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Additional Information Cards */}
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-[#3498db]/10 to-[#3498db]/5 rounded-2xl p-6 border border-[#3498db]/20 hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
+            <Shield className="w-8 h-8 mb-4 text-[#3498db]" />
+
+            <h4 className="text-xl font-bold mb-3">
+              Privacy First
+            </h4>
+
+            <p className="text-gray-600 dark:text-gray-400">
+              Your data remains protected through strong encryption and
+              privacy-focused infrastructure.
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-[#2ecc71]/10 to-[#2ecc71]/5 rounded-2xl p-6 border border-[#2ecc71]/20 hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
+            <Users className="w-8 h-8 mb-4 text-[#2ecc71]" />
+
+            <h4 className="text-xl font-bold mb-3">
+              Built For Teams
+            </h4>
+
+            <p className="text-gray-600 dark:text-gray-400">
+              Empower collaboration with secure sharing, permissions, and
+              centralized file management.
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-[#9b59b6]/10 to-[#9b59b6]/5 rounded-2xl p-6 border border-[#9b59b6]/20 hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
+            <Globe className="w-8 h-8 mb-4 text-[#9b59b6]" />
+
+            <h4 className="text-xl font-bold mb-3">
+              Global Availability
+            </h4>
+
+            <p className="text-gray-600 dark:text-gray-400">
+              Access files securely from anywhere in the world with reliable
+              infrastructure and high availability.
+            </p>
           </div>
         </div>
       </section>
@@ -527,50 +716,138 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-800">
-        <div className="container mx-auto px-6 py-12">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-6 md:mb-0">
-              <Cloud className="w-8 h-8 text-[#3498db]" />
-              <span className="text-xl font-bold">SecureShare</span>
+      <footer className="border-t border-gray-200 dark:border-gray-800 bg-gradient-to-b from-transparent to-gray-100 dark:to-gray-950 mt-20">
+        <div className="container mx-auto px-6 py-16">
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-10">
+
+            {/* Brand Section */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center space-x-3 mb-4">
+                <Cloud className="w-10 h-10 text-[#3498db]" />
+                <span className="text-2xl font-bold bg-gradient-to-r from-[#3498db] to-[#2ecc71] bg-clip-text text-transparent">
+                  SecureShare
+                </span>
+              </div>
+
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed max-w-md mb-6">
+                SecureShare provides fast, reliable, and secure file sharing for
+                individuals, teams, and businesses. Built with privacy-first
+                principles and enterprise-grade protection.
+              </p>
+
+              <div className="flex gap-4">
+                <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <div className="font-bold text-[#3498db]">500K+</div>
+                  <div className="text-xs text-gray-500">Users</div>
+                </div>
+
+                <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <div className="font-bold text-[#2ecc71]">10M+</div>
+                  <div className="text-xs text-gray-500">Files Shared</div>
+                </div>
+
+                <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <div className="font-bold text-[#9b59b6]">99.9%</div>
+                  <div className="text-xs text-gray-500">Uptime</div>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              <div>
-                <h4 className="font-semibold mb-4 text-[#3498db]">Product</h4>
-                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Features</a></li>
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Pricing</a></li>
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">API</a></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-4 text-[#2ecc71]">Company</h4>
-                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">About</a></li>
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Blog</a></li>
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Careers</a></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-4 text-[#f39c12]">Legal</h4>
-                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Privacy</a></li>
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Terms</a></li>
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Security</a></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-4 text-[#9b59b6]">Connect</h4>
-                <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Twitter</a></li>
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">LinkedIn</a></li>
-                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">GitHub</a></li>
-                </ul>
-              </div>
+
+            {/* Product */}
+            <div>
+              <h4 className="font-semibold text-lg mb-4 text-[#3498db]">
+                Product
+              </h4>
+
+              <ul className="space-y-3">
+                {["Features", "Pricing", "Security", "API"].map((item) => (
+                  <li key={item}>
+                    <a
+                      href="#"
+                      className="text-gray-600 dark:text-gray-400 hover:text-[#3498db] transition-colors duration-200"
+                    >
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Company */}
+            <div>
+              <h4 className="font-semibold text-lg mb-4 text-[#2ecc71]">
+                Company
+              </h4>
+
+              <ul className="space-y-3">
+                {["About", "Blog", "Careers", "Contact"].map((item) => (
+                  <li key={item}>
+                    <a
+                      href="#"
+                      className="text-gray-600 dark:text-gray-400 hover:text-[#2ecc71] transition-colors duration-200"
+                    >
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div>
+              <h4 className="font-semibold text-lg mb-4 text-[#9b59b6]">
+                Resources
+              </h4>
+
+              <ul className="space-y-3">
+                {[
+                  "Privacy Policy",
+                  "Terms of Service",
+                  "Help Center",
+                  "Documentation",
+                ].map((item) => (
+                  <li key={item}>
+                    <a
+                      href="#"
+                      className="text-gray-600 dark:text-gray-400 hover:text-[#9b59b6] transition-colors duration-200"
+                    >
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-          <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800 text-center text-gray-600 dark:text-gray-500 text-sm">
-            © 2024 SecureShare. All rights reserved. File sharing made secure and simple.
+
+          {/* Divider */}
+          <div className="border-t border-gray-200 dark:border-gray-800 my-10"></div>
+
+          {/* Bottom Footer */}
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+
+            <p className="text-gray-500 dark:text-gray-500 text-sm text-center md:text-left">
+              © 2024 SecureShare. All rights reserved. Secure file sharing made
+              simple and secure.
+            </p>
+
+            <div className="flex items-center gap-6 text-sm">
+              <span className="flex items-center gap-2 text-[#2ecc71]">
+                <Shield className="w-4 h-4" />
+                Enterprise Security
+              </span>
+
+              <span className="flex items-center gap-2 text-[#3498db]">
+                <Lock className="w-4 h-4" />
+                256-bit Encryption
+              </span>
+
+              <span className="flex items-center gap-2 text-[#9b59b6]">
+                <Globe className="w-4 h-4" />
+                Global Access
+              </span>
+            </div>
+
           </div>
         </div>
       </footer>
