@@ -11,6 +11,7 @@ import { v2 as cloudinary } from "cloudinary";
 import streamifier from "streamifier";
 import analyticsRoutes from "./routes/analytics.js";
 import fileRoutes from "./routes/files.js";
+import {connectRedis} from "./config/redis.js";
 
 const app = express();
 
@@ -25,7 +26,8 @@ app.use(
 
 // Connect to database
 connectDB();
-
+// Connect to Redis
+connectRedis();
 
 app.use(express.json());
 app.use(cookieParser()); 
