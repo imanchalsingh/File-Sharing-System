@@ -7,6 +7,8 @@ import HomeContent from "./components/Home/HomeContent";
 import LandingPage from "./components/Home/LandingPage";
 import Analytics from "./components/Home/Analytics";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   return (
@@ -17,6 +19,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route path="/landingpage" element={<LandingPage />} />
+
+
         
         {/* Protected Routes */}
         <Route 
@@ -32,6 +36,11 @@ function App() {
           <Route path="" element={<HomeContent />} />
         </Route>
       </Routes>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+      />
+
     </>
   );
 }

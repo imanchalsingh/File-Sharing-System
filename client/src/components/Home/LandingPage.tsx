@@ -13,11 +13,11 @@ import {
   Moon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeFeature, setActiveFeature] = useState(0);
+  const [openFAQ, setOpenFAQ] = useState<number | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -122,6 +122,41 @@ const LandingPage: React.FC = () => {
       accent: "#e74c3c",
     },
   ];
+  const faqs = [
+  {
+    question: "Is my data secure on SecureShare?",
+    answer:
+      "Yes. All files are protected using end-to-end encryption and zero-knowledge architecture.",
+  },
+  {
+    question: "What happens if I delete a file?",
+    answer:
+      "Deleted files are permanently removed from our servers after a short recovery window.",
+  },
+  {
+    question: "Can I access my files on mobile?",
+    answer:
+      "Yes, SecureShare works on all devices including mobile, tablet, and desktop.",
+  },
+  {
+    question: "Is there a free plan available?",
+    answer:
+      "Yes, you get 5GB storage for free with basic sharing features.",
+  },
+  {
+    question: "Can I upgrade or downgrade anytime?",
+    answer:
+      "Yes, you can change your plan anytime from your account settings.",
+  },
+  {
+    question: "Do you offer team collaboration features?",
+    answer:
+      "Yes, Pro and Business plans include team sharing, permissions, and admin controls.",
+  },
+];
+const toggleFAQ = (index: number) => {
+  setOpenFAQ(openFAQ === index ? null : index);
+};
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
@@ -324,9 +359,9 @@ const LandingPage: React.FC = () => {
                         <div
                           className="h-full rounded-full"
                           style={{
-                            width: `${height}%`,
-                            background: `linear-gradient(90deg, ${features[activeFeature].color}, ${features[(activeFeature + 1) % features.length].color})`,
-                          }}
+                                  width: `${height}%`,
+                                 background: `linear-gradient(90deg, ${features[activeFeature].color}, ${features[(activeFeature + 1) % features.length].color})`,
+                                }}
                         ></div>
                       </div>
                       <div className="w-12 text-right">{height}%</div>
@@ -387,7 +422,7 @@ const LandingPage: React.FC = () => {
 
               <button
                 className={`w-full py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 ${
-                  plan.popular ? "text-white" : ""
+                            plan.popular ? "text-white" : ""
                 }`}
                 style={{
                   backgroundColor: plan.popular ? plan.accent : theme === "dark" ? "#4a5568" : "#e2e8f0",
@@ -428,9 +463,40 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
+      {/* FAQ Section */}
+<section className="container mx-auto px-6 py-20">
+  <h2 className="text-4xl font-bold text-center mb-12">
+    Frequently Asked Questions
+  </h2>
+
+  <div className="max-w-3xl mx-auto space-y-4">
+    {faqs.map((faq, index) => (
+      <div
+        key={index}
+        className="border border-gray-200 dark:border-gray-700 rounded-xl p-5 bg-white dark:bg-gray-800 transition-all"
+      >
+        <button
+          onClick={() => toggleFAQ(index)}
+          className="w-full flex justify-between items-center text-left"
+        >
+          <span className="font-semibold text-lg">{faq.question}</span>
+          <span className="text-2xl">
+            {openFAQ === index ? "−" : "+"}
+          </span>
+        </button>
+
+        {openFAQ === index && (
+          <p className="mt-3 text-gray-600 dark:text-gray-300">
+            {faq.answer}
+          </p>
+        )}
+      </div>
+    ))}
+  </div>
+</section>
 
       {/* Contact Section */}
-      <section id= "contact"className="container mx-auto px-6 py-20">
+      <section id="contact" className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-white to-gray-100 
         dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
           <h2 className="text-4xl font-bold mb-6">Ready to Share Securely?</h2>
@@ -453,8 +519,9 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
+
       {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-8000">
+      <footer className="border-t border-gray-200 dark:border-gray-800">
         <div className="container mx-auto px-6 py-12">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-6 md:mb-0">

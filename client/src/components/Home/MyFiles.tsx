@@ -21,6 +21,7 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-toastify";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -253,13 +254,27 @@ const MyFiles: React.FC = () => {
         const result = await response.json();
 
         setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
+        function formatFileSize(bytes: number): string {
+  if (!bytes || bytes === 0) return "0 Bytes";
+
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return (
+    parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + (sizes[i] || "Bytes")
+  );
+}
+
+
 
         const newFile: TrackedFile = {
           id: Date.now().toString() + index,
           name: file.name,
           url: result.url, // Cloudinary URL from backend
           type: file.type.split("/")[0],
-          size: formatFileSize(file.size),
+          size:formatFileSize(file.size),
           uploaded: new Date().toLocaleDateString(),
           shareCount: 0,
           downloadCount: 0,
@@ -272,7 +287,7 @@ const MyFiles: React.FC = () => {
         uploadedFiles.push(newFile);
       } catch (err) {
         console.error("Upload failed for", file.name, err);
-        alert(`Failed to upload ${file.name}`);
+        toast.error(`Failed to upload ${file.name}`);
       }
     }
 
@@ -318,8 +333,7 @@ const MyFiles: React.FC = () => {
       const updated = files.filter((file) => file.id !== id);
       setFiles(updated);
       localStorage.setItem("uploadedFiles", JSON.stringify(updated));
-      alert("Deleted locally only. Backend sync failed.");
-    }
+      toast.warning("Deleted locally only. Backend sync failed");
   };
 
   // ✅ Delete selected files
@@ -377,7 +391,7 @@ const MyFiles: React.FC = () => {
     await trackLinkCopy(fileId, fileName, fileUrl);
 
     // Show success message
-    alert("Link copied to clipboard!");
+    toast.success("Link copied to clipboard!");
   };
 
   // ✅ Download file with tracking
@@ -403,7 +417,7 @@ const MyFiles: React.FC = () => {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error("Download failed:", error);
-      alert("Download failed. Please try again.");
+      toast.error("Download failed. Please try again.");
     }
   };
 
@@ -421,27 +435,37 @@ const MyFiles: React.FC = () => {
   const filteredFiles = files.filter((file) =>
     file.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const searchResultCount = filteredFiles.length;
+  
+// ✅ Format file size
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes === 0) return "0 Bytes";
 
-  // ✅ Format file size
-  function formatFileSize(bytes: number): string {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  }
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return (
+    parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + (sizes[i] || "Bytes")
+  );
+}
+formatFileSize
+
+ 
+  
 
   // ✅ Get file icon based on type
-  const getFileIcon = (type: string) => {
-    switch (type) {
-      case "image":
-        return <ImageIcon className="w-5 h-5" />;
-      case "application":
-        return <FileText className="w-5 h-5" />;
-      default:
-        return <File className="w-5 h-5" />;
+  function getFileIcon(type: string) {
+      switch (type) {
+        case "image":
+          return <ImageIcon className="w-5 h-5" />;
+        case "application":
+          return <FileText className="w-5 h-5" />;
+        default:
+          return <File className="w-5 h-5" />;
+      }
     }
-  };
 
   // ✅ Get file type color
   const getFileTypeColor = (type: string) => {
@@ -643,6 +667,10 @@ const MyFiles: React.FC = () => {
                 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 
                 focus:ring-[#3498db] focus:border-transparent"
               />
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                 {searchResultCount} result{searchResultCount !== 1 ? "s" : ""} found
+              </p>
+
             </div>
           </div>
 
@@ -1203,7 +1231,7 @@ const MyFiles: React.FC = () => {
                     handleDownload(fileId, activeImage, fileName);
                   }
                 }}
-                className="px-4 py-2 bg-[#3498db] hover:bg-[#2980b9] rounded-lg text-white font-medium flex items-center"
+                 className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-gray-900 dark:text-whitebg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium flex items-center"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Download
@@ -1215,5 +1243,6 @@ const MyFiles: React.FC = () => {
     </div>
   );
 };
+}
 
 export default MyFiles;
