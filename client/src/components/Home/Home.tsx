@@ -29,6 +29,20 @@ const Home: React.FC = () => {
     storage: 3.2,
     storageLimit: 10,
   });
+  const [theme, setTheme] = useState<string>(() =>
+    localStorage.getItem("theme") === "dark" ? "dark" : "light",
+  );
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", next);
+  };
 
  
   useEffect(() => {
@@ -52,12 +66,14 @@ const Home: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme === "dark") {
+    if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
-    };
+    }
+  }, [theme]);
+
+  useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
