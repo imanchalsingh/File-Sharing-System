@@ -158,10 +158,16 @@ const LandingPage: React.FC = () => {
             </a>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors">
+            <button 
+              onClick={() => navigate("/login")}
+              className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors"
+            >
               Sign In
             </button>
-            <button className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity">
+            <button 
+              onClick={() => navigate("/register")}
+              className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity"
+            >
               Get Started
             </button>
             <button
