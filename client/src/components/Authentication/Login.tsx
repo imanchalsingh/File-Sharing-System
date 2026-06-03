@@ -16,14 +16,34 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 const Login: React.FC = () => {
+  const [theme, setTheme] = useState("light");
+
+const toggleTheme = () => {
+  setTheme(theme === "light" ? "dark" : "light");
+};
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [theme, setTheme] = useState<string>(() =>
+    localStorage.getItem("theme") === "dark" ? "dark" : "light",
+  );
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", next);
+  };
 
   const handleRegisterRedirect = () => {
     navigate("/register");
@@ -48,7 +68,7 @@ const Login: React.FC = () => {
       );
 
       if (response.data.success) {
-        alert("Login successful! Welcome back.");
+        toast.success("Login successful! Welcome back.");
         navigate("/home");
       }
     } catch (error: unknown) {

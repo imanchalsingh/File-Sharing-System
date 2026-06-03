@@ -16,6 +16,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -72,7 +73,7 @@ const Register: React.FC = () => {
       });
 
       if (res.data.success) {
-        alert("Registration successful! Welcome to SecureShare!");
+        toast.success("Registration successful! Welcome to SecureShare!");
         navigate("/home");
       }
     } catch (error: unknown) {
