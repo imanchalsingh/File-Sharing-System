@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Upload,
   Shield,
@@ -11,13 +11,34 @@ import {
   Globe,
   Sun,
   Moon,
+  X,
+  File,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+interface UploadedFile {
+  id: string;
+  name: string;
+  size: string;
+  progress: number;
+  done: boolean;
+}
+
+const formatSize = (bytes: number): string => {
+  if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + " GB";
+  if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB";
+  if (bytes >= 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return bytes + " B";
+};
+
 const LandingPage: React.FC = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeFeature, setActiveFeature] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const dragCounter = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -27,13 +48,11 @@ const LandingPage: React.FC = () => {
   }, []);
 
   const [theme, setTheme] = useState(
-    document.documentElement.classList.contains("dark") 
-    ? "dark" : "light"
+    document.documentElement.classList.contains("dark") ? "dark" : "light"
   );
 
   const toggleTheme = () => {
     const isDark = document.documentElement.classList.contains("dark");
-
     if (isDark) {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("theme", "light");
@@ -43,6 +62,69 @@ const LandingPage: React.FC = () => {
       localStorage.setItem("theme", "dark");
       setTheme("dark");
     }
+  };
+
+  const simulateUpload = (file: File) => {
+    const id = Math.random().toString(36).slice(2);
+    const newFile: UploadedFile = {
+      id,
+      name: file.name,
+      size: formatSize(file.size),
+      progress: 0,
+      done: false,
+    };
+    setUploadedFiles((prev) => [...prev, newFile]);
+
+    const speed = Math.random() * 15 + 8;
+    const interval = setInterval(() => {
+      setUploadedFiles((prev) =>
+        prev.map((f) => {
+          if (f.id !== id) return f;
+          const next = Math.min(f.progress + speed, 100);
+          return { ...f, progress: next, done: next >= 100 };
+        })
+      );
+    }, 300);
+
+    setTimeout(() => clearInterval(interval), 5000);
+  };
+
+  const handleFiles = useCallback((files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach(simulateUpload);
+  }, []);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+    handleFiles(e.dataTransfer.files);
+  };
+
+  const removeFile = (id: string) => {
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
   const features = [
@@ -135,43 +217,22 @@ const LandingPage: React.FC = () => {
             </span>
           </div>
           <div className="hidden md:flex space-x-8">
-            <a
-              href="#features"
-              className="hover:text-[#3498db] transition-colors"
-            >
-              Features
-            </a>
-            <a
-              href="#pricing"
-              className="hover:text-[#3498db] transition-colors"
-            >
-              Pricing
-            </a>
-            <a href="#about" className="hover:text-[#3498db] transition-colors">
-              About
-            </a>
-            <a
-              href="#contact"
-              className="hover:text-[#3498db] transition-colors"
-            >
-              Contact
-            </a>
+            <a href="#features" className="hover:text-[#3498db] transition-colors">Features</a>
+            <a href="#pricing" className="hover:text-[#3498db] transition-colors">Pricing</a>
+            <a href="#about" className="hover:text-[#3498db] transition-colors">About</a>
+            <a href="#contact" className="hover:text-[#3498db] transition-colors">Contact</a>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors">
-              Sign In
-            </button>
+            <button className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors">Sign In</button>
             <button className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity">
               Get Started
             </button>
             <button
-                        onClick={toggleTheme}
-                        className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
-                        hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
-                        hover:text-black dark:hover:text-white transition-colors ml-4"
-                      >
-                        {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-                      </button>
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors ml-4"
+            >
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
           </div>
         </div>
       </nav>
@@ -186,40 +247,128 @@ const LandingPage: React.FC = () => {
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-3xl mx-auto">
           Transfer files securely with end-to-end encryption. Share large files,
-          collaborate with teams, and protect your data with enterprise-grade
-          security.
+          collaborate with teams, and protect your data with enterprise-grade security.
         </p>
 
-        {/* Upload Demo */}
+        {/* Drag & Drop Upload Zone */}
         <div className="max-w-2xl mx-auto bg-white/80 dark:bg-gray-800 rounded-2xl p-8 mb-12 border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full border-4 border-[#3498db] flex items-center justify-center">
-                <Upload className="w-12 h-12 text-[#3498db]" />
+
+          {/* Drop Zone */}
+          <div
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`relative cursor-pointer rounded-xl border-2 border-dashed transition-all duration-200 p-10 mb-6 flex flex-col items-center justify-center gap-4
+              ${isDragging
+                ? "border-[#3498db] bg-[#3498db]/10 scale-[1.02]"
+                : "border-gray-300 dark:border-gray-600 hover:border-[#3498db] hover:bg-[#3498db]/5"
+              }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+
+            {isDragging ? (
+              <>
+                <div className="w-16 h-16 rounded-full bg-[#3498db]/20 flex items-center justify-center">
+                  <Upload className="w-8 h-8 text-[#3498db] animate-bounce" />
+                </div>
+                <p className="text-[#3498db] font-semibold text-lg">Drop your files here!</p>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                  <Upload className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                </div>
+                <div>
+                  <p className="text-gray-700 dark:text-gray-300 font-semibold text-lg">
+                    Drag & drop files here
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                    or <span className="text-[#3498db] underline">click to browse</span>
+                  </p>
+                </div>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  Supports all file types • Max 2GB per file
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* File List */}
+          {uploadedFiles.length > 0 && (
+            <div className="space-y-3 mb-6">
+              {uploadedFiles.map((file) => (
+                <div
+                  key={file.id}
+                  className="bg-gray-50 dark:bg-gray-700/50 rounded-xl px-4 py-3"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <File className="w-4 h-4 text-[#3498db] shrink-0" />
+                      <span className="text-sm font-medium truncate max-w-[260px]">
+                        {file.name}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
+                        {file.size}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {file.done ? (
+                        <CheckCircle className="w-4 h-4 text-[#2ecc71]" />
+                      ) : (
+                        <span className="text-xs text-[#3498db]">
+                          {Math.round(file.progress)}%
+                        </span>
+                      )}
+                      <button
+                        onClick={() => removeFile(file.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71] transition-all duration-300 rounded-full"
+                      style={{ width: `${file.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Demo progress (shown when no files uploaded) */}
+          {uploadedFiles.length === 0 && (
+            <div className="space-y-4 mb-6">
+              <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
+                <span>project_final.zip • 2.4 GB</span>
+                <span className="text-[#2ecc71]">{uploadProgress}%</span>
               </div>
-              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#2ecc71] animate-spin"></div>
+              <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71] transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Encrypting and uploading securely...
+              </p>
             </div>
-          </div>
+          )}
 
-          <div className="space-y-4">
-            <div className="flex justify-between text-sm">
-              <span>project_final.zip • 2.4 GB</span>
-              <span className="text-[#2ecc71]">{uploadProgress}%</span>
-            </div>
-            <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71] transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Encrypting and uploading securely...
-            </p>
-          </div>
-
-          <button onClick={()=>{
-            navigate('/login')
-          }} className="mt-8 px-8 py-3 bg-gradient-to-r from-[#3498db] to-[#2980b9] rounded-lg font-semibold text-lg hover:opacity-90 transition-opacity w-full">
+          <button
+            onClick={() => navigate('/login')}
+            className="mt-2 px-8 py-3 bg-gradient-to-r from-[#3498db] to-[#2980b9] rounded-lg font-semibold text-lg hover:opacity-90 transition-opacity w-full text-white"
+          >
             <Upload className="inline mr-2 w-5 h-5" />
             Upload Your Files Now
           </button>
@@ -229,10 +378,7 @@ const LandingPage: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
           {stats.map((stat, index) => (
             <div key={index} className="text-center p-6 bg-white/80 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-              <div
-                className="text-3xl font-bold mb-2"
-                style={{ color: stat.color }}
-              >
+              <div className="text-3xl font-bold mb-2" style={{ color: stat.color }}>
                 {stat.value}
               </div>
               <div className="text-gray-600 dark:text-gray-300">{stat.label}</div>
@@ -243,10 +389,7 @@ const LandingPage: React.FC = () => {
 
       {/* Features Section */}
       <section id="features" className="container mx-auto px-6 py-20">
-        <h2 className="text-4xl font-bold text-center mb-16">
-          Powerful Features
-        </h2>
-
+        <h2 className="text-4xl font-bold text-center mb-16">Powerful Features</h2>
         <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {features.map((feature, index) => (
             <div
@@ -256,18 +399,14 @@ const LandingPage: React.FC = () => {
               }`}
               style={{
                 borderColor: activeFeature === index ? feature.color : undefined,
-                backgroundColor:
-                  activeFeature === index ? `${feature.color}20` : undefined,
+                backgroundColor: activeFeature === index ? `${feature.color}20` : undefined,
               }}
               onClick={() => setActiveFeature(index)}
             >
               <div className="flex items-center mb-6">
                 <div
                   className="p-3 rounded-xl mr-4"
-                  style={{
-                    backgroundColor: `${feature.color}20`,
-                    color: feature.color,
-                  }}
+                  style={{ backgroundColor: `${feature.color}20`, color: feature.color }}
                 >
                   {feature.icon}
                 </div>
@@ -278,28 +417,17 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
 
-        {/* Feature Details */}
-        <div className="mt-16 p-8 bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 
-        dark:to-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
+        <div className="mt-16 p-8 bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap items-center justify-between">
             <div className="flex-1 min-w-[300px]">
-              <h3
-                className="text-3xl font-bold mb-6"
-                style={{ color: features[activeFeature].color }}
-              >
+              <h3 className="text-3xl font-bold mb-6" style={{ color: features[activeFeature].color }}>
                 {features[activeFeature].title}
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Experience the power of our file sharing platform with
-                industry-leading features designed for modern teams.
+                Experience the power of our file sharing platform with industry-leading features designed for modern teams.
               </p>
               <ul className="space-y-3">
-                {[
-                  "Real-time collaboration",
-                  "Advanced permission controls",
-                  "Automatic versioning",
-                  "Detailed analytics",
-                ].map((item, i) => (
+                {["Real-time collaboration", "Advanced permission controls", "Automatic versioning", "Detailed analytics"].map((item, i) => (
                   <li key={i} className="flex items-center">
                     <CheckCircle className="w-5 h-5 mr-3 text-[#2ecc71]" />
                     {item}
@@ -321,7 +449,7 @@ const LandingPage: React.FC = () => {
                             width: `${height}%`,
                             background: `linear-gradient(90deg, ${features[activeFeature].color}, ${features[(activeFeature + 1) % features.length].color})`,
                           }}
-                        ></div>
+                        />
                       </div>
                       <div className="w-12 text-right">{height}%</div>
                     </div>
@@ -335,14 +463,10 @@ const LandingPage: React.FC = () => {
 
       {/* Pricing Section */}
       <section id="pricing" className="container mx-auto px-6 py-20">
-        <h2 className="text-4xl font-bold text-center mb-4">
-          Simple, Transparent Pricing
-        </h2>
+        <h2 className="text-4xl font-bold text-center mb-4">Simple, Transparent Pricing</h2>
         <p className="text-gray-600 dark:text-gray-400 text-center mb-16 max-w-2xl mx-auto">
-          Choose the perfect plan for your needs. All plans include our core
-          security features.
+          Choose the perfect plan for your needs. All plans include our core security features.
         </p>
-
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {plans.map((plan, index) => (
             <div
@@ -363,13 +487,11 @@ const LandingPage: React.FC = () => {
                   MOST POPULAR
                 </div>
               )}
-
               <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
               <div className="mb-6">
                 <span className="text-4xl font-bold">{plan.price}</span>
                 <span className="text-gray-600 dark:text-gray-400">/month</span>
               </div>
-
               <ul className="space-y-4 mb-8">
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex items-center">
@@ -378,11 +500,8 @@ const LandingPage: React.FC = () => {
                   </li>
                 ))}
               </ul>
-
               <button
-                className={`w-full py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 ${
-                  plan.popular ? "text-white" : ""
-                }`}
+                className={`w-full py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 ${plan.popular ? "text-white" : ""}`}
                 style={{
                   backgroundColor: plan.popular ? plan.accent : theme === "dark" ? "#4a5568" : "#e2e8f0",
                   color: plan.popular ? "#1a202c" : theme === "dark" ? "white" : "black",
@@ -396,15 +515,13 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* About Section */}
-      <section id = "about" className="container mx-auto px-6 py-20">
+      <section id="about" className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center">
           <Lock className="w-20 h-20 mx-auto mb-8 text-[#3498db]" />
           <h2 className="text-4xl font-bold mb-6">Enterprise-Grade Security</h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-12">
-            Your files are protected with military-grade encryption and secure
-            global infrastructure.
+            Your files are protected with military-grade encryption and secure global infrastructure.
           </p>
-
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
               { icon: "🔒", title: "End-to-End Encryption", color: "#3498db" },
@@ -414,9 +531,7 @@ const LandingPage: React.FC = () => {
             ].map((item, index) => (
               <div key={index} className="p-6 bg-white/80 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                 <div className="text-3xl mb-4">{item.icon}</div>
-                <div className="font-semibold" style={{ color: item.color }}>
-                  {item.title}
-                </div>
+                <div className="font-semibold" style={{ color: item.color }}>{item.title}</div>
               </div>
             ))}
           </div>
@@ -424,13 +539,11 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Contact Section */}
-      <section id= "contact"className="container mx-auto px-6 py-20">
-        <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-white to-gray-100 
-        dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
+      <section id="contact" className="container mx-auto px-6 py-20">
+        <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
           <h2 className="text-4xl font-bold mb-6">Ready to Share Securely?</h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-2xl mx-auto">
-            Join millions of users who trust us with their files. No credit card
-            required to start.
+            Join millions of users who trust us with their files. No credit card required to start.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button className="px-8 py-3 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold text-lg hover:opacity-90 transition-opacity">
@@ -441,111 +554,56 @@ const LandingPage: React.FC = () => {
             </button>
           </div>
           <p className="mt-8 text-gray-600 dark:text-gray-400 text-sm">
-            Free plan includes 5GB storage • 2GB file size limit • All security
-            features
+            Free plan includes 5GB storage • 2GB file size limit • All security features
           </p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-8000">
+      <footer className="border-t border-gray-200 dark:border-gray-800">
         <div className="container mx-auto px-6 py-12">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-6 md:mb-0">
               <Cloud className="w-8 h-8 text-[#3498db]" />
               <span className="text-xl font-bold">SecureShare</span>
             </div>
-
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               <div>
                 <h4 className="font-semibold mb-4 text-[#3498db]">Product</h4>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Features
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Pricing
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      API
-                    </a>
-                  </li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Features</a></li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Pricing</a></li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">API</a></li>
                 </ul>
               </div>
-
               <div>
                 <h4 className="font-semibold mb-4 text-[#2ecc71]">Company</h4>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      About
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Blog
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Careers
-                    </a>
-                  </li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">About</a></li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Blog</a></li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Careers</a></li>
                 </ul>
               </div>
-
               <div>
                 <h4 className="font-semibold mb-4 text-[#f39c12]">Legal</h4>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Privacy
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Terms
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Security
-                    </a>
-                  </li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Privacy</a></li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Terms</a></li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Security</a></li>
                 </ul>
               </div>
-
               <div>
                 <h4 className="font-semibold mb-4 text-[#9b59b6]">Connect</h4>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-400">
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      Twitter
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      LinkedIn
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">
-                      GitHub
-                    </a>
-                  </li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">Twitter</a></li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">LinkedIn</a></li>
+                  <li><a href="#" className="hover:text-black dark:hover:text-white transition-colors">GitHub</a></li>
                 </ul>
               </div>
             </div>
           </div>
-
           <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800 text-center text-gray-600 dark:text-gray-500 text-sm">
-            © 2024 SecureShare. All rights reserved. File sharing made secure
-            and simple.
+            © 2024 SecureShare. All rights reserved. File sharing made secure and simple.
           </div>
         </div>
       </footer>
