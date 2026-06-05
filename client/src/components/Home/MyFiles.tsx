@@ -42,15 +42,23 @@ interface TrackedFile {
 }
 
 const MyFiles: React.FC = () => {
+  return (
+    <div>
+      {/* Your component content goes here */}
+    </div>
+  );
+  const [searchResultCount, setSearchResultCount] = useState<number>(0);
   const [files, setFiles] = useState<TrackedFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedType, setSelectedType] = useState("All");
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showFileStats, setShowFileStats] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  
 
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
 
@@ -430,12 +438,39 @@ const MyFiles: React.FC = () => {
     trackView(fileId, fileName, fileUrl);
     setActiveImage(fileUrl);
   };
+  const getFileType = (fileName: string) => {
+    const extension = fileName.split(".").pop()?.toLowerCase();
+  
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(extension || "")) {
+      return "Images";
+    }
+  
+    if (extension === "pdf") {
+      return "PDFs";
+    }
+  
+    if (["doc", "docx", "txt", "rtf"].includes(extension || "")) {
+      return "Documents";
+    }
+  
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(extension || "")) {
+      return "Videos";
+    }
+  
+    return "Others";
+  };
 
   // ✅ Filter files based on search
-  const filteredFiles = files.filter((file) =>
-    file.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-  const searchResultCount = filteredFiles.length;
+  const filteredFiles = files.filter((file) => {
+    const matchesSearch = file.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+  
+    const matchesType =
+      selectedType === "All" || getFileType(file.name) === selectedType;
+  
+    return matchesSearch && matchesType;
+  });
   
 // ✅ Format file size
 function formatFileSize(bytes: number): string {
@@ -668,8 +703,25 @@ formatFileSize
                 focus:ring-[#3498db] focus:border-transparent"
               />
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                 {searchResultCount} result{searchResultCount !== 1 ? "s" : ""} found
-              </p>
+  {searchResultCount} result{searchResultCount !== 1 ? "s" : ""} found
+</p>
+
+<div className="flex flex-wrap gap-2 mt-4">
+  {["All", "Images", "PDFs", "Documents", "Videos", "Others"].map((type) => (
+    <button
+      key={type}
+      type="button"
+      onClick={() => setSelectedType(type)}
+      className={`px-4 py-2 rounded-lg border transition-all ${
+        selectedType === type
+          ? "bg-[#3498db] text-white border-[#3498db]"
+          : "bg-gray-800/50 text-gray-300 border-gray-700 hover:border-[#3498db]"
+      }`}
+    >
+      {type}
+    </button>
+  ))}
+</div>
 
             </div>
           </div>
@@ -739,8 +791,18 @@ formatFileSize
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
-        >
-          {viewMode === "grid" ? (
+        >{filteredFiles.length === 0 && (
+          <div className="text-center py-12">
+            <h3 className="text-xl font-semibold text-gray-400">
+              No files found
+            </h3>
+            <p className="text-gray-500 mt-2">
+              Try changing your search or filter.
+            </p>
+          </div>
+        )}
+          {filteredFiles.length > 0 && (
+  viewMode === "grid" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {filteredFiles.map((file) => (
                 <motion.div
@@ -1013,7 +1075,8 @@ formatFileSize
                 ))}
               </div>
             </div>
-          )}
+          ))}
+        
         </motion.div>
       </AnimatePresence>
 
