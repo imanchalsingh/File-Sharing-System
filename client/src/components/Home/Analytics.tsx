@@ -29,7 +29,7 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
-  Line,
+  Cell,
 } from "recharts";
 
 interface TrackedFile {
@@ -71,6 +71,7 @@ interface AnalyticsData {
     directCopyRate: number;
   };
   recentActivity: Array<{
+    timestamp: string;
     time: string;
     file: string;
     action: string;
@@ -103,19 +104,17 @@ const Analytics: React.FC = () => {
   useEffect(() => {
     const loadTrackedFiles = () => {
       const stored = localStorage.getItem("uploadedFiles");
+
       if (stored) {
         const files = JSON.parse(stored);
         setTrackedFiles(files);
         generateRealAnalyticsData(files);
       } else {
-        // Fallback to mock data if no tracked files
         generateMockAnalyticsData();
       }
     };
-
+    
     loadTrackedFiles();
-    // Refresh data when time range changes
-    generateRealAnalyticsData(trackedFiles);
   }, [timeRange]);
 
   // Generate analytics from real tracked data
@@ -212,7 +211,9 @@ const Analytics: React.FC = () => {
       const shareSources = Array.from(sourceMap.entries())
         .map(([name, value]) => ({
           name,
-          value: Math.round((value / totalSourceShares) * 100),
+          value:totalSourceShares > 0 
+          ? Math.round((value / totalSourceShares) * 100)
+          : 0,
           color: getSourceColor(name),
         }))
         .sort((a, b) => b.value - a.value);
@@ -244,7 +245,9 @@ const Analytics: React.FC = () => {
           ? Math.max(...hourlyActivity.map((h) => h.shares))
           : 0;
       const directCopyRate =
-        shareSources.find((s) => s.name === "Direct Copy")?.value || 100;
+        shareSources.length > 0
+          ? shareSources.find((s) => s.name === "Direct Copy")?.value || 0
+          : 0;
 
       // Recent activity (last 24 hours)
       const recentActivity = files
@@ -252,9 +255,8 @@ const Analytics: React.FC = () => {
           const activities = [];
           if (file.shareCount > 0) {
             activities.push({
-              time: file.lastAccessed
-                ? formatTimeAgo(new Date(file.lastAccessed))
-                : "Recently",
+              timestamp: file.lastAccessed || new Date().toISOString(),
+              time: formatTimeAgo(new Date(file.lastAccessed || new Date())),
               file: file.name,
               action: "share",
               count: file.shareCount,
@@ -262,6 +264,7 @@ const Analytics: React.FC = () => {
           }
           if (file.downloadCount > 0) {
             activities.push({
+              timestamp: file.lastAccessed || new Date().toISOString(),
               time: file.lastAccessed
                 ? formatTimeAgo(new Date(file.lastAccessed))
                 : "Recently",
@@ -272,7 +275,7 @@ const Analytics: React.FC = () => {
           }
           return activities;
         })
-        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, 5);
 
       setAnalyticsData({
@@ -749,7 +752,7 @@ const Analytics: React.FC = () => {
                     dataKey="shares"
                   >
                     {analyticsData.fileTypeDistribution.map((entry, index) => (
-                      <Line key={`line-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip content={<FileTypeTooltip />} />
@@ -780,7 +783,7 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <Share2 className="w-4 h-4 text-[#3498db] mr-3" />
-                <span className="text-gray-300">Avg Shares per File</span>
+                <span className="text-gray-700 dark:text-gray-300">Avg Shares per File</span>
               </div>
               <span className="text-gray-900 dark:text-white font-bold">
                 {analyticsData.performanceMetrics.avgSharesPerFile}
@@ -790,7 +793,7 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <Target className="w-4 h-4 text-[#f39c12] mr-3" />
-                <span className="text-gray-300">Peak Hour Activity</span>
+                <span className="text-gray-700 dark:text-gray-300">Peak Hour Activity</span>
               </div>
               <span className="text-gray-900 dark:text-white font-bold">
                 {analyticsData.performanceMetrics.peakHourShares}
@@ -800,7 +803,7 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <Smartphone className="w-4 h-4 text-[#9b59b6] mr-3" />
-                <span className="text-gray-300">Direct Copy Rate</span>
+                <span className="text-gray-700 dark:text-gray-300">Direct Copy Rate</span>
               </div>
               <span className="text-gray-900 dark:text-white font-bold">
                 {analyticsData.performanceMetrics.directCopyRate}%
@@ -810,7 +813,7 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <TrendingUp className="w-4 h-4 text-[#2ecc71] mr-3" />
-                <span className="text-gray-300">Engagement Rate</span>
+                <span className="text-gray-700 dark:text-gray-300">Engagement Rate</span>
               </div>
               <span className="text-gray-900 dark:text-white font-bold">
                 {trackedFiles.length > 0
