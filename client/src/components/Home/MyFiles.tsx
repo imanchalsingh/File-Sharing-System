@@ -342,7 +342,8 @@ const MyFiles: React.FC = () => {
       setFiles(updated);
       localStorage.setItem("uploadedFiles", JSON.stringify(updated));
       toast.warning("Deleted locally only. Backend sync failed");
-  };
+   }
+   };
 
   // ✅ Delete selected files
   const handleDeleteSelected = async () => {
@@ -746,11 +747,41 @@ formatFileSize
             </label>
 
             {/* Filter */}
-            <button className="p-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 
-            dark:hover:bg-gray-600 rounded-lg text-gray-700 dark:text-gray-300 
-            hover:text-black dark:hover:text-white">
-              <Filter className="w-5 h-5" />
-            </button>
+            {/* Filter */}
+<div className="relative">
+  <button
+    onClick={() => setShowFilter((v) => !v)}
+    className={`p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors ${
+      activeFilter !== "all"
+        ? "bg-[#3498db] text-white dark:text-white"
+        : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+    }`}
+    title="Filter by type"
+  >
+    <Filter className="w-5 h-5" />
+  </button>
+
+  {showFilter && (
+    <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 overflow-hidden">
+      {["all", "image", "application", "video", "other"].map((type) => (
+        <button
+          key={type}
+          onClick={() => {
+            setActiveFilter(type);
+            setShowFilter(false);
+          }}
+          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+            activeFilter === type
+              ? "bg-[#3498db]/10 text-[#3498db] font-medium"
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          }`}
+        >
+          {type.charAt(0).toUpperCase() + type.slice(1)}
+        </button>
+      ))}
+    </div>
+  )}
+     </div>
 
             {/* Delete Selected */}
             {selectedFiles.length > 0 && (
@@ -1306,6 +1337,6 @@ formatFileSize
     </div>
   );
 };
-}
+
 
 export default MyFiles;

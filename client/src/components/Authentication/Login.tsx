@@ -39,18 +39,37 @@ const Login: React.FC = () => {
 
     if (next === "dark") {
       document.documentElement.classList.add("dark");
+      setTheme("dark");
     } else {
       document.documentElement.classList.remove("dark");
+      setTheme("light");
     }
 
     localStorage.setItem("theme", next);
   };
 
-  const handleLogin = async () => {
+  // Handle login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setErrorMsg(null);
+    setLoading(true);
 
+    // Validation
     if (!email || !password) {
-      setErrorMsg("Please enter both email and password.");
+      setErrorMsg("Please fill in all fields");
+      setLoading(false);
+      return;
+    }
+
+    if (!email.includes("@")) {
+      setErrorMsg("Please enter a valid email");
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters");
+      setLoading(false);
       return;
     }
 
@@ -63,9 +82,15 @@ const Login: React.FC = () => {
         { withCredentials: true }
       );
 
-      if (response.data.success) {
-        toast.success("Login successful! Welcome back.");
-        navigate("/home");
+      // Mock authentication - replace with your actual API call
+      if (email === "admin@example.com" && password === "password123") {
+        localStorage.setItem("user", JSON.stringify({ email, role: "admin" }));
+        navigate("/dashboard");
+      } else if (email === "user@example.com" && password === "password123") {
+        localStorage.setItem("user", JSON.stringify({ email, role: "user" }));
+        navigate("/dashboard");
+      } else {
+        setErrorMsg("Invalid email or password");
       }
     } catch (error: unknown) {
       setErrorMsg("Invalid email or password.");
@@ -74,30 +99,10 @@ const Login: React.FC = () => {
     }
   };
 
-  const featureCards = [
-    {
-      icon: <Shield className="w-6 h-6" />,
-      title: "Secure Access",
-      description: "Bank-level encryption for all your data",
-      color: "#3498db",
-    },
-    {
-      icon: <Zap className="w-6 h-6" />,
-      title: "Instant Access",
-      description: "Access your files instantly from any device",
-      color: "#2ecc71",
-    },
-    {
-      icon: <Globe className="w-6 h-6" />,
-      title: "Anywhere Access",
-      description: "Access from any location worldwide",
-      color: "#9b59b6",
-    },
-  ];
-
-  const demoAccounts = [
-    { email: "demo@secureshare.com", password: "demo123", role: "Demo User" },
-  ];
+  // Handle sign up redirect
+  const handleSignUp = () => {
+    navigate("/signup");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 font-sans p-4">
@@ -128,7 +133,13 @@ const Login: React.FC = () => {
               {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
             </button>
           </div>
-        </header>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            SecureShare
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Sign in to your account
+          </p>
+        </div>
 
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-8">
@@ -146,6 +157,7 @@ const Login: React.FC = () => {
                   Sign in to access your secure file storage
                 </p>
               </div>
+            )}
 
               <form
                 className="space-y-6"
@@ -218,10 +230,25 @@ const Login: React.FC = () => {
                   </div>
                 )}
 
+            {/* Password Field */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  disabled={loading}
+                />
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-4 bg-gradient-to-r from-[#3498db] to-[#2ecc71] text-white font-bold rounded-xl shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
                 >
                   {loading ? "Signing In..." : "Sign In"}
                 </button>
@@ -409,7 +436,7 @@ const Login: React.FC = () => {
           <p className="mt-1 text-gray-500 dark:text-gray-600">
             Your security is our top priority.
           </p>
-        </footer>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import User from "../models/UserSchema.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import redisClient from "../config/redis.js";
+import redisClient, { redisAvailable } from "../config/redis.js";
 
 // REGISTER
 export const registerUser = async (req, res) => {
@@ -116,7 +116,7 @@ export const loginUser = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false,           
+      secure: false,
       sameSite: "lax",
       path: "/",
       maxAge: 7 * 24 * 60 * 60 * 1000
@@ -143,12 +143,12 @@ export const loginUser = async (req, res) => {
 export const logoutUser = async (req, res) => {
   try {
     const token = req.cookies?.token;
-    
+
     if (token) {
       const decoded = jwt.decode(token);
       if (decoded && decoded.exp) {
         const ttl = decoded.exp - Math.floor(Date.now() / 1000);
-        if (ttl > 0) {
+        if (ttl > 0 && redisAvailable) {
           await redisClient.setEx(`blacklist:${token}`, ttl, "blocked");
           console.log("✅ Token blacklisted");
         }
