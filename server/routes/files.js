@@ -1,5 +1,5 @@
 import express from "express";
-import authenticateUser from "../middleware/authenticationUser.js";
+import authenticateUser from "../middleware/authenticateUser.js";
 import {
   getUserFiles,
   getFileById,

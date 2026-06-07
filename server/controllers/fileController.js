@@ -43,7 +43,7 @@ export const getFileById = async (req, res) => {
 export const saveFileInfo = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes } = req.body;
+    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes, checksum } = req.body;
     
     if (!fileName || !fileUrl) {
       return res.status(400).json({ error: "File name and URL are required" });
@@ -55,6 +55,7 @@ export const saveFileInfo = async (req, res) => {
       fileType: fileType || "application",
       fileSize: fileSize || "0 KB",
       fileSizeBytes: fileSizeBytes || 0,
+      checksum: checksum || null,
       userId,
       shareCount: 0,
       downloadCount: 0,
