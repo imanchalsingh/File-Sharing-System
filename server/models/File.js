@@ -22,6 +22,10 @@ const fileSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    checksum: {
+      type: String,
+      default: null,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

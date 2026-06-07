@@ -32,6 +32,7 @@ interface TrackedFile {
   type: string;
   size: string;
   uploaded: string;
+  checksum?: string;
   shareCount: number;
   downloadCount: number;
   viewCount: number;
@@ -233,6 +234,12 @@ const MyFiles: React.FC = () => {
 
   // ✅ Handle file upload to Cloudinary via backend
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const computeSHA256 = async (file: File): Promise<string> => {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    };
     if (!e.target.files) return;
 
     const selectedFilesList = Array.from(e.target.files);
@@ -248,6 +255,7 @@ const MyFiles: React.FC = () => {
 
         // Upload to Cloudinary via backend
         const formData = new FormData();
+        const checksum = await computeSHA256(file);
         formData.append("file", file);
 
         const response = await fetch(`${API_URL}/upload`, {
@@ -263,17 +271,17 @@ const MyFiles: React.FC = () => {
 
         setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
         function formatFileSize(bytes: number): string {
-  if (!bytes || bytes === 0) return "0 Bytes";
+          if (!bytes || bytes === 0) return "0 Bytes";
 
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+          const k = 1024;
+          const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
 
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return (
-    parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + (sizes[i] || "Bytes")
-  );
-}
+          return (
+            parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + (sizes[i] || "Bytes")
+          );
+        }
 
 
 
@@ -284,6 +292,7 @@ const MyFiles: React.FC = () => {
           type: file.type.split("/")[0],
           size:formatFileSize(file.size),
           uploaded: new Date().toLocaleDateString(),
+          checksum,
           shareCount: 0,
           downloadCount: 0,
           viewCount: 0,
