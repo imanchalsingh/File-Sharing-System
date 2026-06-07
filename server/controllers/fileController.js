@@ -43,7 +43,7 @@ export const getFileById = async (req, res) => {
 export const saveFileInfo = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes, checksum } = req.body;
+    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes, checksum, tags } = req.body;
     
     if (!fileName || !fileUrl) {
       return res.status(400).json({ error: "File name and URL are required" });
@@ -56,7 +56,8 @@ export const saveFileInfo = async (req, res) => {
       fileSize: fileSize || "0 KB",
       fileSizeBytes: fileSizeBytes || 0,
       checksum: checksum || null,
-      userId,
+      tags: Array.isArray(tags) ? tags : [],
+      userId,     
       shareCount: 0,
       downloadCount: 0,
       viewCount: 0,
@@ -251,3 +252,53 @@ export const getFileStats = async (req, res) => {
     res.status(500).json({ error: "Failed to get file statistics" });
   }
 };
+
+
+
+// ✅ Update file tags
+export const updateFileTags = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { tags } = req.body;
+
+    if (!Array.isArray(tags)) {
+      return res.status(400).json({ error: "Tags must be an array" });
+    }
+
+    const file = await File.findOneAndUpdate(
+      { _id: id, userId },
+      { tags },
+      { new: true }
+    );
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    res.json({ success: true, message: "Tags updated", tags: file.tags });
+  } catch (error) {
+    console.error("Update tags error:", error);
+    res.status(500).json({ error: "Failed to update tags" });
+  }
+};
+
+// ✅ Get files by tag
+export const getFilesByTag = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { tag } = req.params;
+
+    const files = await File.find({
+      userId,
+      tags: { $in: [tag] },
+    }).sort({ createdAt: -1 });
+
+    res.json({ success: true, files, count: files.length });
+  } catch (error) {
+    console.error("Get files by tag error:", error);
+    res.status(500).json({ error: "Failed to fetch files by tag" });
+  }
+};
+
+
