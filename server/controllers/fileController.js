@@ -251,3 +251,49 @@ export const getFileStats = async (req, res) => {
     res.status(500).json({ error: "Failed to get file statistics" });
   }
 };
+
+// ✅ Toggle file favorite status
+export const toggleFavorite = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    const file = await File.findOne({ _id: id, userId });
+    
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    
+    file.isFavorite = !file.isFavorite;
+    await file.save();
+    
+    res.json({
+      success: true,
+      message: file.isFavorite ? "File marked as favorite" : "File removed from favorites",
+      isFavorite: file.isFavorite,
+    });
+  } catch (error) {
+    console.error("Toggle favorite error:", error);
+    res.status(500).json({ error: "Failed to toggle favorite status" });
+  }
+};
+
+// ✅ Get all favorite files for user
+export const getFavoriteFiles = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const files = await File.find({ userId, isFavorite: true })
+      .sort({ updatedAt: -1 })
+      .select("-__v");
+    
+    res.json({
+      success: true,
+      files,
+      count: files.length,
+    });
+  } catch (error) {
+    console.error("Get favorites error:", error);
+    res.status(500).json({ error: "Failed to fetch favorite files" });
+  }
+};

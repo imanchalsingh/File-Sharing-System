@@ -10,6 +10,8 @@ import {
   deleteFile,
   bulkDeleteFiles,
   getFileStats,
+  toggleFavorite,
+  getFavoriteFiles,
 } from "../controllers/fileController.js";
 
 const router = express.Router();
@@ -19,6 +21,9 @@ router.use(authenticateUser);
 
 // Get all user files
 router.get("/my-files", getUserFiles);
+
+// Get favorite files
+router.get("/favorites", getFavoriteFiles);
 
 // Get file stats
 router.get("/stats", getFileStats);
@@ -33,6 +38,7 @@ router.post("/save-info", saveFileInfo);
 router.put("/:id/share", updateShareCount);
 router.put("/:id/download", updateDownloadCount);
 router.put("/:id/view", updateViewCount);
+router.put("/:id/favorite", toggleFavorite);
 
 // Delete file
 router.delete("/:id", deleteFile);
