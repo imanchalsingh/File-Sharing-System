@@ -10,6 +10,8 @@ import {
   deleteFile,
   bulkDeleteFiles,
   getFileStats,
+  getFileVersions,
+  restoreFileVersion,
 } from "../controllers/fileController.js";
 
 const router = express.Router();
@@ -39,5 +41,11 @@ router.delete("/:id", deleteFile);
 
 // Bulk delete
 router.delete("/bulk-delete", bulkDeleteFiles);
+
+// Get file versions
+router.get("/:id/versions", getFileVersions);
+
+// Restore file version
+router.post("/:id/restore/:version", restoreFileVersion);
 
 export default router;
