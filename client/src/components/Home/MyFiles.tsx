@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { analyticsApi } from "../../services/api";
+import { analyticsApi, fileApi } from "../../services/api";
 import {
   Upload,
   Trash2,
@@ -19,6 +19,7 @@ import {
   Eye,
   BarChart3,
   Link as LinkIcon,
+  Star,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -33,6 +34,7 @@ interface TrackedFile {
   size: string;
   uploaded: string;
   checksum?: string;
+  isFavorite?: boolean;
   tags?: string[];
   shareCount: number;
   downloadCount: number;
@@ -44,12 +46,6 @@ interface TrackedFile {
 }
 
 const MyFiles: React.FC = () => {
-  return (
-    <div>
-      {/* Your component content goes here */}
-    </div>
-  );
-  const [searchResultCount, setSearchResultCount] = useState<number>(0);
   const [files, setFiles] = useState<TrackedFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,6 +56,8 @@ const MyFiles: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showFileStats, setShowFileStats] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showFilter, setShowFilter] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("all");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState<string>("");
   const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
@@ -89,8 +87,9 @@ const MyFiles: React.FC = () => {
                 name: file.fileName,
                 url: file.fileUrl,
                 type: file.fileType || "application",
-                size: file.size || "0 KB",
+                size: file.fileSize || "0 KB",
                 uploaded: new Date(file.createdAt).toLocaleDateString(),
+                isFavorite: file.isFavorite || false,
                 shareCount: file.shareCount || 0,
                 downloadCount: file.downloadCount || 0,
                 viewCount: file.viewCount || 0,
@@ -234,6 +233,21 @@ const MyFiles: React.FC = () => {
       );
     } catch (error) {
       console.error("Failed to track view:", error);
+    }
+  };
+
+  // ✅ Toggle favorite status
+  const handleToggleFavorite = async (fileId: string) => {
+    try {
+      const result = await fileApi.toggleFavorite(fileId);
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId ? { ...f, isFavorite: result.isFavorite } : f
+        )
+      );
+      toast.success(result.isFavorite ? "Added to favorites ⭐" : "Removed from favorites");
+    } catch {
+      toast.error("Failed to update favorite");
     }
   };
 
@@ -496,7 +510,7 @@ const MyFiles: React.FC = () => {
     }
   };
 
-  // ✅ Filter files based on search
+  // ✅ Filter files based on search, type, and activeFilter
   const filteredFiles = files.filter((file) => {
     const matchesSearch = file.name
       .toLowerCase()
@@ -504,9 +518,14 @@ const MyFiles: React.FC = () => {
   
     const matchesType =
       selectedType === "All" || getFileType(file.name) === selectedType;
+
+    const matchesActiveFilter =
+      activeFilter === "all" || file.type === activeFilter;
   
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesType && matchesActiveFilter;
   });
+
+  const searchResultCount = filteredFiles.length;
   
 // ✅ Format file size
 function formatFileSize(bytes: number): string {
@@ -663,7 +682,7 @@ formatFileSize
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-[#3498db]/20 rounded-lg mr-3">
@@ -674,6 +693,20 @@ formatFileSize
                   {files.length}
                 </div>
                 <div className="text-gray-600 dark:text-gray-400 text-sm">Total Files</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <div className="p-2 bg-yellow-400/20 rounded-lg mr-3">
+                <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {files.filter((f) => f.isFavorite).length}
+                </div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm">Favorites</div>
               </div>
             </div>
           </div>
@@ -909,6 +942,20 @@ formatFileSize
                       <BarChart3 className="w-4 h-4" />
                     </button>
                   )}
+
+                  {/* Favorite Button - top-right, below stats badge */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleToggleFavorite(file.id); }}
+                    className={`absolute top-10 right-2 z-10 p-1.5 rounded-full transition-all duration-200 ${
+                      file.isFavorite
+                        ? "bg-yellow-400 text-white shadow-md"
+                        : "bg-gray-900/70 text-gray-400 hover:text-yellow-400 hover:bg-gray-900/90"
+                    }`}
+                    aria-label={file.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                    title={file.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${file.isFavorite ? "fill-white" : ""}`} />
+                  </button>
 
                   {/* File Preview */}
                   <div
@@ -1149,6 +1196,13 @@ formatFileSize
                           title="View Stats"
                         >
                           <BarChart3 className="w-4 h-4 text-gray-400 hover:text-white" />
+                        </button>
+                        <button
+                          onClick={() => handleToggleFavorite(file.id)}
+                          className="p-1.5 hover:bg-yellow-400/20 rounded"
+                          title={file.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                        >
+                          <Star className={`w-4 h-4 ${file.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400 hover:text-yellow-400"}`} />
                         </button>
                         <button
                           onClick={() => handleDelete(file.id)}

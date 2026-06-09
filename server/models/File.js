@@ -66,6 +66,10 @@ const fileSchema = new mongoose.Schema(
     lastAccessed: {
       type: Date,
     },
+    isFavorite: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
