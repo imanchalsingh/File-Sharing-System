@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { analyticsApi } from "../../services/api";
 import {
   Upload,
   Trash2,
@@ -19,8 +20,10 @@ import {
   BarChart3,
   Link as LinkIcon,
 } from "lucide-react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-toastify";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 interface TrackedFile {
   id: string;
@@ -29,6 +32,7 @@ interface TrackedFile {
   type: string;
   size: string;
   uploaded: string;
+  checksum?: string;
   shareCount: number;
   downloadCount: number;
   viewCount: number;
@@ -39,186 +43,203 @@ interface TrackedFile {
 }
 
 const MyFiles: React.FC = () => {
+  return (
+    <div>
+      {/* Your component content goes here */}
+    </div>
+  );
+  const [searchResultCount, setSearchResultCount] = useState<number>(0);
   const [files, setFiles] = useState<TrackedFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedType, setSelectedType] = useState("All");
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showFileStats, setShowFileStats] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  
 
-  // fetch live url
-  const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
-  });
+  // ✅ Load files from localStorage (temporary - will be replaced with backend)
 
-  // Load saved files on component mount
+  // ✅ UPDATED: Load files from BACKEND first, localStorage as fallback
   useEffect(() => {
-    const stored = localStorage.getItem("uploadedFiles");
-    if (stored) {
-      setFiles(JSON.parse(stored));
-    }
+    const loadFiles = async () => {
+      setLoading(true);
+      try {
+        // Try to fetch from backend
+        const token = localStorage.getItem("authToken");
+        if (token) {
+          const response = await fetch(`${API_URL}/api/files/my-files`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.files && data.files.length > 0) {
+              const backendFiles = data.files.map((file: any) => ({
+                id: file._id,
+                name: file.fileName,
+                url: file.fileUrl,
+                type: file.fileType || "application",
+                size: file.size || "0 KB",
+                uploaded: new Date(file.createdAt).toLocaleDateString(),
+                shareCount: file.shareCount || 0,
+                downloadCount: file.downloadCount || 0,
+                viewCount: file.viewCount || 0,
+                shareHistory: file.shareHistory || [],
+                downloadHistory: file.downloadHistory || [],
+                viewHistory: file.viewHistory || [],
+              }));
+              setFiles(backendFiles);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+
+        // Fallback to localStorage
+        const stored = localStorage.getItem("uploadedFiles");
+        if (stored) {
+          setFiles(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.error("Error loading files:", error);
+        // Fallback to localStorage
+        const stored = localStorage.getItem("uploadedFiles");
+        if (stored) {
+          setFiles(JSON.parse(stored));
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFiles();
   }, []);
 
-  // Function to track link copy
+  // ✅ Track link copy with BACKEND API
   const trackLinkCopy = async (
     fileId: string,
     fileName: string,
     fileUrl: string,
   ) => {
     try {
-      const timestamp = new Date().toISOString();
+      // Send to backend API
+      await analyticsApi.trackAction("copy_link", {
+        fileId,
+        fileName,
+        fileUrl,
+        source: "direct_copy",
+      });
+      console.log("✅ Share tracked to backend");
 
-      // Update local state
+      // Update local state for UI
       setFiles((prevFiles) =>
         prevFiles.map((file) =>
           file.id === fileId
             ? {
                 ...file,
                 shareCount: (file.shareCount || 0) + 1,
-                lastAccessed: timestamp,
+                lastAccessed: new Date().toISOString(),
                 shareHistory: [
                   ...(file.shareHistory || []),
-                  { timestamp, source: "direct_copy" },
+                  {
+                    timestamp: new Date().toISOString(),
+                    source: "direct_copy",
+                  },
                 ],
               }
             : file,
         ),
       );
-
-      // Save to localStorage
-      const updatedFiles = files.map((file) =>
-        file.id === fileId
-          ? {
-              ...file,
-              shareCount: (file.shareCount || 0) + 1,
-              lastAccessed: timestamp,
-              shareHistory: [
-                ...(file.shareHistory || []),
-                { timestamp, source: "direct_copy" },
-              ],
-            }
-          : file,
-      );
-      localStorage.setItem("uploadedFiles", JSON.stringify(updatedFiles));
-
-      // Send to backend API (if available)
-      try {
-        await api.post("/api/track/share", {
-          fileId,
-          fileName,
-          fileUrl,
-          timestamp,
-          action: "copy_link",
-          source: "direct_copy",
-          userAgent: navigator.userAgent,
-        });
-      } catch (apiError) {
-        console.log("API not available, tracking locally", apiError);
-      }
     } catch (error) {
       console.error("Failed to track share:", error);
     }
   };
 
-  // Function to track download
+  // ✅ Track download with BACKEND API
   const trackDownload = async (
     fileId: string,
     fileName: string,
     fileUrl: string,
   ) => {
     try {
-      const timestamp = new Date().toISOString();
+      // Send to backend API
+      await analyticsApi.trackAction("download", {
+        fileId,
+        fileName,
+        fileUrl,
+      });
+      console.log("✅ Download tracked to backend");
 
-      // Update local state
+      // Update local state for UI
       setFiles((prevFiles) =>
         prevFiles.map((file) =>
           file.id === fileId
             ? {
                 ...file,
                 downloadCount: (file.downloadCount || 0) + 1,
-                lastAccessed: timestamp,
+                lastAccessed: new Date().toISOString(),
                 downloadHistory: [
                   ...(file.downloadHistory || []),
-                  { timestamp },
+                  { timestamp: new Date().toISOString() },
                 ],
               }
             : file,
         ),
       );
-
-      // Save to localStorage
-      const updatedFiles = files.map((file) =>
-        file.id === fileId
-          ? {
-              ...file,
-              downloadCount: (file.downloadCount || 0) + 1,
-              lastAccessed: timestamp,
-              downloadHistory: [...(file.downloadHistory || []), { timestamp }],
-            }
-          : file,
-      );
-      localStorage.setItem("uploadedFiles", JSON.stringify(updatedFiles));
-
-      // Send to backend API (if available)
-      try {
-        await api.post("/api/track/download", {
-          fileId,
-          fileName,
-          fileUrl,
-          timestamp,
-          action: "download",
-          userAgent: navigator.userAgent,
-        });
-      } catch (apiError) {
-        console.log("API not available, tracking locally", apiError);
-      }
     } catch (error) {
       console.error("Failed to track download:", error);
     }
   };
 
-  // Function to track view
-  const trackView = async (fileId: string, _fileName: string, _fileUrl: string) => {
+  // ✅ Track view with BACKEND API
+  const trackView = async (
+    fileId: string,
+    fileName: string,
+    fileUrl: string,
+  ) => {
     try {
-      const timestamp = new Date().toISOString();
+      // Send to backend API
+      await analyticsApi.trackAction("view", {
+        fileId,
+        fileName,
+        fileUrl,
+      });
+      console.log("✅ View tracked to backend");
 
-      // Update local state
-      setFiles((prevFiles) => {
-        const updated = prevFiles.map((file) =>
+      // Update local state for UI
+      setFiles((prevFiles) =>
+        prevFiles.map((file) =>
           file.id === fileId
             ? {
                 ...file,
                 viewCount: (file.viewCount || 0) + 1,
-                viewHistory: [...(file.viewHistory || []), { timestamp }],
+                viewHistory: [
+                  ...(file.viewHistory || []),
+                  { timestamp: new Date().toISOString() },
+                ],
               }
             : file,
-        );
-
-        localStorage.setItem("uploadedFiles", JSON.stringify(updated));
-
-        return updated;
-      });
-
-      // Save to localStorage
-      const updatedFiles = files.map((file) =>
-        file.id === fileId
-          ? {
-              ...file,
-              viewCount: (file.viewCount || 0) + 1,
-              viewHistory: [...(file.viewHistory || []), { timestamp }],
-            }
-          : file,
+        ),
       );
-      localStorage.setItem("uploadedFiles", JSON.stringify(updatedFiles));
     } catch (error) {
       console.error("Failed to track view:", error);
     }
   };
 
-  // Handle file upload
+  // ✅ Handle file upload to Cloudinary via backend
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const computeSHA256 = async (file: File): Promise<string> => {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    };
     if (!e.target.files) return;
 
     const selectedFilesList = Array.from(e.target.files);
@@ -229,29 +250,49 @@ const MyFiles: React.FC = () => {
 
     for (const [index, file] of selectedFilesList.entries()) {
       try {
-        // Simulate upload progress
-        const progressInterval = setInterval(() => {
-          setUploadProgress((prev) => {
-            const newProgress = prev + 100 / selectedFilesList.length / 10;
-            return newProgress > (index + 1) * (100 / selectedFilesList.length)
-              ? (index + 1) * (100 / selectedFilesList.length)
-              : newProgress;
-          });
-        }, 100);
+        // Update progress
+        setUploadProgress(((index + 1) / selectedFilesList.length) * 50);
 
-        // In real app, replace with actual upload API
-        // const res = await axios.post("/upload", formData);
-        const mockUrl = URL.createObjectURL(file); // Simulated URL
+        // Upload to Cloudinary via backend
+        const formData = new FormData();
+        const checksum = await computeSHA256(file);
+        formData.append("file", file);
 
-        clearInterval(progressInterval);
+        const response = await fetch(`${API_URL}/upload`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error("Upload failed");
+        }
+
+        const result = await response.json();
+
+        setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
+        function formatFileSize(bytes: number): string {
+          if (!bytes || bytes === 0) return "0 Bytes";
+
+          const k = 1024;
+          const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+          return (
+            parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + (sizes[i] || "Bytes")
+          );
+        }
+
+
 
         const newFile: TrackedFile = {
           id: Date.now().toString() + index,
           name: file.name,
-          url: mockUrl,
+          url: result.url, // Cloudinary URL from backend
           type: file.type.split("/")[0],
-          size: formatFileSize(file.size),
+          size:formatFileSize(file.size),
           uploaded: new Date().toLocaleDateString(),
+          checksum,
           shareCount: 0,
           downloadCount: 0,
           viewCount: 0,
@@ -261,12 +302,13 @@ const MyFiles: React.FC = () => {
         };
 
         uploadedFiles.push(newFile);
-        setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
       } catch (err) {
-        console.error("Upload failed", err);
+        console.error("Upload failed for", file.name, err);
+        toast.error(`Failed to upload ${file.name}`);
       }
     }
 
+    // Save to localStorage (temporary - will be replaced with backend)
     setFiles((prev) => {
       const updated = [...uploadedFiles, ...prev];
       localStorage.setItem("uploadedFiles", JSON.stringify(updated));
@@ -278,23 +320,74 @@ const MyFiles: React.FC = () => {
     setTimeout(() => setUploadProgress(0), 1000);
   };
 
-  // Delete file
-  const handleDelete = (id: string) => {
-    const updated = files.filter((file) => file.id !== id);
-    setFiles(updated);
-    setSelectedFiles((prev) => prev.filter((fileId) => fileId !== id));
-    localStorage.setItem("uploadedFiles", JSON.stringify(updated));
+  // ✅ Delete file
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this file?")) return;
+
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_URL}/api/files/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        // Backend se delete ho gaya, ab local update karo
+        const updated = files.filter((file) => file.id !== id);
+        setFiles(updated);
+        setSelectedFiles((prev) => prev.filter((fileId) => fileId !== id));
+        localStorage.setItem("uploadedFiles", JSON.stringify(updated));
+        console.log(" File deleted from backend");
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch (error) {
+      console.error("Delete from backend failed:", error);
+      // Fallback: local delete only
+      const updated = files.filter((file) => file.id !== id);
+      setFiles(updated);
+      localStorage.setItem("uploadedFiles", JSON.stringify(updated));
+      toast.warning("Deleted locally only. Backend sync failed");
+   }
+   };
+
+  // ✅ Delete selected files
+  const handleDeleteSelected = async () => {
+    if (!confirm(`Delete ${selectedFiles.length} selected files?`)) return;
+
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_URL}/api/files/bulk-delete`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ fileIds: selectedFiles }),
+      });
+
+      if (response.ok) {
+        const updated = files.filter(
+          (file) => !selectedFiles.includes(file.id),
+        );
+        setFiles(updated);
+        setSelectedFiles([]);
+        localStorage.setItem("uploadedFiles", JSON.stringify(updated));
+      }
+    } catch (error) {
+      console.error("Bulk delete failed:", error);
+      // Fallback to local delete
+      const updated = files.filter((file) => !selectedFiles.includes(file.id));
+      setFiles(updated);
+      setSelectedFiles([]);
+      localStorage.setItem("uploadedFiles", JSON.stringify(updated));
+    }
   };
 
-  // Delete selected files
-  const handleDeleteSelected = () => {
-    const updated = files.filter((file) => !selectedFiles.includes(file.id));
-    setFiles(updated);
-    setSelectedFiles([]);
-    localStorage.setItem("uploadedFiles", JSON.stringify(updated));
-  };
-
-  // Toggle file selection
+  // ✅ Toggle file selection
   const toggleFileSelection = (id: string) => {
     setSelectedFiles((prev) =>
       prev.includes(id)
@@ -303,7 +396,7 @@ const MyFiles: React.FC = () => {
     );
   };
 
-  // Share file with tracking
+  // ✅ Share file with tracking
   const handleShare = async (
     fileId: string,
     fileUrl: string,
@@ -312,21 +405,21 @@ const MyFiles: React.FC = () => {
     // Copy to clipboard
     await navigator.clipboard.writeText(fileUrl);
 
-    // Track the copy
+    // Track the copy to backend
     await trackLinkCopy(fileId, fileName, fileUrl);
 
     // Show success message
-    alert("Link copied to clipboard!");
+    toast.success("Link copied to clipboard!");
   };
 
-  // Download file with tracking
+  // ✅ Download file with tracking
   const handleDownload = async (
     fileId: string,
     fileUrl: string,
     fileName: string,
   ) => {
     try {
-      // Track download first
+      // Track download to backend first
       await trackDownload(fileId, fileName, fileUrl);
 
       // Then proceed with download
@@ -342,10 +435,11 @@ const MyFiles: React.FC = () => {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error("Download failed:", error);
+      toast.error("Download failed. Please try again.");
     }
   };
 
-  // View image with tracking
+  // ✅ View image with tracking
   const handleImagePreview = (
     fileId: string,
     fileUrl: string,
@@ -354,34 +448,71 @@ const MyFiles: React.FC = () => {
     trackView(fileId, fileName, fileUrl);
     setActiveImage(fileUrl);
   };
-
-  // Filter files based on search
-  const filteredFiles = files.filter((file) =>
-    file.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  // Format file size
-  function formatFileSize(bytes: number): string {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  }
-
-  // Get file icon based on type
-  const getFileIcon = (type: string) => {
-    switch (type) {
-      case "image":
-        return <ImageIcon className="w-5 h-5" />;
-      case "application":
-        return <FileText className="w-5 h-5" />;
-      default:
-        return <File className="w-5 h-5" />;
+  const getFileType = (fileName: string) => {
+    const extension = fileName.split(".").pop()?.toLowerCase();
+  
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(extension || "")) {
+      return "Images";
     }
+  
+    if (extension === "pdf") {
+      return "PDFs";
+    }
+  
+    if (["doc", "docx", "txt", "rtf"].includes(extension || "")) {
+      return "Documents";
+    }
+  
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(extension || "")) {
+      return "Videos";
+    }
+  
+    return "Others";
   };
 
-  // Get file type color
+  // ✅ Filter files based on search
+  const filteredFiles = files.filter((file) => {
+    const matchesSearch = file.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+  
+    const matchesType =
+      selectedType === "All" || getFileType(file.name) === selectedType;
+  
+    return matchesSearch && matchesType;
+  });
+  
+// ✅ Format file size
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes === 0) return "0 Bytes";
+
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return (
+    parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + (sizes[i] || "Bytes")
+  );
+}
+formatFileSize
+
+ 
+  
+
+  // ✅ Get file icon based on type
+  function getFileIcon(type: string) {
+      switch (type) {
+        case "image":
+          return <ImageIcon className="w-5 h-5" />;
+        case "application":
+          return <FileText className="w-5 h-5" />;
+        default:
+          return <File className="w-5 h-5" />;
+      }
+    }
+
+  // ✅ Get file type color
   const getFileTypeColor = (type: string) => {
     switch (type) {
       case "image":
@@ -395,7 +526,7 @@ const MyFiles: React.FC = () => {
     }
   };
 
-  // Get file stats
+  // ✅ Get file stats for modal
   const getFileStats = (fileId: string) => {
     const file = files.find((f) => f.id === fileId);
     if (!file) return null;
@@ -429,7 +560,7 @@ const MyFiles: React.FC = () => {
     };
   };
 
-  // Get total stats for header
+  // ✅ Get total stats for header
   const totalStats = {
     totalShares: files.reduce((sum, file) => sum + (file.shareCount || 0), 0),
     totalDownloads: files.reduce(
@@ -446,6 +577,18 @@ const MyFiles: React.FC = () => {
       return sum + todayShares;
     }, 0),
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3498db] mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading your files...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 sm:px-6">
@@ -569,6 +712,27 @@ const MyFiles: React.FC = () => {
                 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 
                 focus:ring-[#3498db] focus:border-transparent"
               />
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+  {searchResultCount} result{searchResultCount !== 1 ? "s" : ""} found
+</p>
+
+<div className="flex flex-wrap gap-2 mt-4">
+  {["All", "Images", "PDFs", "Documents", "Videos", "Others"].map((type) => (
+    <button
+      key={type}
+      type="button"
+      onClick={() => setSelectedType(type)}
+      className={`px-4 py-2 rounded-lg border transition-all ${
+        selectedType === type
+          ? "bg-[#3498db] text-white border-[#3498db]"
+          : "bg-gray-800/50 text-gray-300 border-gray-700 hover:border-[#3498db]"
+      }`}
+    >
+      {type}
+    </button>
+  ))}
+</div>
+
             </div>
           </div>
 
@@ -592,11 +756,41 @@ const MyFiles: React.FC = () => {
             </label>
 
             {/* Filter */}
-            <button className="p-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 
-            dark:hover:bg-gray-600 rounded-lg text-gray-700 dark:text-gray-300 
-            hover:text-black dark:hover:text-white">
-              <Filter className="w-5 h-5" />
-            </button>
+            {/* Filter */}
+<div className="relative">
+  <button
+    onClick={() => setShowFilter((v) => !v)}
+    className={`p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors ${
+      activeFilter !== "all"
+        ? "bg-[#3498db] text-white dark:text-white"
+        : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+    }`}
+    title="Filter by type"
+  >
+    <Filter className="w-5 h-5" />
+  </button>
+
+  {showFilter && (
+    <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 overflow-hidden">
+      {["all", "image", "application", "video", "other"].map((type) => (
+        <button
+          key={type}
+          onClick={() => {
+            setActiveFilter(type);
+            setShowFilter(false);
+          }}
+          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+            activeFilter === type
+              ? "bg-[#3498db]/10 text-[#3498db] font-medium"
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          }`}
+        >
+          {type.charAt(0).toUpperCase() + type.slice(1)}
+        </button>
+      ))}
+    </div>
+  )}
+     </div>
 
             {/* Delete Selected */}
             {selectedFiles.length > 0 && (
@@ -637,68 +831,126 @@ const MyFiles: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
-        >
-          {viewMode === "grid" ? (
+        >{filteredFiles.length === 0 && (
+          <div className="text-center py-12">
+            <h3 className="text-xl font-semibold text-gray-400">
+              No files found
+            </h3>
+            <p className="text-gray-500 mt-2">
+              Try changing your search or filter.
+            </p>
+          </div>
+        )}
+          {filteredFiles.length > 0 && (
+  viewMode === "grid" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {filteredFiles.map((file) => {
-                return (
-                  <motion.div
-                    key={file.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                    className={`relative group rounded-xl overflow-hidden border ${
+              {filteredFiles.map((file) => (
+                <motion.div
+                  key={file.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className={`relative group rounded-xl overflow-hidden border ${
+                    selectedFiles.includes(file.id)
+                      ? "border-[#3498db] ring-2 ring-[#3498db]/20"
+                      : "border-gray-700 hover:border-gray-600"
+                  } bg-gray-800/30 transition-all duration-300 hover:scale-[1.02]`}
+                >
+                  {/* Selection Checkbox */}
+                  <button
+                    onClick={() => toggleFileSelection(file.id)}
+                    className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center ${
                       selectedFiles.includes(file.id)
-                        ? "border-[#3498db] ring-2 ring-[#3498db]/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                    } bg-white/80 dark:bg-gray-800/30 hover:scale-[1.02]`}
+                        ? "bg-[#3498db] text-white"
+                        : "bg-gray-900/80 text-gray-400 hover:text-white"
+                    }`}
                   >
-                    {/* Selection Checkbox */}
-                    <button
-                      onClick={() => toggleFileSelection(file.id)}
-                      className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center ${
-                        selectedFiles.includes(file.id)
-                          ? "bg-[#3498db] text-white"
-                          : "bg-white/90 dark:bg-gray-900/80 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-                      }`}
-                    >
-                      {selectedFiles.includes(file.id) && (
-                        <CheckCircle className="w-4 h-4" />
-                      )}
-                    </button>
+                    {selectedFiles.includes(file.id) && (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
+                  </button>
 
-                    {/* Stats Badge */}
-                    {(file.shareCount > 0 || file.downloadCount > 0) && (
+                  {/* Stats Badge */}
+                  {(file.shareCount > 0 || file.downloadCount > 0) && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowFileStats(file.id);
+                      }}
+                      className="absolute top-2 right-2 z-10 p-1.5 bg-gray-900/80 rounded-full text-gray-300 hover:text-white hover:bg-gray-800"
+                      title="View Stats"
+                    >
+                      <BarChart3 className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {/* File Preview */}
+                  <div
+                    className="h-40 relative overflow-hidden cursor-pointer"
+                    onClick={() =>
+                      handleImagePreview(file.id, file.url, file.name)
+                    }
+                  >
+                    {file.type === "image" ? (
+                      <img
+                        src={file.url}
+                        alt={file.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div
+                        className="w-full h-full flex items-center justify-center"
+                        style={{
+                          backgroundColor: `${getFileTypeColor(file.type)}20`,
+                        }}
+                      >
+                        <div style={{ color: getFileTypeColor(file.type) }}>
+                          {getFileIcon(file.type)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Overlay Actions */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setShowFileStats(file.id);
+                          handleDownload(file.id, file.url, file.name);
                         }}
-                        className="absolute top-2 right-2 z-10 p-1.5 bg-white/90 dark:bg-gray-900/80 rounded-full 
-                        text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-200 
-                        dark:hover:bg-gray-800"
-                        title="View Stats"
+                        className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
+                        title="Download"
                       >
-                        <BarChart3 className="w-4 h-4" />
+                        <Download className="w-4 h-4" />
                       </button>
-                    )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShare(file.id, file.url, file.name);
+                        }}
+                        className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
+                        title="Share"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(file.id);
+                        }}
+                        className="p-2 bg-red-500/20 rounded-full text-red-400 hover:bg-red-500/30"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
 
-                    {/* File Preview */}
-                    <div
-                      className="h-40 relative overflow-hidden cursor-pointer"
-                      onClick={() =>
-                        handleImagePreview(file.id, file.url, file.name)
-                      }
-                    >
-                      {file.type === "image" ? (
-                        <img
-                          src={file.url}
-                          alt={file.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                      ) : (
+                  {/* File Info */}
+                  <div className="p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center">
                         <div
-                          className="w-full h-full flex items-center justify-center"
+                          className="p-1.5 rounded-lg mr-2"
                           style={{
                             backgroundColor: `${getFileTypeColor(file.type)}20`,
                           }}
@@ -707,100 +959,48 @@ const MyFiles: React.FC = () => {
                             {getFileIcon(file.type)}
                           </div>
                         </div>
-                      )}
-
-                      {/* Overlay Actions */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownload(file.id, file.url, file.name);
-                          }}
-                          className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
-                          title="Download"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleShare(file.id, file.url, file.name);
-                          }}
-                          className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
-                          title="Share"
-                        >
-                          <Share2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(file.id);
-                          }}
-                          className="p-2 bg-red-500/20 rounded-full text-red-400 hover:bg-red-500/30"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <h3 className="text-sm font-medium text-white truncate">
+                          {file.name}
+                        </h3>
                       </div>
                     </div>
+                    <div className="flex justify-between text-xs text-gray-400 mb-2">
+                      <span>{file.size}</span>
+                      <span>{file.uploaded}</span>
+                    </div>
 
-                    {/* File Info */}
-                    <div className="p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center">
-                          <div
-                            className="p-1.5 rounded-lg mr-2"
-                            style={{
-                              backgroundColor: `${getFileTypeColor(file.type)}20`,
-                            }}
-                          >
-                            <div style={{ color: getFileTypeColor(file.type) }}>
-                              {getFileIcon(file.type)}
-                            </div>
-                          </div>
-                          <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {file.name}
-                          </h3>
-                        </div>
+                    {/* Mini Stats */}
+                    <div className="flex justify-between text-xs">
+                      <div
+                        className="flex items-center text-[#3498db]"
+                        title="Link Copies"
+                      >
+                        <LinkIcon className="w-3 h-3 mr-1" />
+                        {file.shareCount || 0}
                       </div>
-                      <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        <span>{file.size}</span>
-                        <span>{file.uploaded}</span>
+                      <div
+                        className="flex items-center text-[#2ecc71]"
+                        title="Downloads"
+                      >
+                        <Download className="w-3 h-3 mr-1" />
+                        {file.downloadCount || 0}
                       </div>
-
-                      {/* Mini Stats */}
-                      <div className="flex justify-between text-xs">
-                        <div
-                          className="flex items-center text-[#3498db]"
-                          title="Link Copies"
-                        >
-                          <LinkIcon className="w-3 h-3 mr-1" />
-                          {file.shareCount || 0}
-                        </div>
-                        <div
-                          className="flex items-center text-[#2ecc71]"
-                          title="Downloads"
-                        >
-                          <Download className="w-3 h-3 mr-1" />
-                          {file.downloadCount || 0}
-                        </div>
-                        <div
-                          className="flex items-center text-[#f39c12]"
-                          title="Views"
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          {file.viewCount || 0}
-                        </div>
+                      <div
+                        className="flex items-center text-[#f39c12]"
+                        title="Views"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        {file.viewCount || 0}
                       </div>
                     </div>
-                  </motion.div>
-                );
-              })}
+                  </div>
+                </motion.div>
+              ))}
             </div>
           ) : (
-            /* List View */
-            <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-sm font-medium">
+            /* List View - keeping existing list view code */
+            <div className="bg-gray-800/30 rounded-xl border border-gray-700 overflow-hidden">
+              <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-700 text-gray-400 text-sm font-medium">
                 <div className="col-span-4">Name</div>
                 <div className="col-span-2">Type</div>
                 <div className="col-span-1">Copies</div>
@@ -809,120 +1009,119 @@ const MyFiles: React.FC = () => {
                 <div className="col-span-2">Actions</div>
               </div>
 
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredFiles.map((file) => {
-                  return (
-                    <div
-                      key={file.id}
-                      className={`grid grid-cols-12 gap-4 p-4 items-center hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors ${
-                        selectedFiles.includes(file.id) ? "bg-[#3498db]/10" : ""
-                      }`}
-                    >
-                      <div className="col-span-4 flex items-center">
-                        <button
-                          onClick={() => toggleFileSelection(file.id)}
-                          className="mr-3"
-                        >
-                          {selectedFiles.includes(file.id) ? (
-                            <CheckCircle className="w-5 h-5 text-[#3498db]" />
-                          ) : (
-                            <div className="w-5 h-5 border-2 border-gray-400 dark:border-gray-600 rounded" />
-                          )}
-                        </button>
-                        <div className="flex items-center">
-                          <div
-                            className="p-2 rounded-lg mr-3"
-                            style={{
-                              backgroundColor: `${getFileTypeColor(file.type)}20`,
-                            }}
-                          >
-                            <div style={{ color: getFileTypeColor(file.type) }}>
-                              {getFileIcon(file.type)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-gray-900 dark:text-white font-medium truncate max-w-[200px]">
-                              {file.name}
-                            </div>
-                            <div className="text-gray-600 dark:text-gray-400 text-xs">
-                              {file.size}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-span-2">
-                        <span
-                          className="px-2 py-1 rounded text-xs font-medium"
+              <div className="divide-y divide-gray-700">
+                {filteredFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className={`grid grid-cols-12 gap-4 p-4 items-center hover:bg-gray-800/50 transition-colors ${
+                      selectedFiles.includes(file.id) ? "bg-[#3498db]/10" : ""
+                    }`}
+                  >
+                    <div className="col-span-4 flex items-center">
+                      <button
+                        onClick={() => toggleFileSelection(file.id)}
+                        className="mr-3"
+                      >
+                        {selectedFiles.includes(file.id) ? (
+                          <CheckCircle className="w-5 h-5 text-[#3498db]" />
+                        ) : (
+                          <div className="w-5 h-5 border-2 border-gray-600 rounded" />
+                        )}
+                      </button>
+                      <div className="flex items-center">
+                        <div
+                          className="p-2 rounded-lg mr-3"
                           style={{
                             backgroundColor: `${getFileTypeColor(file.type)}20`,
-                            color: getFileTypeColor(file.type),
                           }}
                         >
-                          {file.type.toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="col-span-1 text-center">
-                        <div className="text-gray-900 dark:text-white font-bold">
-                          {file.shareCount || 0}
+                          <div style={{ color: getFileTypeColor(file.type) }}>
+                            {getFileIcon(file.type)}
+                          </div>
                         </div>
-                        <div className="text-gray-600 dark:text-gray-400 text-xs">Copies</div>
-                      </div>
-                      <div className="col-span-1 text-center">
-                        <div className="text-white font-bold">
-                          {file.downloadCount || 0}
-                        </div>
-                        <div className="text-gray-400 text-xs">Downloads</div>
-                      </div>
-                      <div className="col-span-2 text-gray-600 dark:text-gray-400 text-sm">
-                        {file.uploaded}
-                      </div>
-                      <div className="col-span-2">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() =>
-                              handleDownload(file.id, file.url, file.name)
-                            }
-                            className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-                            title="Download"
-                          >
-                            <Download className="w-4 h-4 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleShare(file.id, file.url, file.name)
-                            }
-                            className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-                            title="Share"
-                          >
-                            <Share2 className="w-4 h-4 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white" />
-                          </button>
-                          <button
-                            onClick={() => setShowFileStats(file.id)}
-                            className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-                            title="View Stats"
-                          >
-                            <BarChart3 className="w-4 h-4 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(file.id)}
-                            className="p-1.5 hover:bg-red-500/20 rounded"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-400 hover:text-red-300" />
-                          </button>
+                        <div>
+                          <div className="text-white font-medium truncate max-w-[200px]">
+                            {file.name}
+                          </div>
+                          <div className="text-gray-400 text-xs">
+                            {file.size}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                    <div className="col-span-2">
+                      <span
+                        className="px-2 py-1 rounded text-xs font-medium"
+                        style={{
+                          backgroundColor: `${getFileTypeColor(file.type)}20`,
+                          color: getFileTypeColor(file.type),
+                        }}
+                      >
+                        {file.type.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="col-span-1 text-center">
+                      <div className="text-white font-bold">
+                        {file.shareCount || 0}
+                      </div>
+                      <div className="text-gray-400 text-xs">Copies</div>
+                    </div>
+                    <div className="col-span-1 text-center">
+                      <div className="text-white font-bold">
+                        {file.downloadCount || 0}
+                      </div>
+                      <div className="text-gray-400 text-xs">Downloads</div>
+                    </div>
+                    <div className="col-span-2 text-gray-400 text-sm">
+                      {file.uploaded}
+                    </div>
+                    <div className="col-span-2">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() =>
+                            handleDownload(file.id, file.url, file.name)
+                          }
+                          className="p-1.5 hover:bg-gray-700 rounded"
+                          title="Download"
+                        >
+                          <Download className="w-4 h-4 text-gray-400 hover:text-white" />
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleShare(file.id, file.url, file.name)
+                          }
+                          className="p-1.5 hover:bg-gray-700 rounded"
+                          title="Share"
+                        >
+                          <Share2 className="w-4 h-4 text-gray-400 hover:text-white" />
+                        </button>
+                        <button
+                          onClick={() => setShowFileStats(file.id)}
+                          className="p-1.5 hover:bg-gray-700 rounded"
+                          title="View Stats"
+                        >
+                          <BarChart3 className="w-4 h-4 text-gray-400 hover:text-white" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(file.id)}
+                          className="p-1.5 hover:bg-red-500/20 rounded"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400 hover:text-red-300" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          )}
+          ))}
+        
         </motion.div>
       </AnimatePresence>
 
       {/* Empty State */}
-      {filteredFiles.length === 0 && (
+      {filteredFiles.length === 0 && !loading && (
         <div className="text-center py-16">
           <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-100 dark:bg-gray-800/50 flex items-center justify-center">
             <Folder className="w-12 h-12 text-gray-400" />
@@ -950,7 +1149,7 @@ const MyFiles: React.FC = () => {
         </div>
       )}
 
-      {/* File Stats Modal */}
+      {/* File Stats Modal - keeping existing modal code */}
       <AnimatePresence>
         {showFileStats && (
           <motion.div
@@ -1089,7 +1288,6 @@ const MyFiles: React.FC = () => {
             className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4"
             onClick={() => setActiveImage(null)}
           >
-            {/* Close Button */}
             <button
               className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-gray-800/50 rounded-full text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 z-10"
               onClick={() => setActiveImage(null)}
@@ -1097,7 +1295,6 @@ const MyFiles: React.FC = () => {
               <X className="w-6 h-6" />
             </button>
 
-            {/* Image */}
             <img
               src={activeImage}
               alt="Preview"
@@ -1105,7 +1302,6 @@ const MyFiles: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
             />
 
-            {/* Share Options */}
             <motion.div
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -1138,7 +1334,7 @@ const MyFiles: React.FC = () => {
                     handleDownload(fileId, activeImage, fileName);
                   }
                 }}
-                className="px-4 py-2 bg-[#3498db] hover:bg-[#2980b9] rounded-lg text-white font-medium flex items-center"
+                 className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-gray-900 dark:text-whitebg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium flex items-center"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Download
@@ -1150,5 +1346,6 @@ const MyFiles: React.FC = () => {
     </div>
   );
 };
+
 
 export default MyFiles;

@@ -1,21 +1,27 @@
+
 import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
 import connectDB from "./config/db.js";
 import router from "./routes/routers.js";
 import cors from "cors";
+import cookieParser from "cookie-parser"; 
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import streamifier from "streamifier";
 import analyticsRoutes from "./routes/analytics.js";
-
+import fileRoutes from "./routes/files.js";
+import {connectRedis} from "./config/redis.js";
 
 const app = express();
 
-// CORS setup
+
 app.use(
   cors({
-    origin: true,
+    origin: [
+      "http://localhost:5173",
+      "https://file-sharing-system-lake.vercel.app"
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   }),
@@ -23,14 +29,16 @@ app.use(
 
 // Connect to database
 connectDB();
+// Connect to Redis
+connectRedis();
 
-// Middleware
 app.use(express.json());
-// In your server.js or app.js
+app.use(cookieParser()); 
 
+// Routes
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/track", analyticsRoutes);
-// Routes
+app.use("/api/files", fileRoutes);
 app.use("/", router);
 
 // Error handling middleware
@@ -73,7 +81,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     };
 
     const result = await streamUpload(req.file);
-    res.json({ url: result.secure_url }); // Public Cloudinary URL
+    res.json({ url: result.secure_url });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Upload failed" });

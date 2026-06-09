@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   LogOut,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
+import api from "../../services/api";
 
 
 const Home: React.FC = () => {
@@ -22,39 +24,56 @@ const Home: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [user] = useState({
-    email: localStorage.getItem("userEmail") || "user@example.com",
+  const [user, setUser] = useState({
+    email: "Loading...",
     storage: 3.2,
     storageLimit: 10,
   });
-
-  const [theme, setTheme] = useState(
-  document.documentElement.classList.contains("dark")
-    ? "dark"
-    : "light"
+  const [theme, setTheme] = useState<string>(() =>
+    localStorage.getItem("theme") === "dark" ? "dark" : "light",
   );
 
   const toggleTheme = () => {
-    const isDark = document.documentElement.classList.contains("dark");
-
-    if (isDark) {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-      setTheme("light");
-    } else {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    if (next === "dark") {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-      setTheme("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
     }
+    localStorage.setItem("theme", next);
   };
 
+ 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme === "dark") {
+    const fetchUser = async () => {
+      try {
+        const response = await api.get("/auth", {
+          withCredentials: true,
+        });
+        if (response.data.user) {
+          setUser({
+            email: response.data.user.email,
+            storage: response.data.storageUsed || 3.2,
+            storageLimit: response.data.storageLimit || 10,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
-    };
+    }
+  }, [theme]);
+
+  useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
@@ -97,10 +116,14 @@ const Home: React.FC = () => {
     },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await api.post("/logout");
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      navigate("/login");
+    }
   };
 
   const handleNavigation = (path: string) => {
@@ -194,8 +217,8 @@ const Home: React.FC = () => {
             </div>
             {isOpen && (
               <div className="ml-3 flex-1 overflow-hidden">
-                <div className="text-gray-900 dark:text-white font-medium truncate">
-                  {user.email.split('@')[0]}
+                <div className="text-white font-medium truncate">
+                  {user.email.split("@")[0]}
                 </div>
                 <div className="text-gray-500 dark:text-gray-400 text-sm truncate">
                   {user.email}
@@ -294,8 +317,8 @@ const Home: React.FC = () => {
                   <User className="w-7 h-7 text-white" />
                 </div>
                 <div className="ml-4">
-                  <div className="text-gray-900 dark:text-white font-semibold text-lg">
-                    {user.email.split('@')[0]}
+                  <div className="text-white font-semibold text-lg">
+                    {user.email.split("@")[0]}
                   </div>
                   <div className="text-gray-500 dark:text-gray-400 text-sm">
                     {user.email}

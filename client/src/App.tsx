@@ -1,48 +1,21 @@
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
-import axios from "axios";
-import Home from "./components/Home/Home"; // Has Sidebar + <Outlet />
-import Register from "./components/Authentication/Register";
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Authentication/Login";
-import MyFiles from "./components/Home/MyFiles"; // Page
-import HomeContent from "./components/Home/HomeContent"; // Default Content
 import LandingPage from "./components/Home/LandingPage";
-import Analytics from "./components/Home/Analytics";
-// Set up axios defaults
-axios.defaults.baseURL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
-// Add token to requests automatically
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem("authToken");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-function App() {
+const App: React.FC = () => {
   return (
-    <Router>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Navigate to="/landingpage" />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
+    <Routes>
+      {/* Landing Page - Home */}
+      <Route path="/" element={<LandingPage />} />
 
-        {/* Protected Home Layout */}
-        <Route path="landingpage" element={<LandingPage />} />
-        <Route path="/home" element={<Home />}>
-          <Route path="myfiles" element={<MyFiles />} /> {/* /home/myfiles */}
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="" element={<HomeContent />} />
-        </Route>
-      </Routes>
-    </Router>
+      {/* Login Page */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Redirect unknown paths to home */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
-}
+};
 
 export default App;
