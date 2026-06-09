@@ -13,9 +13,11 @@ import {
   Sun,
   Moon,
   Star,
+  Share2,
 } from "lucide-react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
+import NotificationBell from "./NotificationBell";
 import api from "../../services/api";
 
 
@@ -120,6 +122,11 @@ const Home: React.FC = () => {
       label: "Analytics",
       path: "/home/analytics",
     },
+    {
+      icon: <Share2 className="w-5 h-5" />,
+      label: "Shares",
+      path: "/home/shares",
+    },
   ];
 
   const handleLogout = async () => {
@@ -163,6 +170,7 @@ const Home: React.FC = () => {
         )}
 
         <div className={`flex items-center ${isOpen ? "gap-2" : "gap-1"}`}>
+          <NotificationBell />
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
@@ -262,13 +270,16 @@ const Home: React.FC = () => {
                 </span>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="p-2 text-gray-400 hover:text-red-400 transition-colors"
-              title="Logout"
-            >
-              <LogOut size={20} />
-            </button>
+            <div className="flex items-center space-x-2">
+              <NotificationBell />
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                title="Logout"
+              >
+                <LogOut size={20} />
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -22,6 +22,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.1",
     "multer": "^2.0.2",
+    "nanoid": "^5.1.11",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.10.1",
     "path": "^0.12.7",
     "redis": "^5.12.1",
     "streamifier": "^0.1.1"

@@ -168,7 +168,7 @@ const Login: React.FC = () => {
                 autoComplete="off"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  handleLogin();
+                  handleLogin(e);
                 }}
               >
                 <div>
