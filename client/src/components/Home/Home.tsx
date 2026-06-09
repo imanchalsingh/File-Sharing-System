@@ -12,6 +12,7 @@ import {
   User,
   Sun,
   Moon,
+  Star,
 } from "lucide-react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
@@ -108,6 +109,11 @@ const Home: React.FC = () => {
       icon: <Folder className="w-5 h-5" />,
       label: "My Files",
       path: "/home/myfiles",
+    },
+    {
+      icon: <Star className="w-5 h-5" />,
+      label: "Favorites",
+      path: "/home/favorites",
     },
     {
       icon: <BarChart3 className="w-5 h-5" />,

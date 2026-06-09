@@ -1,20 +1,48 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import Home from "./components/Home/Home";
+import Register from "./components/Authentication/Register";
 import Login from "./components/Authentication/Login";
+import MyFiles from "./components/Home/MyFiles";
+import HomeContent from "./components/Home/HomeContent";
 import LandingPage from "./components/Home/LandingPage";
+import Analytics from "./components/Home/Analytics";
+import Favorites from "./components/Home/Favorites";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const App: React.FC = () => {
   return (
-    <Routes>
-      {/* Landing Page - Home */}
-      <Route path="/" element={<LandingPage />} />
+    <>
+      <Routes>
+        {/* Landing Page - Home */}
+        <Route path="/" element={<LandingPage />} />
 
-      {/* Login Page */}
-      <Route path="/login" element={<Login />} />
+        {/* Auth Routes */}
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
 
-      {/* Redirect unknown paths to home */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Protected Dashboard Routes */}
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<HomeContent />} />
+          <Route path="myfiles" element={<MyFiles />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="favorites" element={<Favorites />} />
+        </Route>
+
+        {/* Redirect unknown paths to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <ToastContainer position="top-right" autoClose={3000} />
+    </>
   );
 };
 

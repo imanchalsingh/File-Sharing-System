@@ -82,6 +82,16 @@ export const fileApi = {
     const response = await api.delete(`/api/files/${fileId}`);
     return response.data;
   },
+
+  toggleFavorite: async (fileId: string) => {
+    const response = await api.put(`/api/files/${fileId}/favorite`);
+    return response.data;
+  },
+
+  getFavorites: async () => {
+    const response = await api.get("/api/files/favorites");
+    return response.data;
+  },
 };
 
 export default api;

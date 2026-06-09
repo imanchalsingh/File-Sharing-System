@@ -20,6 +20,7 @@ import {
   BarChart3,
   Link as LinkIcon,
   History,
+  Star,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -34,6 +35,8 @@ interface TrackedFile {
   size: string;
   uploaded: string;
   checksum?: string;
+  isFavorite?: boolean;
+  tags?: string[];
   shareCount: number;
   downloadCount: number;
   viewCount: number;
@@ -44,12 +47,6 @@ interface TrackedFile {
 }
 
 const MyFiles: React.FC = () => {
-  return (
-    <div>
-      {/* Your component content goes here */}
-    </div>
-  );
-  const [searchResultCount, setSearchResultCount] = useState<number>(0);
   const [files, setFiles] = useState<TrackedFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,6 +60,11 @@ const MyFiles: React.FC = () => {
   const [fileVersions, setFileVersions] = useState<any[]>([]);
   const [activeVersionDetails, setActiveVersionDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showFilter, setShowFilter] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState<string>("");
+  const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
   
 
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
@@ -92,6 +94,39 @@ const MyFiles: React.FC = () => {
           setFiles(backendFiles);
           setLoading(false);
           return;
+        // Try to fetch from backend
+        const token = localStorage.getItem("authToken");
+        if (token) {
+          const response = await fetch(`${API_URL}/api/files/my-files`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.files && data.files.length > 0) {
+              const backendFiles = data.files.map((file: any) => ({
+                id: file._id,
+                name: file.fileName,
+                url: file.fileUrl,
+                type: file.fileType || "application",
+                size: file.fileSize || "0 KB",
+                uploaded: new Date(file.createdAt).toLocaleDateString(),
+                isFavorite: file.isFavorite || false,
+                shareCount: file.shareCount || 0,
+                downloadCount: file.downloadCount || 0,
+                viewCount: file.viewCount || 0,
+                shareHistory: file.shareHistory || [],
+                downloadHistory: file.downloadHistory || [],
+                viewHistory: file.viewHistory || [],
+                tags: file.tags || [],
+              }));
+              setFiles(backendFiles);
+              setLoading(false);
+              return;
+            }
+          }
         }
 
         // Fallback to localStorage
@@ -279,6 +314,18 @@ const MyFiles: React.FC = () => {
     } catch (error) {
       console.error("Failed to restore version:", error);
       toast.error("Failed to restore file version.");
+  // ✅ Toggle favorite status
+  const handleToggleFavorite = async (fileId: string) => {
+    try {
+      const result = await fileApi.toggleFavorite(fileId);
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId ? { ...f, isFavorite: result.isFavorite } : f
+        )
+      );
+      toast.success(result.isFavorite ? "Added to favorites ⭐" : "Removed from favorites");
+    } catch {
+      toast.error("Failed to update favorite");
     }
   };
 
@@ -343,6 +390,25 @@ const MyFiles: React.FC = () => {
           checksum: checksum,
         });
 
+
+        const newFile: TrackedFile = {
+          id: Date.now().toString() + index,
+          name: file.name,
+          url: result.url, // Cloudinary URL from backend
+          type: file.type.split("/")[0],
+          size:formatFileSize(file.size),
+          uploaded: new Date().toLocaleDateString(),
+          checksum,
+          tags: [],
+          shareCount: 0,
+          downloadCount: 0,
+          viewCount: 0,
+          shareHistory: [],
+          downloadHistory: [],
+          viewHistory: [],
+        };
+
+        uploadedFiles.push(newFile);
       } catch (err) {
         console.error("Upload failed for", file.name, err);
         toast.error(`Failed to upload ${file.name}`);
@@ -506,8 +572,28 @@ const MyFiles: React.FC = () => {
   
     return "Others";
   };
+  // ✅ Update tags for a file
+  const handleTagUpdate = async (fileId: string, newTags: string[]) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      await fetch(`${API_URL}/api/files/${fileId}/tags`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tags: newTags }),
+      });
+      setFiles((prev) =>
+        prev.map((f) => (f.id === fileId ? { ...f, tags: newTags } : f))
+      );
+      toast.success("Tags updated!");
+    } catch (error) {
+      toast.error("Failed to update tags");
+    }
+  };
 
-  // ✅ Filter files based on search
+  // ✅ Filter files based on search, type, and activeFilter
   const filteredFiles = files.filter((file) => {
     const matchesSearch = file.name
       .toLowerCase()
@@ -515,9 +601,14 @@ const MyFiles: React.FC = () => {
   
     const matchesType =
       selectedType === "All" || getFileType(file.name) === selectedType;
+
+    const matchesActiveFilter =
+      activeFilter === "all" || file.type === activeFilter;
   
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesType && matchesActiveFilter;
   });
+
+  const searchResultCount = filteredFiles.length;
   
 // ✅ Format file size
 function formatFileSize(bytes: number): string {
@@ -674,7 +765,7 @@ formatFileSize
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
               <div className="p-2 bg-[#3498db]/20 rounded-lg mr-3">
@@ -685,6 +776,20 @@ formatFileSize
                   {files.length}
                 </div>
                 <div className="text-gray-600 dark:text-gray-400 text-sm">Total Files</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              <div className="p-2 bg-yellow-400/20 rounded-lg mr-3">
+                <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {files.filter((f) => f.isFavorite).length}
+                </div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm">Favorites</div>
               </div>
             </div>
           </div>
@@ -921,6 +1026,20 @@ formatFileSize
                     </button>
                   )}
 
+                  {/* Favorite Button - top-right, below stats badge */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleToggleFavorite(file.id); }}
+                    className={`absolute top-10 right-2 z-10 p-1.5 rounded-full transition-all duration-200 ${
+                      file.isFavorite
+                        ? "bg-yellow-400 text-white shadow-md"
+                        : "bg-gray-900/70 text-gray-400 hover:text-yellow-400 hover:bg-gray-900/90"
+                    }`}
+                    aria-label={file.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                    title={file.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${file.isFavorite ? "fill-white" : ""}`} />
+                  </button>
+
                   {/* File Preview */}
                   <div
                     className="h-40 relative overflow-hidden cursor-pointer"
@@ -1040,6 +1159,28 @@ formatFileSize
                         {file.viewCount || 0}
                       </div>
                     </div>
+                    {/* Checksum */}
+                    {file.checksum && (
+                      <div className="mt-2 pt-2 border-t border-gray-700">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500 font-mono truncate w-24">
+                            SHA256: {file.checksum.slice(0, 12)}...
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(file.checksum!);
+                              toast.success("Checksum copied!");
+                            }}
+                            className="text-xs text-[#3498db] hover:text-[#2980b9] ml-1"
+                            title={`Full hash: ${file.checksum}\n\nVerify on Linux/Mac:\nshasum -a 256 <filename>\n\nVerify on Windows:\ncertutil -hashfile <filename> SHA256`}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                     )}
                   </div>
                 </motion.div>
               ))}
@@ -1148,6 +1289,13 @@ formatFileSize
                           title="View Stats"
                         >
                           <BarChart3 className="w-4 h-4 text-gray-400 hover:text-white" />
+                        </button>
+                        <button
+                          onClick={() => handleToggleFavorite(file.id)}
+                          className="p-1.5 hover:bg-yellow-400/20 rounded"
+                          title={file.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                        >
+                          <Star className={`w-4 h-4 ${file.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400 hover:text-yellow-400"}`} />
                         </button>
                         <button
                           onClick={() => handleDelete(file.id)}

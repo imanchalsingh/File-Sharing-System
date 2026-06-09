@@ -12,6 +12,10 @@ import {
   getFileStats,
   getFileVersions,
   restoreFileVersion,
+  toggleFavorite,
+  getFavoriteFiles,
+  updateFileTags,
+  getFilesByTag,
 } from "../controllers/fileController.js";
 
 const router = express.Router();
@@ -21,6 +25,9 @@ router.use(authenticateUser);
 
 // Get all user files
 router.get("/my-files", getUserFiles);
+
+// Get favorite files
+router.get("/favorites", getFavoriteFiles);
 
 // Get file stats
 router.get("/stats", getFileStats);
@@ -35,6 +42,7 @@ router.post("/save-info", saveFileInfo);
 router.put("/:id/share", updateShareCount);
 router.put("/:id/download", updateDownloadCount);
 router.put("/:id/view", updateViewCount);
+router.put("/:id/favorite", toggleFavorite);
 
 // Delete file
 router.delete("/:id", deleteFile);
@@ -48,4 +56,7 @@ router.get("/:id/versions", getFileVersions);
 // Restore file version
 router.post("/:id/restore/:version", restoreFileVersion);
 
+// Tags
+router.put("/:id/tags", updateFileTags);
+router.get("/tag/:tag", getFilesByTag);
 export default router;

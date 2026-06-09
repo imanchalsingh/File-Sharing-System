@@ -26,6 +26,10 @@ const fileSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    tags: {
+      type: [String],
+      default: [],
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -79,6 +83,10 @@ const fileSchema = new mongoose.Schema(
         },
       },
     ],
+    isFavorite: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
@@ -88,7 +96,7 @@ const fileSchema = new mongoose.Schema(
 // Index for faster queries
 fileSchema.index({ userId: 1, createdAt: -1 });
 fileSchema.index({ userId: 1, shareCount: -1 });
-
+fileSchema.index({ userId: 1, tags: 1 });
 const File = mongoose.model("File", fileSchema);
 
 export default File;

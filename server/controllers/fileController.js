@@ -43,7 +43,7 @@ export const getFileById = async (req, res) => {
 export const saveFileInfo = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes, checksum } = req.body;
+    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes, checksum, tags } = req.body;
     
     if (!fileName || !fileUrl) {
       return res.status(400).json({ error: "File name and URL are required" });
@@ -89,6 +89,8 @@ export const saveFileInfo = async (req, res) => {
       checksum: checksum || null,
       userId,
       currentVersion: 1,
+      tags: Array.isArray(tags) ? tags : [],
+      userId,     
       shareCount: 0,
       downloadCount: 0,
       viewCount: 0,
@@ -287,11 +289,14 @@ export const getFileStats = async (req, res) => {
 
 // ✅ Get file versions
 export const getFileVersions = async (req, res) => {
+// ✅ Toggle file favorite status
+export const toggleFavorite = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
     
     const file = await File.findOne({ _id: id, userId }).select("versions currentVersion fileName fileUrl fileSize fileSizeBytes uploadedAt updatedAt createdAt");
+    const file = await File.findOne({ _id: id, userId });
     
     if (!file) {
       return res.status(404).json({ error: "File not found" });
@@ -363,3 +368,85 @@ export const restoreFileVersion = async (req, res) => {
     res.status(500).json({ error: "Failed to restore file version" });
   }
 };
+    file.isFavorite = !file.isFavorite;
+    await file.save();
+    
+    res.json({
+      success: true,
+      message: file.isFavorite ? "File marked as favorite" : "File removed from favorites",
+      isFavorite: file.isFavorite,
+    });
+  } catch (error) {
+    console.error("Toggle favorite error:", error);
+    res.status(500).json({ error: "Failed to toggle favorite status" });
+  }
+};
+
+// ✅ Get all favorite files for user
+export const getFavoriteFiles = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const files = await File.find({ userId, isFavorite: true })
+      .sort({ updatedAt: -1 })
+      .select("-__v");
+    
+    res.json({
+      success: true,
+      files,
+      count: files.length,
+    });
+  } catch (error) {
+    console.error("Get favorites error:", error);
+    res.status(500).json({ error: "Failed to fetch favorite files" });
+  }
+};
+
+
+// ✅ Update file tags
+export const updateFileTags = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { tags } = req.body;
+
+    if (!Array.isArray(tags)) {
+      return res.status(400).json({ error: "Tags must be an array" });
+    }
+
+    const file = await File.findOneAndUpdate(
+      { _id: id, userId },
+      { tags },
+      { new: true }
+    );
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    res.json({ success: true, message: "Tags updated", tags: file.tags });
+  } catch (error) {
+    console.error("Update tags error:", error);
+    res.status(500).json({ error: "Failed to update tags" });
+  }
+};
+
+// ✅ Get files by tag
+export const getFilesByTag = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { tag } = req.params;
+
+    const files = await File.find({
+      userId,
+      tags: { $in: [tag] },
+    }).sort({ createdAt: -1 });
+
+    res.json({ success: true, files, count: files.length });
+  } catch (error) {
+    console.error("Get files by tag error:", error);
+    res.status(500).json({ error: "Failed to fetch files by tag" });
+  }
+};
+
+
