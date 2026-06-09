@@ -33,6 +33,7 @@ interface TrackedFile {
   size: string;
   uploaded: string;
   checksum?: string;
+  tags?: string[];
   shareCount: number;
   downloadCount: number;
   viewCount: number;
@@ -59,6 +60,9 @@ const MyFiles: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showFileStats, setShowFileStats] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState<string>("");
+  const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
   
 
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
@@ -93,6 +97,7 @@ const MyFiles: React.FC = () => {
                 shareHistory: file.shareHistory || [],
                 downloadHistory: file.downloadHistory || [],
                 viewHistory: file.viewHistory || [],
+                tags: file.tags || [],
               }));
               setFiles(backendFiles);
               setLoading(false);
@@ -293,6 +298,7 @@ const MyFiles: React.FC = () => {
           size:formatFileSize(file.size),
           uploaded: new Date().toLocaleDateString(),
           checksum,
+          tags: [],
           shareCount: 0,
           downloadCount: 0,
           viewCount: 0,
@@ -468,6 +474,26 @@ const MyFiles: React.FC = () => {
     }
   
     return "Others";
+  };
+  // ✅ Update tags for a file
+  const handleTagUpdate = async (fileId: string, newTags: string[]) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      await fetch(`${API_URL}/api/files/${fileId}/tags`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tags: newTags }),
+      });
+      setFiles((prev) =>
+        prev.map((f) => (f.id === fileId ? { ...f, tags: newTags } : f))
+      );
+      toast.success("Tags updated!");
+    } catch (error) {
+      toast.error("Failed to update tags");
+    }
   };
 
   // ✅ Filter files based on search
@@ -993,6 +1019,28 @@ formatFileSize
                         {file.viewCount || 0}
                       </div>
                     </div>
+                    {/* Checksum */}
+                    {file.checksum && (
+                      <div className="mt-2 pt-2 border-t border-gray-700">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500 font-mono truncate w-24">
+                            SHA256: {file.checksum.slice(0, 12)}...
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(file.checksum!);
+                              toast.success("Checksum copied!");
+                            }}
+                            className="text-xs text-[#3498db] hover:text-[#2980b9] ml-1"
+                            title={`Full hash: ${file.checksum}\n\nVerify on Linux/Mac:\nshasum -a 256 <filename>\n\nVerify on Windows:\ncertutil -hashfile <filename> SHA256`}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                     )}
                   </div>
                 </motion.div>
               ))}
