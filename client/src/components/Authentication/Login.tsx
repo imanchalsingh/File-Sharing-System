@@ -17,6 +17,17 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 
+const featureCards = [
+  { title: "Secure", description: "Military grade encryption", color: "#e74c3c", icon: <Shield /> },
+  { title: "Fast", description: "Lightning fast transfers", color: "#3498db", icon: <Zap /> },
+  { title: "Global", description: "Access from anywhere", color: "#2ecc71", icon: <Globe /> }
+];
+
+const demoAccounts = [
+  { email: "admin@example.com", password: "password123", role: "admin" },
+  { email: "user@example.com", password: "password123", role: "user" }
+];
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
 
@@ -133,13 +144,7 @@ const Login: React.FC = () => {
               {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
             </button>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            SecureShare
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Sign in to your account
-          </p>
-        </div>
+        </header>
 
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-8">
@@ -157,7 +162,6 @@ const Login: React.FC = () => {
                   Sign in to access your secure file storage
                 </p>
               </div>
-            )}
 
               <form
                 className="space-y-6"
@@ -230,25 +234,29 @@ const Login: React.FC = () => {
                   </div>
                 )}
 
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                  disabled={loading}
-                />
+                {/* Password Field */}
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Password (Verification)
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                
                 <button
                   type="submit"
                   disabled={loading}
+                  className="w-full py-3 bg-[#3498db] text-white rounded-lg font-medium hover:bg-[#2980b9] transition-colors"
                 >
                   {loading ? "Signing In..." : "Sign In"}
                 </button>
@@ -436,7 +444,7 @@ const Login: React.FC = () => {
           <p className="mt-1 text-gray-500 dark:text-gray-600">
             Your security is our top priority.
           </p>
-        </div>
+        </footer>
       </div>
     </div>
   );

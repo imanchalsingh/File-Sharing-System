@@ -49,6 +49,37 @@ export const saveFileInfo = async (req, res) => {
       return res.status(400).json({ error: "File name and URL are required" });
     }
     
+    // Check if file already exists
+    const existingFile = await File.findOne({ fileName, userId });
+    
+    if (existingFile) {
+      // Archive the current state into versions array
+      existingFile.versions.push({
+        version: existingFile.currentVersion || 1,
+        fileUrl: existingFile.fileUrl,
+        fileSize: existingFile.fileSize,
+        fileSizeBytes: existingFile.fileSizeBytes,
+        checksum: existingFile.checksum,
+        uploadedAt: existingFile.updatedAt || existingFile.createdAt,
+      });
+      
+      // Update with new file data
+      existingFile.fileUrl = fileUrl;
+      existingFile.fileType = fileType || existingFile.fileType;
+      existingFile.fileSize = fileSize || existingFile.fileSize;
+      existingFile.fileSizeBytes = fileSizeBytes || existingFile.fileSizeBytes;
+      existingFile.checksum = checksum || existingFile.checksum;
+      existingFile.currentVersion = (existingFile.currentVersion || 1) + 1;
+      
+      await existingFile.save();
+      
+      return res.status(200).json({
+        success: true,
+        message: "File updated successfully as a new version",
+        file: existingFile,
+      });
+    }
+
     const newFile = new File({
       fileName,
       fileUrl,
@@ -56,6 +87,8 @@ export const saveFileInfo = async (req, res) => {
       fileSize: fileSize || "0 KB",
       fileSizeBytes: fileSizeBytes || 0,
       checksum: checksum || null,
+      userId,
+      currentVersion: 1,
       tags: Array.isArray(tags) ? tags : [],
       userId,     
       shareCount: 0,
@@ -64,6 +97,7 @@ export const saveFileInfo = async (req, res) => {
       shareHistory: [],
       downloadHistory: [],
       viewHistory: [],
+      versions: [],
     });
     
     await newFile.save();
@@ -253,11 +287,45 @@ export const getFileStats = async (req, res) => {
   }
 };
 
+// ✅ Get file versions
+export const getFileVersions = async (req, res) => {
 // ✅ Toggle file favorite status
 export const toggleFavorite = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    
+    const file = await File.findOne({ _id: id, userId }).select("versions currentVersion fileName fileUrl fileSize fileSizeBytes uploadedAt updatedAt createdAt");
+    const file = await File.findOne({ _id: id, userId });
+    
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    
+    res.json({
+      success: true,
+      versions: file.versions,
+      currentVersion: file.currentVersion || 1,
+      activeVersionDetails: {
+        version: file.currentVersion || 1,
+        fileUrl: file.fileUrl,
+        fileSize: file.fileSize,
+        fileSizeBytes: file.fileSizeBytes,
+        uploadedAt: file.updatedAt || file.createdAt,
+      }
+    });
+  } catch (error) {
+    console.error("Get file versions error:", error);
+    res.status(500).json({ error: "Failed to fetch file versions" });
+  }
+};
+
+// ✅ Restore a previous file version
+export const restoreFileVersion = async (req, res) => {
+  try {
+    const { id, version } = req.params;
+    const userId = req.user.id;
+    const versionToRestore = parseInt(version, 10);
     
     const file = await File.findOne({ _id: id, userId });
     
@@ -265,6 +333,41 @@ export const toggleFavorite = async (req, res) => {
       return res.status(404).json({ error: "File not found" });
     }
     
+    const versionData = file.versions.find(v => v.version === versionToRestore);
+    
+    if (!versionData) {
+      return res.status(404).json({ error: "Version not found" });
+    }
+    
+    // Archive current active state
+    file.versions.push({
+      version: file.currentVersion || 1,
+      fileUrl: file.fileUrl,
+      fileSize: file.fileSize,
+      fileSizeBytes: file.fileSizeBytes,
+      checksum: file.checksum,
+      uploadedAt: file.updatedAt || file.createdAt,
+    });
+    
+    // Restore the selected version data
+    file.fileUrl = versionData.fileUrl;
+    file.fileSize = versionData.fileSize;
+    file.fileSizeBytes = versionData.fileSizeBytes;
+    file.checksum = versionData.checksum;
+    file.currentVersion = (file.currentVersion || 1) + 1; // Increment version number for the new state
+    
+    await file.save();
+    
+    res.json({
+      success: true,
+      message: "File version restored successfully",
+      file,
+    });
+  } catch (error) {
+    console.error("Restore file version error:", error);
+    res.status(500).json({ error: "Failed to restore file version" });
+  }
+};
     file.isFavorite = !file.isFavorite;
     await file.save();
     

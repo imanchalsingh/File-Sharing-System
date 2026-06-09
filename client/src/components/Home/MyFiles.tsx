@@ -19,6 +19,7 @@ import {
   Eye,
   BarChart3,
   Link as LinkIcon,
+  History,
   Star,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -55,6 +56,9 @@ const MyFiles: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showFileStats, setShowFileStats] = useState<string | null>(null);
+  const [showVersionHistory, setShowVersionHistory] = useState<string | null>(null);
+  const [fileVersions, setFileVersions] = useState<any[]>([]);
+  const [activeVersionDetails, setActiveVersionDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showFilter, setShowFilter] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
@@ -70,6 +74,26 @@ const MyFiles: React.FC = () => {
     const loadFiles = async () => {
       setLoading(true);
       try {
+        const data = await fileApi.getMyFiles();
+        if (data.files) {
+          const backendFiles = data.files.map((file: any) => ({
+            id: file._id,
+            name: file.fileName,
+            url: file.fileUrl,
+            type: file.fileType || "application",
+            size: file.fileSize || "0 KB",
+            uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
+            shareCount: file.shareCount || 0,
+            downloadCount: file.downloadCount || 0,
+            viewCount: file.viewCount || 0,
+            shareHistory: file.shareHistory || [],
+            downloadHistory: file.downloadHistory || [],
+            viewHistory: file.viewHistory || [],
+            currentVersion: file.currentVersion,
+          }));
+          setFiles(backendFiles);
+          setLoading(false);
+          return;
         // Try to fetch from backend
         const token = localStorage.getItem("authToken");
         if (token) {
@@ -124,6 +148,32 @@ const MyFiles: React.FC = () => {
 
     loadFiles();
   }, []);
+
+  const refreshFiles = async () => {
+    try {
+      const data = await fileApi.getMyFiles();
+      if (data.files) {
+        const backendFiles = data.files.map((file: any) => ({
+          id: file._id,
+          name: file.fileName,
+          url: file.fileUrl,
+          type: file.fileType || "application",
+          size: file.fileSize || "0 KB",
+          uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
+          shareCount: file.shareCount || 0,
+          downloadCount: file.downloadCount || 0,
+          viewCount: file.viewCount || 0,
+          shareHistory: file.shareHistory || [],
+          downloadHistory: file.downloadHistory || [],
+          viewHistory: file.viewHistory || [],
+          currentVersion: file.currentVersion,
+        }));
+        setFiles(backendFiles);
+      }
+    } catch (error) {
+      console.error("Error refreshing files:", error);
+    }
+  };
 
   // ✅ Track link copy with BACKEND API
   const trackLinkCopy = async (
@@ -236,6 +286,34 @@ const MyFiles: React.FC = () => {
     }
   };
 
+  // ✅ Show version history
+  const handleShowVersions = async (fileId: string) => {
+    try {
+      const data = await fileApi.getFileVersions(fileId);
+      if (data.success) {
+        setFileVersions(data.versions.sort((a: any, b: any) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()));
+        setActiveVersionDetails(data.activeVersionDetails);
+        setShowVersionHistory(fileId);
+      }
+    } catch (error) {
+      console.error("Failed to load versions:", error);
+      toast.error("Failed to load version history.");
+    }
+  };
+
+  // ✅ Restore a version
+  const handleRestoreVersion = async (fileId: string, versionNumber: number) => {
+    if (!confirm(`Are you sure you want to restore version ${versionNumber}?`)) return;
+    try {
+      const data = await fileApi.restoreFileVersion(fileId, versionNumber);
+      if (data.success) {
+        toast.success("File version restored successfully.");
+        setShowVersionHistory(null);
+        await refreshFiles();
+      }
+    } catch (error) {
+      console.error("Failed to restore version:", error);
+      toast.error("Failed to restore file version.");
   // ✅ Toggle favorite status
   const handleToggleFavorite = async (fileId: string) => {
     try {
@@ -302,6 +380,15 @@ const MyFiles: React.FC = () => {
           );
         }
 
+        // Save file info to backend
+        await fileApi.saveFileInfo({
+          fileName: file.name,
+          fileUrl: result.url,
+          fileType: file.type.split("/")[0],
+          fileSize: formatFileSize(file.size),
+          fileSizeBytes: file.size,
+          checksum: checksum,
+        });
 
 
         const newFile: TrackedFile = {
@@ -328,12 +415,8 @@ const MyFiles: React.FC = () => {
       }
     }
 
-    // Save to localStorage (temporary - will be replaced with backend)
-    setFiles((prev) => {
-      const updated = [...uploadedFiles, ...prev];
-      localStorage.setItem("uploadedFiles", JSON.stringify(updated));
-      return updated;
-    });
+    // Refresh files list from backend
+    await refreshFiles();
 
     setIsUploading(false);
     setUploadProgress(100);
@@ -1015,6 +1098,16 @@ formatFileSize
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShowVersions(file.id);
+                        }}
+                        className="p-2 bg-blue-500/20 rounded-full text-blue-400 hover:bg-blue-500/30"
+                        title="Version History"
+                      >
+                        <History className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
 
@@ -1210,6 +1303,13 @@ formatFileSize
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4 text-red-400 hover:text-red-300" />
+                        </button>
+                        <button
+                          onClick={() => handleShowVersions(file.id)}
+                          className="p-1.5 hover:bg-blue-500/20 rounded"
+                          title="Version History"
+                        >
+                          <History className="w-4 h-4 text-blue-400 hover:text-blue-300" />
                         </button>
                       </div>
                     </div>
@@ -1441,6 +1541,79 @@ formatFileSize
                 <Download className="w-4 h-4 mr-2" />
                 Download
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Version History Modal */}
+      <AnimatePresence>
+        {showVersionHistory && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowVersionHistory(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-2xl w-full border border-gray-200 dark:border-gray-700 max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Version History
+                </h3>
+                <button
+                  onClick={() => setShowVersionHistory(null)}
+                  className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              {activeVersionDetails && (
+                <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <h4 className="font-semibold text-green-600 dark:text-green-400 mb-2">Active Version (v{activeVersionDetails.version})</h4>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">Size: {activeVersionDetails.fileSize}</p>
+                      <p className="text-sm text-gray-500">Uploaded: {new Date(activeVersionDetails.uploadedAt).toLocaleString()}</p>
+                    </div>
+                    <a href={activeVersionDetails.fileUrl} target="_blank" rel="noreferrer" className="px-3 py-1 bg-[#3498db] text-white text-sm rounded">View</a>
+                  </div>
+                </div>
+              )}
+
+              {fileVersions.length > 0 ? (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Previous Versions</h4>
+                  <div className="space-y-3">
+                    {fileVersions.map((v: any) => (
+                      <div key={v.version} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 flex justify-between items-center">
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">Version {v.version}</p>
+                          <p className="text-sm text-gray-500">Size: {v.fileSize} • Uploaded: {new Date(v.uploadedAt).toLocaleString()}</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <a href={v.fileUrl} target="_blank" rel="noreferrer" className="px-3 py-1 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white text-sm rounded hover:bg-gray-300 dark:hover:bg-gray-500">View</a>
+                          <button
+                            onClick={() => handleRestoreVersion(showVersionHistory, v.version)}
+                            className="px-3 py-1 bg-[#f39c12] hover:bg-[#e67e22] text-white text-sm rounded"
+                          >
+                            Restore
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No previous versions available.</p>
+              )}
             </motion.div>
           </motion.div>
         )}

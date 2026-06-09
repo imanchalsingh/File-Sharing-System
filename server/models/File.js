@@ -66,6 +66,23 @@ const fileSchema = new mongoose.Schema(
     lastAccessed: {
       type: Date,
     },
+    currentVersion: {
+      type: Number,
+      default: 1,
+    },
+    versions: [
+      {
+        version: Number,
+        fileUrl: String,
+        fileSize: String,
+        fileSizeBytes: Number,
+        checksum: String,
+        uploadedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     isFavorite: {
       type: Boolean,
       default: false,

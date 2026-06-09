@@ -10,6 +10,8 @@ import {
   deleteFile,
   bulkDeleteFiles,
   getFileStats,
+  getFileVersions,
+  restoreFileVersion,
   toggleFavorite,
   getFavoriteFiles,
   updateFileTags,
@@ -47,6 +49,13 @@ router.delete("/:id", deleteFile);
 
 // Bulk delete
 router.delete("/bulk-delete", bulkDeleteFiles);
+
+// Get file versions
+router.get("/:id/versions", getFileVersions);
+
+// Restore file version
+router.post("/:id/restore/:version", restoreFileVersion);
+
 // Tags
 router.put("/:id/tags", updateFileTags);
 router.get("/tag/:tag", getFilesByTag);

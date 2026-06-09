@@ -47,6 +47,28 @@ export const fileApi = {
     return response.data;
   },
 
+  saveFileInfo: async (data: {
+    fileName: string;
+    fileUrl: string;
+    fileType?: string;
+    fileSize?: string;
+    fileSizeBytes?: number;
+    checksum?: string;
+  }) => {
+    const response = await api.post("/api/files/save-info", data);
+    return response.data;
+  },
+
+  getFileVersions: async (fileId: string) => {
+    const response = await api.get(`/api/files/${fileId}/versions`);
+    return response.data;
+  },
+
+  restoreFileVersion: async (fileId: string, version: number) => {
+    const response = await api.post(`/api/files/${fileId}/restore/${version}`);
+    return response.data;
+  },
+
   uploadFile: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
