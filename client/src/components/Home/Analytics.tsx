@@ -1018,7 +1018,7 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
-  Line,
+  Cell,
 } from "recharts";
 import { analyticsApi } from "../../services/api";
 
@@ -1047,6 +1047,7 @@ interface AnalyticsData {
     directCopyRate: number;
   };
   recentActivity: Array<{
+    timestamp: string;
     time: string;
     file: string;
     action: string;
@@ -1060,35 +1061,223 @@ interface AnalyticsData {
   conversionRate: number;
 }
 
-const EMPTY_DATA: AnalyticsData = {
-  dailyShares: [],
-  topFiles: [],
-  shareSources: [],
-  hourlyActivity: [],
-  fileTypeDistribution: [],
-  performanceMetrics: {
-    avgSharesPerFile: 0,
-    peakHourShares: 0,
-    mobileShareRate: 0,
-    directCopyRate: 100,
-  },
-  recentActivity: [],
-  totalShares: 0,
-  uniqueFiles: 0,
-  totalDownloads: 0,
-  totalViews: 0,
-  conversionRate: 0,
-};
+const Analytics: React.FC = () => {
+  const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">(
+    "week",
+  );
+  const [loading, setLoading] = useState(true);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
+    dailyShares: [],
+    topFiles: [],
+    shareSources: [],
+    hourlyActivity: [],
+    fileTypeDistribution: [],
+    performanceMetrics: {
+      avgSharesPerFile: 0,
+      peakHourShares: 0,
+      mobileShareRate: 0,
+      directCopyRate: 100,
+    },
+    recentActivity: [],
+  });
+  const [trackedFiles, setTrackedFiles] = useState<TrackedFile[]>([]);
+
+  // Load tracked files from localStorage
+  useEffect(() => {
+    const loadTrackedFiles = () => {
+      const stored = localStorage.getItem("uploadedFiles");
+
+      if (stored) {
+        const files = JSON.parse(stored);
+        setTrackedFiles(files);
+        generateRealAnalyticsData(files);
+      } else {
+        generateMockAnalyticsData();
+      }
+    };
+    
+    loadTrackedFiles();
+  }, [timeRange]);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const getSourceColor = (source: string) => {
-  const colors: Record<string, string> = {
-    direct_copy: "#3498db",
-    email: "#2ecc71",
-    whatsapp: "#9b59b6",
-    teams: "#f39c12",
-    slack: "#e74c3c",
+    try {
+      const dailySharesMap = new Map<
+        string,
+        { shares: number; files: Set<string> }
+      >();
+      const hourlySharesMap = new Map<string, number>();
+      const fileTypeMap = new Map<string, { count: number; shares: number }>();
+      const sourceMap = new Map<string, number>();
+      let totalShares = 0;
+      const totalFiles = files.length;
+
+      // Process all files
+      files.forEach((file) => {
+        // Track file type distribution
+        const fileType = file.type || "other";
+        const typeData = fileTypeMap.get(fileType) || { count: 0, shares: 0 };
+        typeData.count++;
+        typeData.shares += file.shareCount || 0;
+        fileTypeMap.set(fileType, typeData);
+
+        // Process share history for time-based analysis
+        if (file.shareHistory && file.shareHistory.length > 0) {
+          file.shareHistory.forEach((share) => {
+            const shareDate = new Date(share.timestamp);
+
+            // Daily shares
+            const dateKey = shareDate.toLocaleDateString("en-US", {
+              weekday: "short",
+            });
+            const dailyData = dailySharesMap.get(dateKey) || {
+              shares: 0,
+              files: new Set<string>(),
+            };
+            dailyData.shares++;
+            dailyData.files.add(file.id);
+            dailySharesMap.set(dateKey, dailyData);
+
+            // Hourly activity
+            const hourKey = `${shareDate.getHours()}:00`;
+            hourlySharesMap.set(
+              hourKey,
+              (hourlySharesMap.get(hourKey) || 0) + 1,
+            );
+
+            // Source tracking
+            const source = share.source || "Direct Copy";
+            sourceMap.set(source, (sourceMap.get(source) || 0) + 1);
+          });
+        }
+
+        totalShares += file.shareCount || 0;
+      });
+
+      // Convert daily shares map to array
+      const dailyShares = Array.from(dailySharesMap.entries())
+        .map(([date, data]) => ({
+          date,
+          shares: data.shares,
+          uniqueFiles: data.files.size,
+        }))
+        .sort((a, b) => {
+          const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+          return days.indexOf(a.date) - days.indexOf(b.date);
+        });
+
+      // Get top files
+      const topFiles = files
+        .map((file) => ({
+          name:
+            file.name.length > 20
+              ? file.name.substring(0, 20) + "..."
+              : file.name,
+          fullName: file.name,
+          shares: file.shareCount || 0,
+          downloads: file.downloadCount || 0,
+          views: file.viewCount || 0,
+          size: file.size,
+        }))
+        .filter((file) => file.shares > 0)
+        .sort((a, b) => b.shares - a.shares)
+        .slice(0, 8);
+
+      // Convert source map to array
+      const totalSourceShares = Array.from(sourceMap.values()).reduce(
+        (sum, val) => sum + val,
+        0,
+      );
+      const shareSources = Array.from(sourceMap.entries())
+        .map(([name, value]) => ({
+          name,
+          value:totalSourceShares > 0 
+          ? Math.round((value / totalSourceShares) * 100)
+          : 0,
+          color: getSourceColor(name),
+        }))
+        .sort((a, b) => b.value - a.value);
+
+      // Convert hourly activity map to array
+      const hourlyActivity = Array.from(hourlySharesMap.entries())
+        .map(([hour, shares]) => ({
+          hour: formatHour(hour),
+          shares,
+          avg: Math.round(totalShares / 24),
+        }))
+        .sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
+
+      // File type distribution
+      const fileTypeDistribution = Array.from(fileTypeMap.entries())
+        .map(([type, data]) => ({
+          type: type.charAt(0).toUpperCase() + type.slice(1),
+          count: data.count,
+          shares: data.shares,
+          color: getFileTypeColor(type),
+        }))
+        .sort((a, b) => b.shares - a.shares);
+
+      // Performance metrics
+      const avgSharesPerFile =
+        totalFiles > 0 ? Math.round(totalShares / totalFiles) : 0;
+      const peakHourShares =
+        hourlyActivity.length > 0
+          ? Math.max(...hourlyActivity.map((h) => h.shares))
+          : 0;
+      const directCopyRate =
+        shareSources.length > 0
+          ? shareSources.find((s) => s.name === "Direct Copy")?.value || 0
+          : 0;
+
+      // Recent activity (last 24 hours)
+      const recentActivity = files
+        .flatMap((file) => {
+          const activities = [];
+          if (file.shareCount > 0) {
+            activities.push({
+              timestamp: file.lastAccessed || new Date().toISOString(),
+              time: formatTimeAgo(new Date(file.lastAccessed || new Date())),
+              file: file.name,
+              action: "share",
+              count: file.shareCount,
+            });
+          }
+          if (file.downloadCount > 0) {
+            activities.push({
+              timestamp: file.lastAccessed || new Date().toISOString(),
+              time: file.lastAccessed
+                ? formatTimeAgo(new Date(file.lastAccessed))
+                : "Recently",
+              file: file.name,
+              action: "download",
+              count: file.downloadCount,
+            });
+          }
+          return activities;
+        })
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 5);
+
+      setAnalyticsData({
+        dailyShares,
+        topFiles,
+        shareSources,
+        hourlyActivity,
+        fileTypeDistribution,
+        performanceMetrics: {
+          avgSharesPerFile,
+          peakHourShares,
+          mobileShareRate: 30, // Mock value - can be enhanced with real device tracking
+          directCopyRate,
+        },
+        recentActivity,
+      });
+    } catch (error) {
+      console.error("Error generating analytics:", error);
+      generateMockAnalyticsData();
+    } finally {
+      setLoading(false);
+    }
   };
   return colors[source.toLowerCase()] ?? "#95a5a6";
 };
@@ -1593,7 +1782,7 @@ const Analytics: React.FC = () => {
                     dataKey="shares"
                   >
                     {analyticsData.fileTypeDistribution.map((entry, index) => (
-                      <Line key={`line-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip content={<FileTypeTooltip />} />
@@ -1624,7 +1813,7 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <Share2 className="w-4 h-4 text-[#3498db] mr-3" />
-                <span className="text-gray-300">Avg Shares per File</span>
+                <span className="text-gray-700 dark:text-gray-300">Avg Shares per File</span>
               </div>
               <span className="text-gray-900 dark:text-white font-bold">
                 {analyticsData.performanceMetrics.avgSharesPerFile}
@@ -1634,7 +1823,7 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <Target className="w-4 h-4 text-[#f39c12] mr-3" />
-                <span className="text-gray-300">Peak Hour Activity</span>
+                <span className="text-gray-700 dark:text-gray-300">Peak Hour Activity</span>
               </div>
               <span className="text-gray-900 dark:text-white font-bold">
                 {analyticsData.performanceMetrics.peakHourShares}
@@ -1644,7 +1833,7 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <Smartphone className="w-4 h-4 text-[#9b59b6] mr-3" />
-                <span className="text-gray-300">Direct Copy Rate</span>
+                <span className="text-gray-700 dark:text-gray-300">Direct Copy Rate</span>
               </div>
               <span className="text-gray-900 dark:text-white font-bold">
                 {analyticsData.performanceMetrics.directCopyRate}%
@@ -1654,7 +1843,7 @@ const Analytics: React.FC = () => {
             <div className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/30 rounded-lg">
               <div className="flex items-center">
                 <TrendingUp className="w-4 h-4 text-[#2ecc71] mr-3" />
-                <span className="text-gray-300">Conversion Rate</span>
+                <span className="text-gray-700 dark:text-gray-300">Engagement Rate</span>
               </div>
               <span className="text-white font-bold">
                 {analyticsData.conversionRate}%
