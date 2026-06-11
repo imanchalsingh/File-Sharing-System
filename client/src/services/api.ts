@@ -92,6 +92,21 @@ export const fileApi = {
     const response = await api.get("/api/files/favorites");
     return response.data;
   },
+
+  updatePassword: async (fileId: string, password: string | null) => {
+    const response = await api.put(`/api/files/${fileId}/password`, { password });
+    return response.data;
+  },
+
+  getSharedFile: async (fileId: string) => {
+    const response = await api.get(`/api/files/shared/${fileId}`);
+    return response.data;
+  },
+
+  verifySharedPassword: async (fileId: string, password: string) => {
+    const response = await api.post(`/api/files/shared/${fileId}/verify-password`, { password });
+    return response.data;
+  },
 };
 
 export default api;

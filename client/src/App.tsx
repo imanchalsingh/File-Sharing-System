@@ -9,6 +9,7 @@ import LandingPage from "./components/Home/LandingPage";
 import Analytics from "./components/Home/Analytics";
 import Favorites from "./components/Home/Favorites";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SharePage from "./components/Share/SharePage";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -18,6 +19,9 @@ const App: React.FC = () => {
       <Routes>
         {/* Landing Page - Home */}
         <Route path="/" element={<LandingPage />} />
+
+        {/* Public Share Page */}
+        <Route path="/share/:id" element={<SharePage />} />
 
         {/* Auth Routes */}
         <Route path="/register" element={<Register />} />
