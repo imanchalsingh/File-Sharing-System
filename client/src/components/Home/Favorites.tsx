@@ -82,6 +82,18 @@ const Favorites: React.FC = () => {
     loadFavorites();
   }, [loadFavorites]);
 
+  useEffect(() => {
+    import("../../services/socket").then(({ subscribeToFiles, unsubscribeFromFiles }) => {
+      subscribeToFiles({
+        onUploaded: () => loadFavorites(true),
+        onUpdated: () => loadFavorites(true),
+        onDeleted: () => loadFavorites(true),
+        onBulkDeleted: () => loadFavorites(true),
+      });
+      return () => unsubscribeFromFiles();
+    });
+  }, [loadFavorites]);
+
   const handleUnfavorite = async (fileId: string) => {
     try {
       await fileApi.toggleFavorite(fileId);

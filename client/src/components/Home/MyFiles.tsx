@@ -191,6 +191,18 @@ const MyFiles: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    import("../../services/socket").then(({ subscribeToFiles, unsubscribeFromFiles }) => {
+      subscribeToFiles({
+        onUploaded: () => refreshFiles(),
+        onUpdated: () => refreshFiles(),
+        onDeleted: () => refreshFiles(),
+        onBulkDeleted: () => refreshFiles(),
+      });
+      return () => unsubscribeFromFiles();
+    });
+  }, []);
+
   // ✅ Track link copy with BACKEND API
   const trackLinkCopy = async (
     fileId: string,
