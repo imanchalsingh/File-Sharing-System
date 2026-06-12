@@ -1,5 +1,6 @@
 import express from "express";
 import authenticateUser from "../middleware/authenticateUser.js";
+import { downloadLimiter } from "../middleware/rateLimiter.js";
 import {
   getUserFiles,
   getFileById,
@@ -47,7 +48,7 @@ router.post("/save-info", saveFileInfo);
 
 // Update counts & password
 router.put("/:id/share", updateShareCount);
-router.put("/:id/download", updateDownloadCount);
+router.put("/:id/download", downloadLimiter, updateDownloadCount);
 router.put("/:id/view", updateViewCount);
 router.put("/:id/favorite", toggleFavorite);
 router.put("/:id/password", updateFilePassword);
