@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
+import ShareModal from "./ShareModal";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -65,7 +66,8 @@ const MyFiles: React.FC = () => {
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState<string>("");
   const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
-  
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedFileForShare, setSelectedFileForShare] = useState<any>(null);
 
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
 
@@ -94,41 +96,8 @@ const MyFiles: React.FC = () => {
           setFiles(backendFiles);
           setLoading(false);
           return;
-        // Try to fetch from backend
-        const token = localStorage.getItem("authToken");
-        if (token) {
-          const response = await fetch(`${API_URL}/api/files/my-files`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.files && data.files.length > 0) {
-              const backendFiles = data.files.map((file: any) => ({
-                id: file._id,
-                name: file.fileName,
-                url: file.fileUrl,
-                type: file.fileType || "application",
-                size: file.fileSize || "0 KB",
-                uploaded: new Date(file.createdAt).toLocaleDateString(),
-                isFavorite: file.isFavorite || false,
-                shareCount: file.shareCount || 0,
-                downloadCount: file.downloadCount || 0,
-                viewCount: file.viewCount || 0,
-                shareHistory: file.shareHistory || [],
-                downloadHistory: file.downloadHistory || [],
-                viewHistory: file.viewHistory || [],
-                tags: file.tags || [],
-              }));
-              setFiles(backendFiles);
-              setLoading(false);
-              return;
-            }
-          }
         }
-
+        
         // Fallback to localStorage
         const stored = localStorage.getItem("uploadedFiles");
         if (stored) {
@@ -314,6 +283,9 @@ const MyFiles: React.FC = () => {
     } catch (error) {
       console.error("Failed to restore version:", error);
       toast.error("Failed to restore file version.");
+    }
+  };
+
   // ✅ Toggle favorite status
   const handleToggleFavorite = async (fileId: string) => {
     try {
@@ -1081,7 +1053,11 @@ formatFileSize
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleShare(file.id, file.url, file.name);
+                          const f = files.find(fi => fi.id === file.id);
+                          if (f) {
+                            setSelectedFileForShare({ _id: f.id, fileName: f.name, fileUrl: f.url });
+                            setShareModalOpen(true);
+                          }
                         }}
                         className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
                         title="Share"
@@ -1275,9 +1251,10 @@ formatFileSize
                           <Download className="w-4 h-4 text-gray-400 hover:text-white" />
                         </button>
                         <button
-                          onClick={() =>
-                            handleShare(file.id, file.url, file.name)
-                          }
+                          onClick={() => {
+                            setSelectedFileForShare({ _id: file.id, fileName: file.name, fileUrl: file.url });
+                            setShareModalOpen(true);
+                          }}
                           className="p-1.5 hover:bg-gray-700 rounded"
                           title="Share"
                         >
@@ -1618,6 +1595,18 @@ formatFileSize
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Share Modal */}
+      {shareModalOpen && selectedFileForShare && (
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={() => {
+            setShareModalOpen(false);
+            setSelectedFileForShare(null);
+          }}
+          file={selectedFileForShare}
+        />
+      )}
     </div>
   );
 };

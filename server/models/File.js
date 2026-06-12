@@ -97,6 +97,7 @@ const fileSchema = new mongoose.Schema(
 fileSchema.index({ userId: 1, createdAt: -1 });
 fileSchema.index({ userId: 1, shareCount: -1 });
 fileSchema.index({ userId: 1, tags: 1 });
+fileSchema.index({ _id: 1, userId: 1 });
 const File = mongoose.model("File", fileSchema);
 
 export default File;
