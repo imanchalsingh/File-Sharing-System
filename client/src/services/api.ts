@@ -7,6 +7,10 @@ const api = axios.create({
   withCredentials: true, 
 });
 
+export const fetchDownloadAnalytics = async () => {
+  const response = await api.get("/analytics/downloads");
+  return response.data;
+};
 // ==================== ANALYTICS APIs ====================
 
 export const analyticsApi = {

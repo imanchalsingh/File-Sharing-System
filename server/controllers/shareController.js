@@ -269,8 +269,26 @@ export const accessSharedFile = async (req, res) => {
       });
     }
 
-    // Increment access count
+    // === APPENDED DOWNLOAD TRACKING LOGIC ===
+    // 1. Increment standard endpoint counter trackers
     share.accessCount += 1;
+    
+    // 2. Increment deep metrics counter maps for analytical views
+    share.downloadCount = (share.downloadCount || 0) + 1;
+    
+    // 3. Initialize subdocument array safely if missing from legacy records
+    if (!share.downloadHistory) {
+      share.downloadHistory = [];
+    }
+    
+    // 4. Collect structural context metadata from incoming stream connection
+    share.downloadHistory.push({
+      downloadedAt: new Date(),
+      ipAddress: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1',
+      userAgent: req.headers['user-agent'] || 'Unknown Client Browser Browser Engine Container Device Payload Context'
+    });
+    // ========================================
+
     await share.save();
 
     res.json({
@@ -284,12 +302,32 @@ export const accessSharedFile = async (req, res) => {
       share: {
         expiresAt: share.expiresAt,
         accessCount: share.accessCount,
+        downloadCount: share.downloadCount, // Exposed interface metrics
         createdAt: share.createdAt,
       },
     });
   } catch (error) {
     console.error('Access shared file error:', error);
     res.status(500).json({ success: false, message: 'Failed to access shared file' });
+  }
+};
+
+// GET /api/shares/analytics/downloads - Gather detailed aggregated engagement metrics per user profile session
+export const getDownloadAnalytics = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Filter structural parameters matching the specific authenticated signature index keys
+    const shareAnalytics = await ShareLink.find({ userId })
+      .populate('fileId', 'fileName fileType fileSize')
+      .select('downloadCount downloadHistory expiresAt status token createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({ success: true, shares: shareAnalytics });
+  } catch (error) {
+    console.error('Fetch download analytics error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch download analytics metrics structures layout records' });
   }
 };
 

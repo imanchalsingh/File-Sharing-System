@@ -10,6 +10,19 @@ const shareLinkSchema = new mongoose.Schema({
   maxAccessCount: { type: Number, default: null },     // optional download limit
   notifiedAt24h:  { type: Boolean, default: false },
   notifiedAt1h:   { type: Boolean, default: false },
+  downloadCount: {
+    type: Number,
+    default: 0
+  },
+  downloadHistory: [{
+    downloadedAt: {
+      type: Date,
+      default: Date.now
+    },
+    ipAddress: String,
+    userAgent: String
+  }]
+
 }, { timestamps: true });
 
 shareLinkSchema.index({ fileId: 1, userId: 1 });
