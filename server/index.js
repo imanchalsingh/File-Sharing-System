@@ -1,5 +1,7 @@
 
 import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import dotenv from "dotenv";
 dotenv.config();
 import connectDB from "./config/db.js";
@@ -93,8 +95,41 @@ app.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+// Create HTTP server
+const httpServer = createServer(app);
+
+// Initialize Socket.IO
+const io = new Server(httpServer, {
+  cors: {
+    origin: [
+      "http://localhost:5173",
+      "https://file-sharing-system-lake.vercel.app"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  }
+});
+
+// Attach io to app so it can be used in controllers
+app.set("io", io);
+
+io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
+
+  socket.on("join_room", (userId) => {
+    if (userId) {
+      socket.join(`user_${userId}`);
+      console.log(`User ${userId} joined room: user_${userId}`);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+  });
+});
+
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
+httpServer.listen(PORT, () =>
   console.log(`Server running on port http://localhost:${PORT}`),
 );
