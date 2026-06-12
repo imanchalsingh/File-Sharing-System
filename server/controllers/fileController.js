@@ -159,6 +159,8 @@ export const updateShareCount = async (req, res) => {
   }
 };
 
+import User from "../models/UserSchema.js";
+
 // ✅ Update file download count
 export const updateDownloadCount = async (req, res) => {
   try {
@@ -168,6 +170,21 @@ export const updateDownloadCount = async (req, res) => {
     
     if (!file) {
       return res.status(404).json({ error: "File not found" });
+    }
+
+    // Check user quota if authenticated user is downloading
+    if (req.user && req.user.id) {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        const fileSizeBytes = file.fileSizeBytes || 0;
+        if (user.dailyBandwidth + fileSizeBytes > user.bandwidthLimit) {
+          return res.status(429).json({
+            error: "Daily bandwidth quota exceeded. Please try again tomorrow.",
+          });
+        }
+        user.dailyBandwidth += fileSizeBytes;
+        await user.save();
+      }
     }
     
     file.downloadCount += 1;

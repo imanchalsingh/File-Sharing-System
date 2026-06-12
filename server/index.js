@@ -15,7 +15,9 @@ import analyticsRoutes from "./routes/analytics.js";
 import fileRoutes from "./routes/files.js";
 import shareRoutes from "./routes/shares.js";
 import { startExpirationJob } from "./jobs/expirationJob.js";
+import { initQuotaResetJob } from "./jobs/quotaResetJob.js";
 import {connectRedis} from "./config/redis.js";
+import { apiLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
 
@@ -37,9 +39,13 @@ connectDB();
 connectRedis();
 // Start background jobs
 startExpirationJob();
+initQuotaResetJob();
 
 app.use(express.json());
 app.use(cookieParser()); 
+
+// Apply General API Rate Limiter to all /api routes
+app.use("/api", apiLimiter);
 
 // Routes
 app.use("/api/analytics", analyticsRoutes);
