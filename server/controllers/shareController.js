@@ -269,46 +269,88 @@ export const accessSharedFile = async (req, res) => {
       });
     }
 
-    // === APPENDED DOWNLOAD TRACKING LOGIC ===
-    // 1. Increment standard endpoint counter trackers
+    // Increment accessCount only (not downloadCount)
     share.accessCount += 1;
-    
-    // 2. Increment deep metrics counter maps for analytical views
-    share.downloadCount = (share.downloadCount || 0) + 1;
-    
-    // 3. Initialize subdocument array safely if missing from legacy records
-    if (!share.downloadHistory) {
-      share.downloadHistory = [];
-    }
-    
-    // 4. Collect structural context metadata from incoming stream connection
-    share.downloadHistory.push({
-      downloadedAt: new Date(),
-      ipAddress: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1',
-      userAgent: req.headers['user-agent'] || 'Unknown Client Browser Browser Engine Container Device Payload Context'
-    });
-    // ========================================
-
     await share.save();
 
     res.json({
       success: true,
       file: {
+        _id: share.fileId?._id,
         fileName: share.fileId?.fileName,
         fileUrl: share.fileId?.fileUrl,
         fileType: share.fileId?.fileType,
         fileSize: share.fileId?.fileSize,
       },
       share: {
+        _id: share._id,
         expiresAt: share.expiresAt,
         accessCount: share.accessCount,
-        downloadCount: share.downloadCount, // Exposed interface metrics
+        downloadCount: share.downloadCount || 0,
         createdAt: share.createdAt,
       },
     });
   } catch (error) {
     console.error('Access shared file error:', error);
     res.status(500).json({ success: false, message: 'Failed to access shared file' });
+  }
+};
+
+// POST /api/shares/download/:token - Record download of a shared file
+export const trackShareDownload = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const share = await ShareLink.findOne({ token });
+    if (!share) {
+      return res.status(404).json({ success: false, message: 'Share link not found' });
+    }
+
+    if (share.status === 'revoked') {
+      return res.status(403).json({ success: false, message: 'This share link has been revoked' });
+    }
+
+    if (share.status === 'expired') {
+      return res.status(410).json({ success: false, message: 'This share link has expired' });
+    }
+
+    if (share.expiresAt && share.expiresAt <= new Date()) {
+      share.status = 'expired';
+      await share.save();
+      return res.status(410).json({ success: false, message: 'This share link has expired' });
+    }
+
+    if (share.maxAccessCount && share.accessCount >= share.maxAccessCount) {
+      return res.status(410).json({ success: false, message: 'Access limit reached' });
+    }
+
+    // Increment downloadCount for ShareLink
+    share.downloadCount = (share.downloadCount || 0) + 1;
+    if (!share.downloadHistory) {
+      share.downloadHistory = [];
+    }
+    share.downloadHistory.push({
+      downloadedAt: new Date(),
+      ipAddress: req.ip || req.headers['x-forwarded-for'] || '127.0.0.1',
+      userAgent: req.headers['user-agent'] || 'Unknown'
+    });
+    await share.save();
+
+    // Increment downloadCount for the underlying File
+    const file = await File.findById(share.fileId);
+    if (file) {
+      file.downloadCount = (file.downloadCount || 0) + 1;
+      file.downloadHistory.push({
+        timestamp: new Date()
+      });
+      file.lastAccessed = new Date();
+      await file.save();
+    }
+
+    res.json({ success: true, downloadCount: share.downloadCount });
+  } catch (error) {
+    console.error('Track share download error:', error);
+    res.status(500).json({ success: false, message: 'Failed to record download' });
   }
 };
 

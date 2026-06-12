@@ -8,7 +8,7 @@ const api = axios.create({
 });
 
 export const fetchDownloadAnalytics = async () => {
-  const response = await api.get("/analytics/downloads");
+  const response = await api.get("/api/shares/analytics/downloads");
   return response.data;
 };
 // ==================== ANALYTICS APIs ====================

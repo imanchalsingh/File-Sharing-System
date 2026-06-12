@@ -26,6 +26,7 @@ const router = express.Router();
 // Public routes (no authentication required)
 router.get("/shared/:id", getSharedFileById);
 router.post("/shared/:id/verify-password", verifySharedFilePassword);
+router.put("/shared/:id/download", updateDownloadCount);
 
 // All routes below require authentication
 router.use(authenticateUser);
