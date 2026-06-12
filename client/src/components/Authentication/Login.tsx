@@ -93,15 +93,15 @@ const Login: React.FC = () => {
         { withCredentials: true }
       );
 
-      // Mock authentication - replace with your actual API call
-      if (email === "admin@example.com" && password === "password123") {
-        localStorage.setItem("user", JSON.stringify({ email, role: "admin" }));
-        navigate("/dashboard");
-      } else if (email === "user@example.com" && password === "password123") {
-        localStorage.setItem("user", JSON.stringify({ email, role: "user" }));
-        navigate("/dashboard");
+      if (response.data.success) {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        if (response.data.authToken) {
+          localStorage.setItem("authToken", response.data.authToken);
+        }
+        toast.success("Login successful!");
+        navigate("/home");
       } else {
-        setErrorMsg("Invalid email or password");
+        setErrorMsg(response.data.error || "Invalid email or password");
       }
     } catch (error: unknown) {
       setErrorMsg("Invalid email or password.");
@@ -166,10 +166,7 @@ const Login: React.FC = () => {
               <form
                 className="space-y-6"
                 autoComplete="off"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleLogin(e);
-                }}
+                onSubmit={handleLogin}
               >
                 <div>
                   <label className="block text-gray-700 dark:text-gray-300 mb-2 font-medium">

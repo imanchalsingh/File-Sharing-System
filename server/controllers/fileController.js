@@ -1,4 +1,6 @@
 import File from "../models/File.js";
+import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 
 // ✅ Get user's all files
 export const getUserFiles = async (req, res) => {
@@ -43,7 +45,7 @@ export const getFileById = async (req, res) => {
 export const saveFileInfo = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes, checksum, tags } = req.body;
+    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes, checksum, tags, password } = req.body;
     
     if (!fileName || !fileUrl) {
       return res.status(400).json({ error: "File name and URL are required" });
@@ -80,6 +82,12 @@ export const saveFileInfo = async (req, res) => {
       });
     }
 
+    let hashedPassword = null;
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
+
     const newFile = new File({
       fileName,
       fileUrl,
@@ -90,7 +98,7 @@ export const saveFileInfo = async (req, res) => {
       userId,
       currentVersion: 1,
       tags: Array.isArray(tags) ? tags : [],
-      userId,     
+      password: hashedPassword,     
       shareCount: 0,
       downloadCount: 0,
       viewCount: 0,
@@ -289,14 +297,11 @@ export const getFileStats = async (req, res) => {
 
 // ✅ Get file versions
 export const getFileVersions = async (req, res) => {
-// ✅ Toggle file favorite status
-export const toggleFavorite = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
     
     const file = await File.findOne({ _id: id, userId }).select("versions currentVersion fileName fileUrl fileSize fileSizeBytes uploadedAt updatedAt createdAt");
-    const file = await File.findOne({ _id: id, userId });
     
     if (!file) {
       return res.status(404).json({ error: "File not found" });
@@ -368,6 +373,19 @@ export const restoreFileVersion = async (req, res) => {
     res.status(500).json({ error: "Failed to restore file version" });
   }
 };
+
+// ✅ Toggle file favorite status
+export const toggleFavorite = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    const file = await File.findOne({ _id: id, userId });
+    
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    
     file.isFavorite = !file.isFavorite;
     await file.save();
     
@@ -446,6 +464,123 @@ export const getFilesByTag = async (req, res) => {
   } catch (error) {
     console.error("Get files by tag error:", error);
     res.status(500).json({ error: "Failed to fetch files by tag" });
+  }
+};
+
+// ✅ Update file password protection
+export const updateFilePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { password } = req.body; // Can be null/empty string to remove password
+
+    const file = await File.findOne({ _id: id, userId });
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    if (!password) {
+      file.password = null;
+    } else {
+      const salt = await bcrypt.genSalt(10);
+      file.password = await bcrypt.hash(password, salt);
+    }
+
+    await file.save();
+    res.json({
+      success: true,
+      message: password ? "Password protection enabled" : "Password protection disabled",
+      isPasswordProtected: !!password
+    });
+  } catch (error) {
+    console.error("Update password error:", error);
+    res.status(500).json({ error: "Failed to update password protection" });
+  }
+};
+
+// ✅ Get shared file details (public)
+export const getSharedFileById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if ID is a valid ObjectId first to prevent crash
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    
+    // Find file, populate user username/email if we want to show who shared it
+    const file = await File.findById(id).populate("userId", "username email");
+    
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    
+    const isPasswordProtected = !!file.password;
+    
+    // Return metadata, but hide fileUrl if password protected
+    const fileDetails = {
+      _id: file._id,
+      fileName: file.fileName,
+      fileType: file.fileType,
+      fileSize: file.fileSize,
+      fileSizeBytes: file.fileSizeBytes,
+      createdAt: file.createdAt,
+      updatedAt: file.updatedAt,
+      isPasswordProtected,
+      owner: file.userId ? { username: file.userId.username } : null,
+      currentVersion: file.currentVersion || 1,
+      // Only include fileUrl and versions if NOT password protected
+      fileUrl: isPasswordProtected ? null : file.fileUrl,
+      versions: isPasswordProtected 
+        ? file.versions.map(v => ({ version: v.version, uploadedAt: v.uploadedAt, fileSize: v.fileSize }))
+        : file.versions
+    };
+    
+    res.json({ success: true, file: fileDetails });
+  } catch (error) {
+    console.error("Get shared file error:", error);
+    res.status(500).json({ error: "Failed to fetch shared file details" });
+  }
+};
+
+// ✅ Verify shared file password and get fileUrl
+export const verifySharedFilePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+    
+    if (!password) {
+      return res.status(400).json({ error: "Password is required" });
+    }
+    
+    const file = await File.findById(id);
+    
+    if (!file) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    
+    if (!file.password) {
+      return res.json({
+        success: true,
+        fileUrl: file.fileUrl,
+        versions: file.versions
+      });
+    }
+    
+    const isMatch = await bcrypt.compare(password, file.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid password" });
+    }
+    
+    res.json({
+      success: true,
+      message: "Password verified",
+      fileUrl: file.fileUrl,
+      versions: file.versions
+    });
+  } catch (error) {
+    console.error("Verify password error:", error);
+    res.status(500).json({ error: "Verification failed" });
   }
 };
 

@@ -21,6 +21,8 @@ import {
   Link as LinkIcon,
   History,
   Star,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -45,6 +47,7 @@ interface TrackedFile {
   shareHistory: Array<{ timestamp: string; source?: string }>;
   downloadHistory: Array<{ timestamp: string }>;
   viewHistory: Array<{ timestamp: string }>;
+  password?: string;
 }
 
 const MyFiles: React.FC = () => {
@@ -66,8 +69,11 @@ const MyFiles: React.FC = () => {
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState<string>("");
   const [editingTagsFor, setEditingTagsFor] = useState<string | null>(null);
-  const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [selectedFileForShare, setSelectedFileForShare] = useState<any>(null);
+  
+  // Password protection state
+  const [showPasswordModal, setShowPasswordModal] = useState<string | null>(null);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [isPasswordModalLoading, setIsPasswordModalLoading] = useState(false);
 
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
 
@@ -85,6 +91,7 @@ const MyFiles: React.FC = () => {
             type: file.fileType || "application",
             size: file.fileSize || "0 KB",
             uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
+            isFavorite: file.isFavorite || false,
             shareCount: file.shareCount || 0,
             downloadCount: file.downloadCount || 0,
             viewCount: file.viewCount || 0,
@@ -92,10 +99,47 @@ const MyFiles: React.FC = () => {
             downloadHistory: file.downloadHistory || [],
             viewHistory: file.viewHistory || [],
             currentVersion: file.currentVersion,
+            tags: file.tags || [],
+            password: file.password,
           }));
           setFiles(backendFiles);
           setLoading(false);
           return;
+        }
+        // Try to fetch from backend
+        const token = localStorage.getItem("authToken");
+        if (token) {
+          const response = await fetch(`${API_URL}/api/files/my-files`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.files && data.files.length > 0) {
+              const backendFiles = data.files.map((file: any) => ({
+                id: file._id,
+                name: file.fileName,
+                url: file.fileUrl,
+                type: file.fileType || "application",
+                size: file.fileSize || "0 KB",
+                uploaded: new Date(file.createdAt).toLocaleDateString(),
+                isFavorite: file.isFavorite || false,
+                shareCount: file.shareCount || 0,
+                downloadCount: file.downloadCount || 0,
+                viewCount: file.viewCount || 0,
+                shareHistory: file.shareHistory || [],
+                downloadHistory: file.downloadHistory || [],
+                viewHistory: file.viewHistory || [],
+                tags: file.tags || [],
+                password: file.password,
+              }));
+              setFiles(backendFiles);
+              setLoading(false);
+              return;
+            }
+          }
         }
         
         // Fallback to localStorage
@@ -129,6 +173,7 @@ const MyFiles: React.FC = () => {
           type: file.fileType || "application",
           size: file.fileSize || "0 KB",
           uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
+          isFavorite: file.isFavorite || false,
           shareCount: file.shareCount || 0,
           downloadCount: file.downloadCount || 0,
           viewCount: file.viewCount || 0,
@@ -136,6 +181,8 @@ const MyFiles: React.FC = () => {
           downloadHistory: file.downloadHistory || [],
           viewHistory: file.viewHistory || [],
           currentVersion: file.currentVersion,
+          tags: file.tags || [],
+          password: file.password,
         }));
         setFiles(backendFiles);
       }
@@ -285,7 +332,6 @@ const MyFiles: React.FC = () => {
       toast.error("Failed to restore file version.");
     }
   };
-
   // ✅ Toggle favorite status
   const handleToggleFavorite = async (fileId: string) => {
     try {
@@ -298,6 +344,29 @@ const MyFiles: React.FC = () => {
       toast.success(result.isFavorite ? "Added to favorites ⭐" : "Removed from favorites");
     } catch {
       toast.error("Failed to update favorite");
+    }
+  };
+
+  // ✅ Password protection update
+  const handlePasswordUpdate = async (fileId: string, password: string | null) => {
+    setIsPasswordModalLoading(true);
+    try {
+      const result = await fileApi.updatePassword(fileId, password);
+      if (result.success) {
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileId ? { ...f, password: password ? "protected" : undefined } : f
+          )
+        );
+        toast.success(result.message);
+        setShowPasswordModal(null);
+        setPasswordValue("");
+      }
+    } catch (error: any) {
+      console.error("Failed to update password:", error);
+      toast.error(error.response?.data?.error || "Failed to update password protection");
+    } finally {
+      setIsPasswordModalLoading(false);
     }
   };
 
@@ -477,14 +546,15 @@ const MyFiles: React.FC = () => {
     fileUrl: string,
     fileName: string,
   ) => {
-    // Copy to clipboard
-    await navigator.clipboard.writeText(fileUrl);
+    // Copy link pointing to client App's SharePage
+    const shareLink = `${window.location.origin}/share/${fileId}`;
+    await navigator.clipboard.writeText(shareLink);
 
     // Track the copy to backend
-    await trackLinkCopy(fileId, fileName, fileUrl);
+    await trackLinkCopy(fileId, fileName, shareLink);
 
     // Show success message
-    toast.success("Link copied to clipboard!");
+    toast.success("Share link copied to clipboard!");
   };
 
   // ✅ Download file with tracking
@@ -1084,15 +1154,30 @@ formatFileSize
                       >
                         <History className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowPasswordModal(file.id);
+                          setPasswordValue("");
+                        }}
+                        className={`p-2 rounded-full ${
+                          file.password
+                            ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
+                            : "bg-gray-800 text-white hover:bg-gray-700"
+                        }`}
+                        title={file.password ? "Password Protected (Manage)" : "Set Password"}
+                      >
+                        {file.password ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
 
                   {/* File Info */}
                   <div className="p-3">
                     <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center">
+                      <div className="flex items-center min-w-0 flex-1">
                         <div
-                          className="p-1.5 rounded-lg mr-2"
+                          className="p-1.5 rounded-lg mr-2 shrink-0"
                           style={{
                             backgroundColor: `${getFileTypeColor(file.type)}20`,
                           }}
@@ -1101,10 +1186,15 @@ formatFileSize
                             {getFileIcon(file.type)}
                           </div>
                         </div>
-                        <h3 className="text-sm font-medium text-white truncate">
+                        <h3 className="text-sm font-medium text-white truncate flex-1">
                           {file.name}
                         </h3>
                       </div>
+                      {file.password && (
+                        <span title="Password Protected">
+                          <Lock className="w-3.5 h-3.5 text-yellow-400 shrink-0 ml-1" />
+                        </span>
+                      )}
                     </div>
                     <div className="flex justify-between text-xs text-gray-400 mb-2">
                       <span>{file.size}</span>
@@ -1204,8 +1294,15 @@ formatFileSize
                           </div>
                         </div>
                         <div>
-                          <div className="text-white font-medium truncate max-w-[200px]">
-                            {file.name}
+                          <div className="flex items-center">
+                            <div className="text-white font-medium truncate max-w-[200px]">
+                              {file.name}
+                            </div>
+                            {file.password && (
+                              <span title="Password Protected">
+                                <Lock className="w-3.5 h-3.5 text-yellow-400 shrink-0 ml-1.5" />
+                              </span>
+                            )}
                           </div>
                           <div className="text-gray-400 text-xs">
                             {file.size}
@@ -1273,6 +1370,20 @@ formatFileSize
                           title={file.isFavorite ? "Remove from favorites" : "Add to favorites"}
                         >
                           <Star className={`w-4 h-4 ${file.isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400 hover:text-yellow-400"}`} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowPasswordModal(file.id);
+                            setPasswordValue("");
+                          }}
+                          className="p-1.5 hover:bg-gray-700 rounded"
+                          title={file.password ? "Password Protected (Manage)" : "Set Password"}
+                        >
+                          {file.password ? (
+                            <Lock className="w-4 h-4 text-yellow-400" />
+                          ) : (
+                            <Unlock className="w-4 h-4 text-gray-400 hover:text-white" />
+                          )}
                         </button>
                         <button
                           onClick={() => handleDelete(file.id)}
@@ -1596,17 +1707,112 @@ formatFileSize
         )}
       </AnimatePresence>
 
-      {/* Share Modal */}
-      {shareModalOpen && selectedFileForShare && (
-        <ShareModal
-          isOpen={shareModalOpen}
-          onClose={() => {
-            setShareModalOpen(false);
-            setSelectedFileForShare(null);
-          }}
-          file={selectedFileForShare}
-        />
-      )}
+      {/* Password Protection Modal */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowPasswordModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-200 dark:border-gray-700 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-2">
+                  <Lock className="w-5 h-5 text-yellow-400" />
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Password Protection
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowPasswordModal(null)}
+                  className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              {(() => {
+                const file = files.find((f) => f.id === showPasswordModal);
+                if (!file) return null;
+
+                const hasPassword = !!file.password;
+
+                return (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handlePasswordUpdate(file.id, passwordValue);
+                    }}
+                  >
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Secure <strong className="text-gray-900 dark:text-white">"{file.name}"</strong> with a password. Anyone with the share link will be required to enter this password to view or download the file.
+                    </p>
+
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {hasPassword ? "New Password (leave empty to keep current)" : "Password"}
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Enter secure password"
+                        value={passwordValue}
+                        onChange={(e) => setPasswordValue(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 
+                        rounded-xl text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 
+                        focus:ring-[#3498db] focus:border-transparent transition-all"
+                        disabled={isPasswordModalLoading}
+                        required={!hasPassword}
+                      />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                      {hasPassword && (
+                        <button
+                          type="button"
+                          onClick={() => handlePasswordUpdate(file.id, null)}
+                          className="px-4 py-2.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-xl font-medium transition-all text-sm flex items-center justify-center"
+                          disabled={isPasswordModalLoading}
+                        >
+                          Disable Protection
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswordModal(null)}
+                        className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-xl font-medium transition-all text-sm flex items-center justify-center"
+                        disabled={isPasswordModalLoading}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 bg-gradient-to-r from-[#3498db] to-[#2ecc71] hover:opacity-90 text-white rounded-xl font-medium transition-all text-sm flex items-center justify-center shadow-lg shadow-blue-500/20"
+                        disabled={isPasswordModalLoading}
+                      >
+                        {isPasswordModalLoading ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        ) : hasPassword ? (
+                          "Change Password"
+                        ) : (
+                          "Enable Password"
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                );
+              })()}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

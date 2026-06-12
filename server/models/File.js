@@ -87,6 +87,10 @@ const fileSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    password: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

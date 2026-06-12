@@ -12,6 +12,7 @@ import ShareManager from "./components/Home/ShareManager";
 import SharedFileAccess from "./components/SharedFileAccess";
 import ExpiredSharePage from "./components/ExpiredSharePage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SharePage from "./components/Share/SharePage";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -21,6 +22,9 @@ const App: React.FC = () => {
       <Routes>
         {/* Landing Page - Home */}
         <Route path="/" element={<LandingPage />} />
+
+        {/* Public Share Page */}
+        <Route path="/share/:id" element={<SharePage />} />
 
         {/* Auth Routes */}
         <Route path="/register" element={<Register />} />

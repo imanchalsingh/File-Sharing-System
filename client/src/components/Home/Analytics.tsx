@@ -1024,6 +1024,22 @@ import { analyticsApi } from "../../services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface TrackedFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size: string;
+  uploaded: string;
+  shareCount: number;
+  downloadCount: number;
+  viewCount: number;
+  lastAccessed?: string;
+  shareHistory: Array<{ timestamp: string; source?: string }>;
+  downloadHistory: Array<{ timestamp: string }>;
+  viewHistory: Array<{ timestamp: string }>;
+}
+
 interface AnalyticsData {
   dailyShares: Array<{ date: string; shares: number; uniqueFiles: number }>;
   topFiles: Array<{
@@ -1061,52 +1077,14 @@ interface AnalyticsData {
   conversionRate: number;
 }
 
-const Analytics: React.FC = () => {
-  const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">(
-    "week",
-  );
-  const [loading, setLoading] = useState(true);
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
-    dailyShares: [],
-    topFiles: [],
-    shareSources: [],
-    hourlyActivity: [],
-    fileTypeDistribution: [],
-    performanceMetrics: {
-      avgSharesPerFile: 0,
-      peakHourShares: 0,
-      mobileShareRate: 0,
-      directCopyRate: 100,
-    },
-    recentActivity: [],
-  });
-  const [trackedFiles, setTrackedFiles] = useState<TrackedFile[]>([]);
-
-  // Load tracked files from localStorage
-  useEffect(() => {
-    const loadTrackedFiles = () => {
-      const stored = localStorage.getItem("uploadedFiles");
-
-      if (stored) {
-        const files = JSON.parse(stored);
-        setTrackedFiles(files);
-        generateRealAnalyticsData(files);
-      } else {
-        generateMockAnalyticsData();
-      }
-    };
-    
-    loadTrackedFiles();
-  }, [timeRange]);
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-  const generateRealAnalyticsData = (files: TrackedFile[]) => {
-    try {
-      setLoading(false);
-    } catch (e) {
-      console.error(e);
-    }
+const getSourceColor = (source: string) => {
+  const colors: Record<string, string> = {
+    "direct copy": "#3498db",
+    direct_copy: "#3498db",
+    whatsapp: "#2ecc71",
+    email: "#9b59b6",
+    facebook: "#3b5998",
+    twitter: "#1da1f2",
   };
   const getSourceColor = (source: string) => {
     return "#95a5a6";
@@ -1222,7 +1200,7 @@ async function fetchStats(period: string): Promise<AnalyticsData> {
     uniqueFiles > 0 ? Math.round(totalShares / uniqueFiles) : 0;
   const peakHourShares =
     hourlyActivity.length > 0
-      ? Math.max(...hourlyActivity.map((h) => h.shares))
+      ? Math.max(...hourlyActivity.map((h: any) => h.shares))
       : 0;
   const directCopySource = shareSources.find(
     (s) => s.name.toLowerCase() === "direct_copy"
@@ -1250,10 +1228,30 @@ async function fetchStats(period: string): Promise<AnalyticsData> {
   };
 }
 
+const EMPTY_DATA: AnalyticsData = {
+  dailyShares: [],
+  topFiles: [],
+  shareSources: [],
+  hourlyActivity: [],
+  fileTypeDistribution: [],
+  performanceMetrics: {
+    avgSharesPerFile: 0,
+    peakHourShares: 0,
+    mobileShareRate: 0,
+    directCopyRate: 100,
+  },
+  recentActivity: [],
+  totalShares: 0,
+  uniqueFiles: 0,
+  totalDownloads: 0,
+  totalViews: 0,
+  conversionRate: 0,
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const Analytics: React.FC = () => {
-  const [timeRange, setTimeRange] = useState<"day" | "week" | "month">("week");
+  const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("week");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>(EMPTY_DATA);
