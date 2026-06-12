@@ -1,6 +1,14 @@
 import express from "express";
 import authenticateUser from "../middleware/authenticateUser.js";
 import {
+  initUpload,
+  getUploadStatus,
+  getResumableUploads,
+  uploadChunk,
+  cancelUpload,
+  chunkUploadMiddleware,
+} from "../controllers/uploadController.js";
+import {
   getUserFiles,
   getFileById,
   saveFileInfo,
@@ -29,6 +37,13 @@ router.post("/shared/:id/verify-password", verifySharedFilePassword);
 
 // All routes below require authentication
 router.use(authenticateUser);
+
+// Chunked resumable upload routes
+router.post("/upload/init", initUpload);
+router.get("/upload/resumable", getResumableUploads);
+router.get("/upload/status/:sessionId", getUploadStatus);
+router.post("/upload/chunk", ...chunkUploadMiddleware, uploadChunk);
+router.delete("/upload/:sessionId", cancelUpload);
 
 // Get all user files
 router.get("/my-files", getUserFiles);

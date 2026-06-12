@@ -6,14 +6,14 @@ import connectDB from "./config/db.js";
 import router from "./routes/routers.js";
 import cors from "cors";
 import cookieParser from "cookie-parser"; 
-import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
-import streamifier from "streamifier";
 import analyticsRoutes from "./routes/analytics.js";
 import fileRoutes from "./routes/files.js";
 import shareRoutes from "./routes/shares.js";
 import { startExpirationJob } from "./jobs/expirationJob.js";
-import {connectRedis} from "./config/redis.js";
+import { startUploadSessionCleanupJob } from "./jobs/uploadSessionCleanup.js";
+import { connectRedis } from "./config/redis.js";
+import { ensureUploadTempRoot } from "./utils/chunkStorage.js";
 
 const app = express();
 
@@ -35,6 +35,8 @@ connectDB();
 connectRedis();
 // Start background jobs
 startExpirationJob();
+startUploadSessionCleanupJob();
+ensureUploadTempRoot().catch(console.error);
 
 app.use(express.json());
 app.use(cookieParser()); 
@@ -63,34 +65,11 @@ cloudinary.config({
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
-// Multer memory storage
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-// File Upload API using Cloudinary
-app.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-
-  try {
-    const streamUpload = (reqFile) => {
-      return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "myfiles" },
-          (error, result) => {
-            if (result) resolve(result);
-            else reject(error);
-          },
-        );
-        streamifier.createReadStream(reqFile.buffer).pipe(stream);
-      });
-    };
-
-    const result = await streamUpload(req.file);
-    res.json({ url: result.secure_url });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Upload failed" });
-  }
+// Legacy upload endpoint — use authenticated chunked upload at /api/files/upload/*
+app.post("/upload", (_req, res) => {
+  res.status(410).json({
+    error: "This endpoint is deprecated. Use /api/files/upload/init for resumable chunked uploads.",
+  });
 });
 
 // Start server
