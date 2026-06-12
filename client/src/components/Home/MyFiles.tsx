@@ -95,6 +95,9 @@ const MyFiles: React.FC = () => {
   const [passwordValue, setPasswordValue] = useState("");
   const [isPasswordModalLoading, setIsPasswordModalLoading] = useState(false);
 
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedFileForShare, setSelectedFileForShare] = useState<{ _id: string; fileName: string; fileUrl: string } | null>(null);
+
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
 
   // ✅ Load resumable upload sessions from localStorage
@@ -1976,6 +1979,17 @@ formatFileSize
           </motion.div>
         )}
       </AnimatePresence>
+
+      {shareModalOpen && selectedFileForShare && (
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={() => {
+            setShareModalOpen(false);
+            setSelectedFileForShare(null);
+          }}
+          file={selectedFileForShare}
+        />
+      )}
     </div>
   );
 };

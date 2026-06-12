@@ -13,6 +13,16 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false,
+  },
+  twoFactorSecret: {
+    type: String,
+  },
+  backupCodes: [{
+    type: String
+  }]
 });
 const User = mongoose.model("UserSchema", UserSchema);
 export default User;

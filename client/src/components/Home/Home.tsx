@@ -14,6 +14,7 @@ import {
   Moon,
   Star,
   Share2,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
@@ -126,6 +127,11 @@ const Home: React.FC = () => {
       icon: <Share2 className="w-5 h-5" />,
       label: "Shares",
       path: "/home/shares",
+    },
+    {
+      icon: <SettingsIcon className="w-5 h-5" />,
+      label: "Settings",
+      path: "/home/settings",
     },
   ];
 
