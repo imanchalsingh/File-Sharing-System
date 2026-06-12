@@ -11,6 +11,8 @@ import { v2 as cloudinary } from "cloudinary";
 import streamifier from "streamifier";
 import analyticsRoutes from "./routes/analytics.js";
 import fileRoutes from "./routes/files.js";
+import shareRoutes from "./routes/shares.js";
+import { startExpirationJob } from "./jobs/expirationJob.js";
 import {connectRedis} from "./config/redis.js";
 
 const app = express();
@@ -31,6 +33,8 @@ app.use(
 connectDB();
 // Connect to Redis
 connectRedis();
+// Start background jobs
+startExpirationJob();
 
 app.use(express.json());
 app.use(cookieParser()); 
@@ -39,6 +43,7 @@ app.use(cookieParser());
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/track", analyticsRoutes);
 app.use("/api/files", fileRoutes);
+app.use("/api/shares", shareRoutes);
 app.use("/", router);
 
 // Error handling middleware

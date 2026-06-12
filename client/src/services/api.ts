@@ -109,4 +109,76 @@ export const fileApi = {
   },
 };
 
+// ==================== SHARE APIs ====================
+
+export const shareApi = {
+  createShareLink: async (data: {
+    fileId: string;
+    expiresAt?: string | null;
+    maxAccessCount?: number | null;
+  }) => {
+    const response = await api.post('/api/shares', data);
+    return response.data;
+  },
+
+  getShareLinks: async (fileId: string) => {
+    const response = await api.get(`/api/shares/file/${fileId}`);
+    return response.data;
+  },
+
+  updateShareLink: async (shareId: string, data: { expiresAt?: string }) => {
+    const response = await api.put(`/api/shares/${shareId}`, data);
+    return response.data;
+  },
+
+  revokeShareLink: async (shareId: string) => {
+    const response = await api.put(`/api/shares/${shareId}/revoke`);
+    return response.data;
+  },
+
+  extendShareLink: async (shareId: string, data: { expiresAt: string }) => {
+    const response = await api.put(`/api/shares/${shareId}/extend`, data);
+    return response.data;
+  },
+
+  deleteShareLink: async (shareId: string) => {
+    const response = await api.delete(`/api/shares/${shareId}`);
+    return response.data;
+  },
+
+  getExpiringShares: async () => {
+    const response = await api.get('/api/shares/expiring');
+    return response.data;
+  },
+
+  accessSharedFile: async (token: string) => {
+    const response = await api.get(`/api/shares/access/${token}`);
+    return response.data;
+  },
+};
+
+// ==================== NOTIFICATION APIs ====================
+
+export const notificationApi = {
+  getNotifications: async () => {
+    const response = await api.get('/api/shares/notifications');
+    return response.data;
+  },
+
+  getUnreadCount: async () => {
+    const response = await api.get('/api/shares/notifications/unread-count');
+    return response.data;
+  },
+
+  markAsRead: async (notificationId: string) => {
+    const response = await api.put(`/api/shares/notifications/${notificationId}/read`);
+    return response.data;
+  },
+
+  markAllAsRead: async () => {
+    const response = await api.put('/api/shares/notifications/read-all');
+    return response.data;
+  },
+};
+
 export default api;

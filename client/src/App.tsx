@@ -8,6 +8,9 @@ import HomeContent from "./components/Home/HomeContent";
 import LandingPage from "./components/Home/LandingPage";
 import Analytics from "./components/Home/Analytics";
 import Favorites from "./components/Home/Favorites";
+import ShareManager from "./components/Home/ShareManager";
+import SharedFileAccess from "./components/SharedFileAccess";
+import ExpiredSharePage from "./components/ExpiredSharePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SharePage from "./components/Share/SharePage";
 import { ToastContainer } from "react-toastify";
@@ -40,7 +43,12 @@ const App: React.FC = () => {
           <Route path="myfiles" element={<MyFiles />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="favorites" element={<Favorites />} />
+          <Route path="shares" element={<ShareManager />} />
         </Route>
+
+        {/* Public Share Access Routes */}
+        <Route path="/s/:token" element={<SharedFileAccess />} />
+        <Route path="/expired" element={<ExpiredSharePage />} />
 
         {/* Redirect unknown paths to home */}
         <Route path="*" element={<Navigate to="/" replace />} />

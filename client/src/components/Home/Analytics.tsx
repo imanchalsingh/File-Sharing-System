@@ -1086,7 +1086,9 @@ const getSourceColor = (source: string) => {
     facebook: "#3b5998",
     twitter: "#1da1f2",
   };
-  return colors[source.toLowerCase()] ?? "#95a5a6";
+  const getSourceColor = (source: string) => {
+    return "#95a5a6";
+  };
 };
 
 const getFileTypeColor = (type: string) => {

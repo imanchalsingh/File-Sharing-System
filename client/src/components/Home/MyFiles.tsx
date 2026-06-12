@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
+import ShareModal from "./ShareModal";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -140,7 +141,7 @@ const MyFiles: React.FC = () => {
             }
           }
         }
-
+        
         // Fallback to localStorage
         const stored = localStorage.getItem("uploadedFiles");
         if (stored) {
@@ -1122,7 +1123,11 @@ formatFileSize
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleShare(file.id, file.url, file.name);
+                          const f = files.find(fi => fi.id === file.id);
+                          if (f) {
+                            setSelectedFileForShare({ _id: f.id, fileName: f.name, fileUrl: f.url });
+                            setShareModalOpen(true);
+                          }
                         }}
                         className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
                         title="Share"
@@ -1343,9 +1348,10 @@ formatFileSize
                           <Download className="w-4 h-4 text-gray-400 hover:text-white" />
                         </button>
                         <button
-                          onClick={() =>
-                            handleShare(file.id, file.url, file.name)
-                          }
+                          onClick={() => {
+                            setSelectedFileForShare({ _id: file.id, fileName: file.name, fileUrl: file.url });
+                            setShareModalOpen(true);
+                          }}
                           className="p-1.5 hover:bg-gray-700 rounded"
                           title="Share"
                         >
