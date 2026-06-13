@@ -1077,7 +1077,7 @@ interface AnalyticsData {
   conversionRate: number;
 }
 
-const getSourceColor = (source: string) => {
+const getSourceColor = (source: string): string => {
   const colors: Record<string, string> = {
     "direct copy": "#3498db",
     direct_copy: "#3498db",

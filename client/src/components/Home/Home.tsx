@@ -20,6 +20,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
 import NotificationBell from "./NotificationBell";
 import api from "../../services/api";
+import { initiateSocketConnection, disconnectSocket } from "../../services/socket";
 
 
 const Home: React.FC = () => {
@@ -61,12 +62,17 @@ const Home: React.FC = () => {
             storage: response.data.storageUsed || 3.2,
             storageLimit: response.data.storageLimit || 10,
           });
+          initiateSocketConnection(response.data.user.id);
         }
       } catch (error) {
         console.error("Failed to fetch user:", error);
       }
     };
     fetchUser();
+    
+    return () => {
+      disconnectSocket();
+    };
   }, []);
 
   useEffect(() => {
@@ -138,6 +144,7 @@ const Home: React.FC = () => {
   const handleLogout = async () => {
     try {
       await api.post("/logout");
+      disconnectSocket();
       navigate("/login");
     } catch (error) {
       console.error("Logout failed:", error);

@@ -95,6 +95,7 @@ const MyFiles: React.FC = () => {
   const [passwordValue, setPasswordValue] = useState("");
   const [isPasswordModalLoading, setIsPasswordModalLoading] = useState(false);
 
+  // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedFileForShare, setSelectedFileForShare] = useState<{ _id: string; fileName: string; fileUrl: string } | null>(null);
 
@@ -220,6 +221,18 @@ const MyFiles: React.FC = () => {
       console.error("Error refreshing files:", error);
     }
   };
+
+  useEffect(() => {
+    import("../../services/socket").then(({ subscribeToFiles, unsubscribeFromFiles }) => {
+      subscribeToFiles({
+        onUploaded: () => refreshFiles(),
+        onUpdated: () => refreshFiles(),
+        onDeleted: () => refreshFiles(),
+        onBulkDeleted: () => refreshFiles(),
+      });
+      return () => unsubscribeFromFiles();
+    });
+  }, []);
 
   // ✅ Track link copy with BACKEND API
   const trackLinkCopy = async (
@@ -1980,7 +1993,12 @@ formatFileSize
         )}
       </AnimatePresence>
 
+<<<<<<< HEAD
       {shareModalOpen && selectedFileForShare && (
+=======
+      {/* Share Modal */}
+      {selectedFileForShare && (
+>>>>>>> upstream/main
         <ShareModal
           isOpen={shareModalOpen}
           onClose={() => {
