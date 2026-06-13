@@ -7,8 +7,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test:socket": "node tests/socket.test.js",
-    "test:bandwidth": "node tests/bandwidth.test.js"
+    "test": "node --test tests/**/*.test.js"
   },
   "keywords": [],
   "author": "",

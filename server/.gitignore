@@ -22,6 +22,9 @@ dist-ssr
 # Local files
 *.local
 
+# Chunked upload temp storage
+uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

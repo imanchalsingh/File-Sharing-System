@@ -70,12 +70,9 @@ export const fileApi = {
   },
 
   uploadFile: async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await api.post("/upload", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return response.data;
+    const { uploadFileResumable } = await import("./resumableUpload");
+    const result = await uploadFileResumable({ file });
+    return { url: result.fileUrl };
   },
 
   deleteFile: async (fileId: string) => {
@@ -182,3 +179,66 @@ export const notificationApi = {
 };
 
 export default api;
+
+// ==================== CHUNKED UPLOAD APIs ====================
+
+export const uploadApi = {
+  initUpload: async (data: {
+    fileName: string;
+    fileSizeBytes: number;
+    mimeType?: string;
+    expectedChecksum?: string;
+    sessionId?: string;
+  }) => {
+    const response = await api.post("/api/files/upload/init", data);
+    return response.data as {
+      success: boolean;
+      session: import("./uploadTypes").UploadSessionInfo;
+    };
+  },
+
+  getUploadStatus: async (sessionId: string) => {
+    const response = await api.get(`/api/files/upload/status/${sessionId}`);
+    return response.data as {
+      success: boolean;
+      session: import("./uploadTypes").UploadSessionInfo;
+    };
+  },
+
+  getResumableUploads: async () => {
+    const response = await api.get("/api/files/upload/resumable");
+    return response.data as {
+      success: boolean;
+      sessions: import("./uploadTypes").UploadSessionInfo[];
+    };
+  },
+
+  uploadChunk: async (
+    sessionId: string,
+    chunkIndex: number,
+    chunk: Blob,
+    signal?: AbortSignal,
+  ) => {
+    const formData = new FormData();
+    formData.append("sessionId", sessionId);
+    formData.append("chunkIndex", String(chunkIndex));
+    formData.append("chunk", chunk, `chunk-${chunkIndex}`);
+
+    const response = await api.post("/api/files/upload/chunk", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      signal,
+      timeout: 120000,
+    });
+
+    return response.data as {
+      success: boolean;
+      fileUrl?: string;
+      session: import("./uploadTypes").UploadSessionInfo;
+    };
+  },
+
+  cancelUpload: async (sessionId: string) => {
+    const response = await api.delete(`/api/files/upload/${sessionId}`);
+    return response.data;
+  },
+};
