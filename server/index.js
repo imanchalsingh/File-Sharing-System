@@ -1,19 +1,21 @@
 
 import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import dotenv from "dotenv";
 dotenv.config();
 import connectDB from "./config/db.js";
 import router from "./routes/routers.js";
 import cors from "cors";
 import cookieParser from "cookie-parser"; 
-import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
-import streamifier from "streamifier";
 import analyticsRoutes from "./routes/analytics.js";
 import fileRoutes from "./routes/files.js";
 import shareRoutes from "./routes/shares.js";
 import { startExpirationJob } from "./jobs/expirationJob.js";
-import {connectRedis} from "./config/redis.js";
+import { startUploadSessionCleanupJob } from "./jobs/uploadSessionCleanup.js";
+import { connectRedis } from "./config/redis.js";
+import { ensureUploadTempRoot } from "./utils/chunkStorage.js";
 
 const app = express();
 
@@ -35,9 +37,14 @@ connectDB();
 connectRedis();
 // Start background jobs
 startExpirationJob();
+startUploadSessionCleanupJob();
+ensureUploadTempRoot().catch(console.error);
 
 app.use(express.json());
 app.use(cookieParser()); 
+
+// Apply General API Rate Limiter to all /api routes
+app.use("/api", apiLimiter);
 
 // Routes
 app.use("/api/analytics", analyticsRoutes);
@@ -63,38 +70,48 @@ cloudinary.config({
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
-// Multer memory storage
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+// Legacy upload endpoint — use authenticated chunked upload at /api/files/upload/*
+app.post("/upload", (_req, res) => {
+  res.status(410).json({
+    error: "This endpoint is deprecated. Use /api/files/upload/init for resumable chunked uploads.",
+  });
+});
 
-// File Upload API using Cloudinary
-app.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+// Create HTTP server
+const httpServer = createServer(app);
 
-  try {
-    const streamUpload = (reqFile) => {
-      return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "myfiles" },
-          (error, result) => {
-            if (result) resolve(result);
-            else reject(error);
-          },
-        );
-        streamifier.createReadStream(reqFile.buffer).pipe(stream);
-      });
-    };
-
-    const result = await streamUpload(req.file);
-    res.json({ url: result.secure_url });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Upload failed" });
+// Initialize Socket.IO
+const io = new Server(httpServer, {
+  cors: {
+    origin: [
+      "http://localhost:5173",
+      "https://file-sharing-system-lake.vercel.app"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
   }
+});
+
+// Attach io to app so it can be used in controllers
+app.set("io", io);
+
+io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
+
+  socket.on("join_room", (userId) => {
+    if (userId) {
+      socket.join(`user_${userId}`);
+      console.log(`User ${userId} joined room: user_${userId}`);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+  });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
+httpServer.listen(PORT, () =>
   console.log(`Server running on port http://localhost:${PORT}`),
 );

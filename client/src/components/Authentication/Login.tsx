@@ -36,6 +36,9 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [totpCode, setTotpCode] = useState("");
   const [theme, setTheme] = useState<string>(
     localStorage.getItem("theme") === "dark" ? "dark" : "light"
   );
@@ -94,6 +97,13 @@ const Login: React.FC = () => {
       );
 
       if (response.data.success) {
+        if (response.data.requires2FA) {
+          setRequires2FA(true);
+          setTempToken(response.data.tempToken);
+          toast.info("Two-factor authentication required");
+          return;
+        }
+
         localStorage.setItem("user", JSON.stringify(response.data.user));
         if (response.data.authToken) {
           localStorage.setItem("authToken", response.data.authToken);
@@ -105,6 +115,38 @@ const Login: React.FC = () => {
       }
     } catch (error: unknown) {
       setErrorMsg("Invalid email or password.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    
+    if (!totpCode || totpCode.length < 6) {
+      setErrorMsg("Please enter a valid 6-digit code or backup code");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await api.post("/login/2fa", {
+        tempToken,
+        token: totpCode
+      });
+
+      if (response.data.success) {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        if (response.data.authToken) {
+          localStorage.setItem("authToken", response.data.authToken);
+        }
+        toast.success("Login successful!");
+        navigate("/home");
+      }
+    } catch (error: any) {
+      setErrorMsg(error.response?.data?.error || "Invalid verification code");
     } finally {
       setLoading(false);
     }
@@ -159,15 +201,67 @@ const Login: React.FC = () => {
                 </h1>
 
                 <p className="text-gray-600 dark:text-gray-400 text-lg">
-                  Sign in to access your secure file storage
+                  {requires2FA ? "Enter your 2FA verification code" : "Sign in to access your secure file storage"}
                 </p>
               </div>
 
-              <form
-                className="space-y-6"
-                autoComplete="off"
-                onSubmit={handleLogin}
-              >
+              {requires2FA ? (
+                <form className="space-y-6" onSubmit={handleVerify2FA}>
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 mb-2 font-medium">
+                      Authentication Code
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={totpCode}
+                        onChange={(e) => setTotpCode(e.target.value)}
+                        className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none pl-12 tracking-widest font-mono text-lg"
+                        placeholder="000000"
+                        maxLength={8}
+                      />
+                      <Shield className="absolute left-4 top-3.5 w-5 h-5 text-gray-500" />
+                    </div>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      Enter the 6-digit code from your authenticator app, or an 8-character backup code.
+                    </p>
+                  </div>
+
+                  {errorMsg && (
+                    <div className="p-4 bg-[#e74c3c]/10 border border-[#e74c3c] rounded-lg">
+                      <p className="text-[#e74c3c] text-sm">{errorMsg}</p>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#3498db] text-white rounded-lg font-medium hover:bg-[#2980b9] transition-colors"
+                  >
+                    {loading ? "Verifying..." : "Verify Code"}
+                  </button>
+
+                  <div className="text-center mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequires2FA(false);
+                        setTotpCode("");
+                        setTempToken("");
+                        setErrorMsg(null);
+                      }}
+                      className="text-sm text-[#3498db] hover:text-[#2980b9] transition-colors"
+                    >
+                      Back to login
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form
+                  className="space-y-6"
+                  autoComplete="off"
+                  onSubmit={handleLogin}
+                >
                 <div>
                   <label className="block text-gray-700 dark:text-gray-300 mb-2 font-medium">
                     Email Address
@@ -303,6 +397,7 @@ const Login: React.FC = () => {
                   </div>
                 </div>
               </form>
+              )}
             </div>
 
             <div className="space-y-8">

@@ -1,5 +1,14 @@
 import express from "express";
 import authenticateUser from "../middleware/authenticateUser.js";
+import { downloadLimiter } from "../middleware/rateLimiter.js";
+import {
+  initUpload,
+  getUploadStatus,
+  getResumableUploads,
+  uploadChunk,
+  cancelUpload,
+  chunkUploadMiddleware,
+} from "../controllers/uploadController.js";
 import {
   getUserFiles,
   getFileById,
@@ -31,6 +40,13 @@ router.put("/shared/:id/download", updateDownloadCount);
 // All routes below require authentication
 router.use(authenticateUser);
 
+// Chunked resumable upload routes
+router.post("/upload/init", initUpload);
+router.get("/upload/resumable", getResumableUploads);
+router.get("/upload/status/:sessionId", getUploadStatus);
+router.post("/upload/chunk", ...chunkUploadMiddleware, uploadChunk);
+router.delete("/upload/:sessionId", cancelUpload);
+
 // Get all user files
 router.get("/my-files", getUserFiles);
 
@@ -48,7 +64,7 @@ router.post("/save-info", saveFileInfo);
 
 // Update counts & password
 router.put("/:id/share", updateShareCount);
-router.put("/:id/download", updateDownloadCount);
+router.put("/:id/download", downloadLimiter, updateDownloadCount);
 router.put("/:id/view", updateViewCount);
 router.put("/:id/favorite", toggleFavorite);
 router.put("/:id/password", updateFilePassword);
