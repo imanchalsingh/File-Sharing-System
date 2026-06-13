@@ -227,7 +227,7 @@ export const accessSharedFile = async (req, res) => {
   try {
     const { token } = req.params;
 
-    const share = await ShareLink.findOne({ token }).populate('fileId', 'fileName fileUrl fileType fileSize');
+    const share = await ShareLink.findOne({ token }).populate('fileId', 'fileName fileUrl fileType fileSize fileSizeBytes');
     if (!share) {
       return res.status(404).json({ success: false, error: 'not_found', message: 'Share link not found' });
     }
@@ -270,7 +270,31 @@ export const accessSharedFile = async (req, res) => {
     }
 
     // Increment accessCount only (not downloadCount)
+    // Check quota / suspension
+    if (share.isSuspended) {
+      return res.status(429).json({
+        success: false,
+        error: 'quota_exceeded',
+        message: 'This share link has been temporarily suspended due to exceeding its daily bandwidth quota.',
+        fileName: share.fileId?.fileName,
+      });
+    }
+
+    const fileSizeBytes = share.fileId?.fileSizeBytes || 0;
+    if (share.dailyBandwidth + fileSizeBytes > share.bandwidthLimit) {
+      share.isSuspended = true;
+      await share.save();
+      return res.status(429).json({
+        success: false,
+        error: 'quota_exceeded',
+        message: 'This share link has exceeded its daily bandwidth quota and has been suspended.',
+        fileName: share.fileId?.fileName,
+      });
+    }
+
+    // Increment access count and bandwidth
     share.accessCount += 1;
+    share.dailyBandwidth += fileSizeBytes;
     await share.save();
 
     res.json({

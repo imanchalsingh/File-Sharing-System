@@ -75,6 +75,9 @@ export const saveFileInfo = async (req, res) => {
       
       await existingFile.save();
       
+      const io = req.app.get("io");
+      if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", existingFile);
+
       return res.status(200).json({
         success: true,
         message: "File updated successfully as a new version",
@@ -110,6 +113,9 @@ export const saveFileInfo = async (req, res) => {
     
     await newFile.save();
     
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPLOADED", newFile);
+
     res.status(201).json({
       success: true,
       message: "File info saved successfully",
@@ -153,6 +159,8 @@ export const updateShareCount = async (req, res) => {
   }
 };
 
+import User from "../models/UserSchema.js";
+
 // ✅ Update file download count
 export const updateDownloadCount = async (req, res) => {
   try {
@@ -162,6 +170,21 @@ export const updateDownloadCount = async (req, res) => {
     
     if (!file) {
       return res.status(404).json({ error: "File not found" });
+    }
+
+    // Check user quota if authenticated user is downloading
+    if (req.user && req.user.id) {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        const fileSizeBytes = file.fileSizeBytes || 0;
+        if (user.dailyBandwidth + fileSizeBytes > user.bandwidthLimit) {
+          return res.status(429).json({
+            error: "Daily bandwidth quota exceeded. Please try again tomorrow.",
+          });
+        }
+        user.dailyBandwidth += fileSizeBytes;
+        await user.save();
+      }
     }
     
     file.downloadCount += 1;
@@ -225,6 +248,9 @@ export const deleteFile = async (req, res) => {
       return res.status(404).json({ error: "File not found" });
     }
     
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_DELETED", id);
+
     res.json({
       success: true,
       message: "File deleted successfully",
@@ -250,6 +276,9 @@ export const bulkDeleteFiles = async (req, res) => {
       userId,
     });
     
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILES_BULK_DELETED", fileIds);
+
     res.json({
       success: true,
       message: `${result.deletedCount} files deleted successfully`,
@@ -363,6 +392,9 @@ export const restoreFileVersion = async (req, res) => {
     
     await file.save();
     
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
+
     res.json({
       success: true,
       message: "File version restored successfully",
@@ -389,6 +421,9 @@ export const toggleFavorite = async (req, res) => {
     file.isFavorite = !file.isFavorite;
     await file.save();
     
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
+
     res.json({
       success: true,
       message: file.isFavorite ? "File marked as favorite" : "File removed from favorites",
@@ -442,6 +477,9 @@ export const updateFileTags = async (req, res) => {
       return res.status(404).json({ error: "File not found" });
     }
 
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
+
     res.json({ success: true, message: "Tags updated", tags: file.tags });
   } catch (error) {
     console.error("Update tags error:", error);
@@ -487,6 +525,10 @@ export const updateFilePassword = async (req, res) => {
     }
 
     await file.save();
+
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
+
     res.json({
       success: true,
       message: password ? "Password protection enabled" : "Password protection disabled",

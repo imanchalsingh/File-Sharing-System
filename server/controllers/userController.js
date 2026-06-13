@@ -110,7 +110,24 @@ export const loginUser = async (req, res) => {
 
     // Generate JWT token
     const payload = { user: { id: user.id, email: user.email } };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    
+    if (user.twoFactorEnabled) {
+      // Generate temporary token for 2FA verification (valid for 5 mins)
+      const tempToken = jwt.sign(
+        { userId: user.id }, 
+        process.env.JWT_SECRET || process.env.JWT_TOKEN, 
+        { expiresIn: "5m" }
+      );
+      
+      return res.json({
+        success: true,
+        requires2FA: true,
+        tempToken,
+        message: "Two-factor authentication required"
+      });
+    }
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET || process.env.JWT_TOKEN, {
       expiresIn: process.env.JWT_EXPIRES_IN || "7d"
     });
 

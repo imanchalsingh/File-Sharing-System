@@ -1,5 +1,15 @@
-import React, { useEffect, useState } from "react";
-import { analyticsApi, fileApi } from "../../services/api";
+import React, { useEffect, useRef, useState } from "react";
+import { analyticsApi, fileApi, uploadApi } from "../../services/api";
+import {
+  uploadFileResumable,
+  type UploadProgressState,
+} from "../../services/resumableUpload";
+import { formatFileSize } from "../../services/uploadTypes";
+import {
+  loadStoredSessions,
+  removeStoredSession,
+  type StoredUploadSession,
+} from "../../utils/uploadSessionStorage";
 import {
   Upload,
   Trash2,
@@ -23,6 +33,9 @@ import {
   Star,
   Lock,
   Unlock,
+  Pause,
+  Play,
+  AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -59,6 +72,13 @@ const MyFiles: React.FC = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgressDetail, setUploadProgressDetail] = useState<UploadProgressState | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pendingResumeSessions, setPendingResumeSessions] = useState<StoredUploadSession[]>([]);
+  const pauseRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const resumeFileInputRef = useRef<HTMLInputElement | null>(null);
+  const resumeSessionIdRef = useRef<string | null>(null);
   const [showFileStats, setShowFileStats] = useState<string | null>(null);
   const [showVersionHistory, setShowVersionHistory] = useState<string | null>(null);
   const [fileVersions, setFileVersions] = useState<any[]>([]);
@@ -85,8 +105,16 @@ const MyFiles: React.FC = () => {
 
   // Bulk download state
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
+  const [selectedFileForShare, setSelectedFileForShare] = useState<{ _id: string; fileName: string; fileUrl: string } | null>(null);
 
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
+
+  // ✅ Load resumable upload sessions from localStorage
+  useEffect(() => {
+    setPendingResumeSessions(
+      loadStoredSessions().filter((session) => session.status !== "completed"),
+    );
+  }, []);
 
   // ✅ UPDATED: Load files from BACKEND first, localStorage as fallback
   useEffect(() => {
@@ -201,6 +229,18 @@ const MyFiles: React.FC = () => {
       console.error("Error refreshing files:", error);
     }
   };
+
+  useEffect(() => {
+    import("../../services/socket").then(({ subscribeToFiles, unsubscribeFromFiles }) => {
+      subscribeToFiles({
+        onUploaded: () => refreshFiles(),
+        onUpdated: () => refreshFiles(),
+        onDeleted: () => refreshFiles(),
+        onBulkDeleted: () => refreshFiles(),
+      });
+      return () => unsubscribeFromFiles();
+    });
+  }, []);
 
   // ✅ Track link copy with BACKEND API
   const trackLinkCopy = async (
@@ -383,96 +423,105 @@ const MyFiles: React.FC = () => {
 
   // ✅ Handle file upload to Cloudinary via backend
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const computeSHA256 = async (file: File): Promise<string> => {
-      const buffer = await file.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-    };
     if (!e.target.files) return;
 
     const selectedFilesList = Array.from(e.target.files);
-    setIsUploading(true);
-    setUploadProgress(0);
+    const resumeSessionId = resumeSessionIdRef.current;
+    resumeSessionIdRef.current = null;
 
-    const uploadedFiles: TrackedFile[] = [];
+    if (resumeSessionId && selectedFilesList.length !== 1) {
+      toast.error("Select the original file to resume an interrupted upload.");
+      e.target.value = "";
+      return;
+    }
+
+    setIsUploading(true);
+    setIsPaused(false);
+    pauseRef.current = false;
+    setUploadProgress(0);
+    setUploadProgressDetail(null);
+    abortControllerRef.current = new AbortController();
 
     for (const [index, file] of selectedFilesList.entries()) {
       try {
-        // Update progress
-        setUploadProgress(((index + 1) / selectedFilesList.length) * 50);
-
-        // Upload to Cloudinary via backend
-        const formData = new FormData();
-        const checksum = await computeSHA256(file);
-        formData.append("file", file);
-
-        const response = await fetch(`${API_URL}/upload`, {
-          method: "POST",
-          body: formData,
+        const result = await uploadFileResumable({
+          file,
+          sessionId: resumeSessionId || undefined,
+          signal: abortControllerRef.current.signal,
+          shouldPause: () => pauseRef.current,
+          onProgress: (state) => {
+            const overallProgress =
+              ((index + state.progressPercent / 100) / selectedFilesList.length) * 100;
+            setUploadProgress(overallProgress);
+            setUploadProgressDetail(state);
+          },
         });
 
-        if (!response.ok) {
-          throw new Error("Upload failed");
-        }
-
-        const result = await response.json();
-
-        setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
-        function formatFileSize(bytes: number): string {
-          if (!bytes || bytes === 0) return "0 Bytes";
-
-          const k = 1024;
-          const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-
-          const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-          return (
-            parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + (sizes[i] || "Bytes")
-          );
-        }
-
-        // Save file info to backend
         await fileApi.saveFileInfo({
           fileName: file.name,
-          fileUrl: result.url,
-          fileType: file.type.split("/")[0],
+          fileUrl: result.fileUrl,
+          fileType: file.type.split("/")[0] || "application",
           fileSize: formatFileSize(file.size),
           fileSizeBytes: file.size,
-          checksum: checksum,
+          checksum: result.checksum,
         });
-
-
-        const newFile: TrackedFile = {
-          id: Date.now().toString() + index,
-          name: file.name,
-          url: result.url, // Cloudinary URL from backend
-          type: file.type.split("/")[0],
-          size:formatFileSize(file.size),
-          uploaded: new Date().toLocaleDateString(),
-          checksum,
-          tags: [],
-          shareCount: 0,
-          downloadCount: 0,
-          viewCount: 0,
-          shareHistory: [],
-          downloadHistory: [],
-          viewHistory: [],
-        };
-
-        uploadedFiles.push(newFile);
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          toast.info("Upload cancelled.");
+          break;
+        }
         console.error("Upload failed for", file.name, err);
         toast.error(`Failed to upload ${file.name}`);
       }
     }
 
-    // Refresh files list from backend
     await refreshFiles();
-
+    setPendingResumeSessions(
+      loadStoredSessions().filter((session) => session.status !== "completed"),
+    );
     setIsUploading(false);
+    setIsPaused(false);
+    pauseRef.current = false;
+    setUploadProgressDetail(null);
+    abortControllerRef.current = null;
     setUploadProgress(100);
     setTimeout(() => setUploadProgress(0), 1000);
+    e.target.value = "";
+  };
+
+  const handlePauseUpload = () => {
+    pauseRef.current = true;
+    setIsPaused(true);
+    toast.info("Upload paused. Click Resume to continue.");
+  };
+
+  const handleResumeUpload = () => {
+    pauseRef.current = false;
+    setIsPaused(false);
+    toast.info("Upload resumed.");
+  };
+
+  const handleCancelUpload = () => {
+    pauseRef.current = false;
+    setIsPaused(false);
+    abortControllerRef.current?.abort();
+  };
+
+  const handleResumeStoredSession = (session: StoredUploadSession) => {
+    resumeSessionIdRef.current = session.sessionId;
+    toast.info(`Select "${session.fileName}" to resume from chunk ${session.receivedChunks.length}/${session.totalChunks}.`);
+    resumeFileInputRef.current?.click();
+  };
+
+  const handleDiscardStoredSession = async (sessionId: string) => {
+    try {
+      await uploadApi.cancelUpload(sessionId);
+    } catch {
+      // Session may already be expired on server
+    }
+    removeStoredSession(sessionId);
+    setPendingResumeSessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
+    toast.success("Interrupted upload discarded.");
   };
 
   // ✅ Delete file
@@ -872,8 +921,20 @@ formatFileSize
 
             {/* Upload Progress Bar */}
             {isUploading && (
-              <div className="hidden sm:block w-32">
-                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Uploading...</div>
+              <div className="hidden sm:block w-48">
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                  {uploadProgressDetail?.status === "hashing"
+                    ? "Hashing..."
+                    : uploadProgressDetail?.status === "paused"
+                      ? "Paused"
+                      : "Uploading..."}{" "}
+                  {uploadProgress.toFixed(0)}%
+                </div>
+                {uploadProgressDetail && uploadProgressDetail.totalChunks > 0 && (
+                  <div className="text-[10px] text-gray-500 mb-1">
+                    Chunk {uploadProgressDetail.currentChunk}/{uploadProgressDetail.totalChunks}
+                  </div>
+                )}
                 <div className="h-2 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
                   <motion.div
                     className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71]"
@@ -881,6 +942,32 @@ formatFileSize
                     animate={{ width: `${uploadProgress}%` }}
                     transition={{ duration: 0.3 }}
                   ></motion.div>
+                </div>
+                <div className="flex gap-1 mt-1">
+                  {!isPaused ? (
+                    <button
+                      type="button"
+                      onClick={handlePauseUpload}
+                      className="text-[10px] px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                    >
+                      <Pause className="w-3 h-3 inline" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResumeUpload}
+                      className="text-[10px] px-2 py-0.5 rounded bg-[#3498db] text-white"
+                    >
+                      <Play className="w-3 h-3 inline" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleCancelUpload}
+                    className="text-[10px] px-2 py-0.5 rounded bg-[#e74c3c] text-white"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             )}
@@ -960,6 +1047,59 @@ formatFileSize
           </div>
         </div>
       </div>
+
+      {/* Resumable uploads banner */}
+      {pendingResumeSessions.length > 0 && !isUploading && (
+        <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="w-5 h-5 text-amber-500" />
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              Interrupted uploads ({pendingResumeSessions.length})
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {pendingResumeSessions.map((session) => (
+              <div
+                key={session.sessionId}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-white/80 dark:bg-gray-800/50 rounded-lg"
+              >
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {session.fileName}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {formatFileSize(session.uploadedBytes)} / {formatFileSize(session.fileSizeBytes)} •{" "}
+                    {session.receivedChunks.length}/{session.totalChunks} chunks
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleResumeStoredSession(session)}
+                    className="px-3 py-1.5 text-sm bg-[#3498db] text-white rounded-lg hover:opacity-90"
+                  >
+                    Resume
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDiscardStoredSession(session.sessionId)}
+                    className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg"
+                  >
+                    Discard
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={resumeFileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
 
       {/* Toolbar */}
       <div className="mb-6 p-4 bg-white/80 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -1091,8 +1231,16 @@ formatFileSize
         {/* Upload Progress (Mobile) */}
         {isUploading && (
           <div className="mt-4 sm:hidden">
-            <div className="text-sm text-gray-400 mb-1">
-              Uploading... {uploadProgress.toFixed(0)}%
+            <div className="text-sm text-gray-400 mb-1 flex justify-between items-center">
+              <span>
+                {uploadProgressDetail?.status === "paused" ? "Paused" : "Uploading..."}{" "}
+                {uploadProgress.toFixed(0)}%
+              </span>
+              {uploadProgressDetail && (
+                <span className="text-xs">
+                  Chunk {uploadProgressDetail.currentChunk}/{uploadProgressDetail.totalChunks}
+                </span>
+              )}
             </div>
             <div className="h-2 bg-gray-300 dark:bg-gray-700 rounded-full overflow-hidden">
               <motion.div
@@ -1101,6 +1249,34 @@ formatFileSize
                 animate={{ width: `${uploadProgress}%` }}
                 transition={{ duration: 0.3 }}
               ></motion.div>
+            </div>
+            <div className="flex gap-2 mt-2">
+              {!isPaused ? (
+                <button
+                  type="button"
+                  onClick={handlePauseUpload}
+                  className="flex-1 py-1.5 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                >
+                  <Pause className="w-4 h-4 inline mr-1" />
+                  Pause
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResumeUpload}
+                  className="flex-1 py-1.5 text-sm rounded-lg bg-[#3498db] text-white"
+                >
+                  <Play className="w-4 h-4 inline mr-1" />
+                  Resume
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleCancelUpload}
+                className="flex-1 py-1.5 text-sm rounded-lg bg-[#e74c3c] text-white"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         )}
@@ -1914,6 +2090,7 @@ formatFileSize
       </AnimatePresence>
 
       {/* Share Link Modal */}
+      {/* Share Modal */}
       {shareModalOpen && selectedFileForShare && (
         <ShareModal
           isOpen={shareModalOpen}

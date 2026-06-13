@@ -23,6 +23,9 @@ const shareLinkSchema = new mongoose.Schema({
     userAgent: String
   }]
 
+  dailyBandwidth: { type: Number, default: 0 },
+  bandwidthLimit: { type: Number, default: 524288000 }, // 500 MB in bytes
+  isSuspended:    { type: Boolean, default: false },
 }, { timestamps: true });
 
 shareLinkSchema.index({ fileId: 1, userId: 1 });
