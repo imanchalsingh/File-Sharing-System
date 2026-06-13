@@ -987,7 +987,7 @@
 
 
 // export default Analytics;
-import React, { useState, useEffect } from "react";
+/*import React, { useState, useEffect } from "react";
 import {
   BarChart3,
   TrendingUp,
@@ -1375,7 +1375,7 @@ const Analytics: React.FC = () => {
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="px-4 sm:px-6">
-      {/* Inline error banner — page still renders with empty charts */}
+      {/* Inline error banner — page still renders with empty charts 
       {error && (
         <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-700 bg-red-900/30 px-4 py-3 text-sm text-red-300">
           <span className="mt-0.5 shrink-0">⚠️</span>
@@ -1395,7 +1395,7 @@ const Analytics: React.FC = () => {
           </button>
         </div>
       )}
-      {/* Header */}
+      {/* Header *
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
@@ -1435,7 +1435,7 @@ const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid *
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {stats.map((stat, index) => (
             <div
@@ -1480,9 +1480,9 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Charts */}
+      {/* Main Charts 
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
-        {/* Shares Over Time */}
+        {/* Shares Over Time *
         <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1537,7 +1537,7 @@ const Analytics: React.FC = () => {
           )}
         </div>
 
-        {/* Top Performing Files */}
+        {/* Top Performing Files *
         <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1580,9 +1580,9 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Second Row Charts */}
-      <div className="grid lg:grid-cols-3 gap-6 mb-8">
-        {/* File Type Distribution */}
+      {/* Second Row Charts *
+      <div className="grid lg:grd-cols-3 gap-6 mb-8">
+        {/* File Type Distribution *
         <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1624,7 +1624,7 @@ const Analytics: React.FC = () => {
           )}
         </div>
 
-        {/* Performance Metrics */}
+        {/* Performance Metrics *
         <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1679,7 +1679,7 @@ const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Recent Activity */}
+        {/* Recent Activity *
         <div className="bg-white/80 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1735,7 +1735,7 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer Note */}
+      {/* Footer Note *
       <div className="text-center text-gray-600 dark:text-gray-500 text-sm mb-4">
         <p>
           Tracking {uniqueFiles} files with {totalShares} total link copies •
@@ -1748,6 +1748,147 @@ const Analytics: React.FC = () => {
         <p className="text-gray-600 text-xs mt-1">
           Data is fetched live from the server and updates on refresh.
         </p>
+      </div>
+    </div>
+  );
+};
+export default Analytics;*/
+import React, { useEffect, useState } from "react";
+import { fetchDownloadAnalytics } from "../../services/api";
+import { BarChart2, Clock, FileText } from "lucide-react";
+
+interface AnalyticsData {
+  _id: string;
+  downloadCount: number;
+  fileId: { fileName: string; fileSize: string; fileType?: string } | null;
+  downloadHistory: Array<{ downloadedAt: string; ipAddress: string; userAgent?: string }>;
+}
+
+const Analytics: React.FC = () => {
+  const [data, setData] = useState<AnalyticsData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDownloadAnalytics()
+      .then((res) => {
+        setData(res?.shares || res || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load analytics:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  const totalDownloads = data.reduce((sum, item) => sum + (item.downloadCount || 0), 0);
+
+  // Compute and flatten recent download activity sorted by time
+  const recentDownloads = React.useMemo(() => {
+    const list: Array<{
+      fileName: string;
+      downloadedAt: string;
+      ipAddress: string;
+      userAgent?: string;
+    }> = [];
+
+    data.forEach((item) => {
+      const fileName = item.fileId?.fileName || "Deleted File";
+      if (item.downloadHistory) {
+        item.downloadHistory.forEach((history) => {
+          list.push({
+            fileName,
+            downloadedAt: history.downloadedAt,
+            ipAddress: history.ipAddress,
+            userAgent: history.userAgent,
+          });
+        });
+      }
+    });
+
+    // Sort by downloadedAt descending
+    return list.sort(
+      (a, b) => new Date(b.downloadedAt).getTime() - new Date(a.downloadedAt).getTime()
+    );
+  }, [data]);
+
+  if (loading) return <div className="text-center p-6 text-gray-500">Loading statistics...</div>;
+
+  return (
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <h2 className="text-3xl font-bold dark:text-white">Engagement Dashboard</h2>
+
+      {/* Metric Cards Summary Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow border dark:border-gray-700 flex items-center space-x-4">
+          <div className="p-3 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg">
+            <BarChart2 className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-sm text-gray-500">Aggregate Downloads</div>
+            <div className="text-2xl font-bold dark:text-white">{totalDownloads}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* File-by-File Summary Matrix Table Layout */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow border dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b dark:border-gray-700 font-bold dark:text-white flex items-center">
+          <FileText className="w-5 h-5 mr-2 text-gray-500" /> Active Links Performance
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 text-sm">
+              <tr>
+                <th className="p-4">Resource File Name</th>
+                <th className="p-4 text-center">Hit Frequency</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y dark:divide-gray-700 text-sm dark:text-gray-300">
+              {data.map((item) => (
+                <tr key={item._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <td className="p-4 font-medium">{item.fileId?.fileName || "Deleted File"}</td>
+                  <td className="p-4 text-center font-bold text-green-600">{(item.downloadCount || 0)} downloads</td>
+                </tr>
+              ))}
+              {data.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="p-6 text-center text-gray-500">No active shared links found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Recent Activity Panel */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow border dark:border-gray-700 overflow-hidden">
+        <div className="px-6 py-4 border-b dark:border-gray-700 font-bold dark:text-white flex items-center">
+          <Clock className="w-5 h-5 mr-2 text-gray-500" /> Recent Download Activity
+        </div>
+        {recentDownloads.length === 0 ? (
+          <div className="text-center p-6 text-gray-500">No recent downloads tracked.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 text-sm">
+                <tr>
+                  <th className="p-4">File Name</th>
+                  <th className="p-4">Downloaded At</th>
+                  <th className="p-4">IP Address</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y dark:divide-gray-700 text-sm dark:text-gray-300">
+                {recentDownloads.slice(0, 10).map((activity, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="p-4 font-medium">{activity.fileName}</td>
+                    <td className="p-4">{new Date(activity.downloadedAt).toLocaleString()}</td>
+                    <td className="p-4 font-mono text-xs text-gray-500">{activity.ipAddress}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

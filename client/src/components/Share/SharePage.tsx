@@ -152,7 +152,7 @@ const SharePage: React.FC = () => {
       // Update share download count
       const fileIdClean = id;
       try {
-        await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/files/${fileIdClean}/download`, {
+        await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/files/shared/${fileIdClean}/download`, {
           method: "PUT"
         });
       } catch (countErr) {
