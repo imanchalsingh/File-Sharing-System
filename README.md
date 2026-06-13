@@ -77,7 +77,7 @@ File-Sharing-System/
 │   │   ├── utils/                  # Helper functions and utilities
 │   │   └── App.tsx                 # Main application component
 │   ├── package.json
-│   └── vite.config.js
+│   └── vite.config.ts
 │
 ├── server/                         # Express.js backend API
 │   ├── config/                     # Database, Redis, Cloudinary configs
