@@ -97,6 +97,11 @@ const MyFiles: React.FC = () => {
 
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedFileForShare, setSelectedFileForShare] = useState<{
+    _id: string;
+    fileName: string;
+    fileUrl: string;
+  } | null>(null);
   const [selectedFileForShare, setSelectedFileForShare] = useState<{ _id: string; fileName: string; fileUrl: string } | null>(null);
 
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
@@ -1993,6 +1998,7 @@ formatFileSize
         )}
       </AnimatePresence>
 
+      {/* Share Link Modal */}
       {/* Share Modal */}
       {shareModalOpen && selectedFileForShare && (
         <ShareModal
