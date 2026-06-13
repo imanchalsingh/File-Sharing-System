@@ -67,7 +67,6 @@ A full-stack file sharing platform that enables users to upload, manage, share, 
 ```text
 File-Sharing-System/
 ├── client/                         # React + Vite frontend application
-│   ├── public/                     # Static assets and public files
 │   ├── src/
 │   │   ├── components/             # Reusable UI components
 │   │   │   ├── Authentication/     # Login, Register, User Authentication
