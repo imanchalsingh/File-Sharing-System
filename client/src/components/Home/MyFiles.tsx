@@ -1993,12 +1993,8 @@ formatFileSize
         )}
       </AnimatePresence>
 
-<<<<<<< HEAD
-      {shareModalOpen && selectedFileForShare && (
-=======
       {/* Share Modal */}
-      {selectedFileForShare && (
->>>>>>> upstream/main
+      {shareModalOpen && selectedFileForShare && (
         <ShareModal
           isOpen={shareModalOpen}
           onClose={() => {
