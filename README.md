@@ -88,7 +88,7 @@ File-Sharing-System/
 │   ├── jobs/                       # Scheduled background jobs
 │   ├── utils/                      # Helper utilities and services
 │   ├── tests/                      # Backend test suites
-│   ├── server.js                   # Server entry point
+│   ├── index.js                    # Server entry point
 │   └── package.json
 │
 ├── docs/                           # Project documentation and guides
