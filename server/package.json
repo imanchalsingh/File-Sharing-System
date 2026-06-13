@@ -19,6 +19,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.5.2",
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.1",
@@ -28,10 +29,14 @@
     "nodemailer": "^6.10.1",
     "path": "^0.12.7",
     "redis": "^5.12.1",
+    "socket.io": "^4.8.3",
     "streamifier": "^0.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "jest": "^30.4.2",
+    "nodemon": "^3.1.10",
+    "socket.io-client": "^4.8.3",
+    "supertest": "^7.2.2"
   },
   "engines": {
     "node": "20.x"

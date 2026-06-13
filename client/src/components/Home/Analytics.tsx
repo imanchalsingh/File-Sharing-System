@@ -1077,7 +1077,7 @@ interface AnalyticsData {
   conversionRate: number;
 }
 
-const getSourceColor = (source: string) => {
+const getSourceColor = (source: string): string => {
   const colors: Record<string, string> = {
     "direct copy": "#3498db",
     direct_copy: "#3498db",
@@ -1086,9 +1086,7 @@ const getSourceColor = (source: string) => {
     facebook: "#3b5998",
     twitter: "#1da1f2",
   };
-  const getSourceColor = (source: string) => {
-    return "#95a5a6";
-  };
+  return colors[source.toLowerCase()] ?? "#95a5a6";
 };
 
 const getFileTypeColor = (type: string) => {
