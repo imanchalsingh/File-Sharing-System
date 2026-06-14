@@ -1,4 +1,3 @@
-
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
@@ -7,7 +6,7 @@ dotenv.config();
 import connectDB from "./config/db.js";
 import router from "./routes/routers.js";
 import cors from "cors";
-import cookieParser from "cookie-parser"; 
+import cookieParser from "cookie-parser";
 import { v2 as cloudinary } from "cloudinary";
 import analyticsRoutes from "./routes/analytics.js";
 import fileRoutes from "./routes/files.js";
@@ -16,17 +15,19 @@ import { startExpirationJob } from "./jobs/expirationJob.js";
 import { startUploadSessionCleanupJob } from "./jobs/uploadSessionCleanup.js";
 import { connectRedis } from "./config/redis.js";
 import { ensureUploadTempRoot } from "./utils/chunkStorage.js";
-import { globalErrorHandler, notFoundHandler } from "./middleware/errorHandler.js";
+import {
+  globalErrorHandler,
+  notFoundHandler,
+} from "./middleware/errorHandler.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
-
 
 app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://file-sharing-system-lake.vercel.app"
+      "https://file-sharing-system-lake.vercel.app",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
@@ -43,7 +44,7 @@ startUploadSessionCleanupJob();
 ensureUploadTempRoot().catch(console.error);
 
 app.use(express.json());
-app.use(cookieParser()); 
+app.use(cookieParser());
 
 // Apply General API Rate Limiter to all /api routes
 app.use("/api", apiLimiter);
@@ -59,8 +60,6 @@ app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
-
-
 // Cloudinary config
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -71,7 +70,8 @@ cloudinary.config({
 // Legacy upload endpoint — use authenticated chunked upload at /api/files/upload/*
 app.post("/upload", (_req, res) => {
   res.status(410).json({
-    error: "This endpoint is deprecated. Use /api/files/upload/init for resumable chunked uploads.",
+    error:
+      "This endpoint is deprecated. Use /api/files/upload/init for resumable chunked uploads.",
   });
 });
 
@@ -89,11 +89,11 @@ const io = new Server(httpServer, {
   cors: {
     origin: [
       "http://localhost:5173",
-      "https://file-sharing-system-lake.vercel.app"
+      "https://file-sharing-system-lake.vercel.app",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
-  }
+  },
 });
 
 // Attach io to app so it can be used in controllers

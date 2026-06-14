@@ -74,7 +74,9 @@ export const globalErrorHandler = (err, req, res, next) => {
   const message = normalizedErr.message || "Internal Server Error";
 
   // Log full error in all environments; stack trace in development
-  console.error(`[${new Date().toISOString()}] ${statusCode} - ${message} | ${req.method} ${req.originalUrl}`);
+  console.error(
+    `[${new Date().toISOString()}] ${statusCode} - ${message} | ${req.method} ${req.originalUrl}`,
+  );
   if (process.env.NODE_ENV === "development") {
     console.error(normalizedErr.stack);
   }
@@ -87,7 +89,9 @@ export const globalErrorHandler = (err, req, res, next) => {
   res.status(statusCode).json({
     success: false,
     message,
-    ...(process.env.NODE_ENV === "development" && { stack: normalizedErr.stack }),
+    ...(process.env.NODE_ENV === "development" && {
+      stack: normalizedErr.stack,
+    }),
   });
 };
 

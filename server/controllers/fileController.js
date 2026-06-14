@@ -6,11 +6,11 @@ import mongoose from "mongoose";
 export const getUserFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    
+
     const files = await File.find({ userId })
       .sort({ createdAt: -1 })
       .select("-__v");
-    
+
     res.json({
       success: true,
       files,
@@ -26,15 +26,15 @@ export const getFileById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const file = await File.findOne({ _id: id, userId });
-    
+
     if (!file) {
       const error = new Error("File not found");
       error.statusCode = 404;
       return next(error);
     }
-    
+
     res.json({ success: true, file });
   } catch (error) {
     next(error);
@@ -45,17 +45,26 @@ export const getFileById = async (req, res, next) => {
 export const saveFileInfo = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes, checksum, tags, password } = req.body;
-    
+    const {
+      fileName,
+      fileUrl,
+      fileType,
+      fileSize,
+      fileSizeBytes,
+      checksum,
+      tags,
+      password,
+    } = req.body;
+
     if (!fileName || !fileUrl) {
       const error = new Error("File name and URL are required");
       error.statusCode = 400;
       return next(error);
     }
-    
+
     // Check if file already exists
     const existingFile = await File.findOne({ fileName, userId });
-    
+
     if (existingFile) {
       // Archive the current state into versions array
       existingFile.versions.push({
@@ -66,7 +75,7 @@ export const saveFileInfo = async (req, res, next) => {
         checksum: existingFile.checksum,
         uploadedAt: existingFile.updatedAt || existingFile.createdAt,
       });
-      
+
       // Update with new file data
       existingFile.fileUrl = fileUrl;
       existingFile.fileType = fileType || existingFile.fileType;
@@ -74,9 +83,9 @@ export const saveFileInfo = async (req, res, next) => {
       existingFile.fileSizeBytes = fileSizeBytes || existingFile.fileSizeBytes;
       existingFile.checksum = checksum || existingFile.checksum;
       existingFile.currentVersion = (existingFile.currentVersion || 1) + 1;
-      
+
       await existingFile.save();
-      
+
       const io = req.app.get("io");
       if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", existingFile);
 
@@ -103,7 +112,7 @@ export const saveFileInfo = async (req, res, next) => {
       userId,
       currentVersion: 1,
       tags: Array.isArray(tags) ? tags : [],
-      password: hashedPassword,     
+      password: hashedPassword,
       shareCount: 0,
       downloadCount: 0,
       viewCount: 0,
@@ -112,9 +121,9 @@ export const saveFileInfo = async (req, res, next) => {
       viewHistory: [],
       versions: [],
     });
-    
+
     await newFile.save();
-    
+
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILE_UPLOADED", newFile);
 
@@ -133,24 +142,24 @@ export const updateShareCount = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { source = "direct_copy" } = req.body;
-    
+
     const file = await File.findById(id);
-    
+
     if (!file) {
       const error = new Error("File not found");
       error.statusCode = 404;
       return next(error);
     }
-    
+
     file.shareCount += 1;
     file.shareHistory.push({
       timestamp: new Date(),
       source,
     });
     file.lastAccessed = new Date();
-    
+
     await file.save();
-    
+
     res.json({
       success: true,
       message: "Share count updated",
@@ -167,9 +176,9 @@ import User from "../models/UserSchema.js";
 export const updateDownloadCount = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const file = await File.findById(id);
-    
+
     if (!file) {
       const error = new Error("File not found");
       error.statusCode = 404;
@@ -182,7 +191,9 @@ export const updateDownloadCount = async (req, res, next) => {
       if (user) {
         const fileSizeBytes = file.fileSizeBytes || 0;
         if (user.dailyBandwidth + fileSizeBytes > user.bandwidthLimit) {
-          const error = new Error("Daily bandwidth quota exceeded. Please try again tomorrow.");
+          const error = new Error(
+            "Daily bandwidth quota exceeded. Please try again tomorrow.",
+          );
           error.statusCode = 429;
           return next(error);
         }
@@ -190,15 +201,15 @@ export const updateDownloadCount = async (req, res, next) => {
         await user.save();
       }
     }
-    
+
     file.downloadCount += 1;
     file.downloadHistory.push({
       timestamp: new Date(),
     });
     file.lastAccessed = new Date();
-    
+
     await file.save();
-    
+
     res.json({
       success: true,
       message: "Download count updated",
@@ -213,23 +224,23 @@ export const updateDownloadCount = async (req, res, next) => {
 export const updateViewCount = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const file = await File.findById(id);
-    
+
     if (!file) {
       const error = new Error("File not found");
       error.statusCode = 404;
       return next(error);
     }
-    
+
     file.viewCount += 1;
     file.viewHistory.push({
       timestamp: new Date(),
     });
     file.lastAccessed = new Date();
-    
+
     await file.save();
-    
+
     res.json({
       success: true,
       message: "View count updated",
@@ -245,15 +256,15 @@ export const deleteFile = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const file = await File.findOneAndDelete({ _id: id, userId });
-    
+
     if (!file) {
       const error = new Error("File not found");
       error.statusCode = 404;
       return next(error);
     }
-    
+
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILE_DELETED", id);
 
@@ -271,18 +282,18 @@ export const bulkDeleteFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { fileIds } = req.body;
-    
+
     if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
       const error = new Error("No file IDs provided");
       error.statusCode = 400;
       return next(error);
     }
-    
+
     const result = await File.deleteMany({
       _id: { $in: fileIds },
       userId,
     });
-    
+
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILES_BULK_DELETED", fileIds);
 
@@ -300,7 +311,7 @@ export const bulkDeleteFiles = async (req, res, next) => {
 export const getFileStats = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    
+
     const totalFiles = await File.countDocuments({ userId });
     const totalShares = await File.aggregate([
       { $match: { userId } },
@@ -314,7 +325,7 @@ export const getFileStats = async (req, res, next) => {
       { $match: { userId } },
       { $group: { _id: null, total: { $sum: "$viewCount" } } },
     ]);
-    
+
     res.json({
       success: true,
       stats: {
@@ -334,15 +345,17 @@ export const getFileVersions = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
-    const file = await File.findOne({ _id: id, userId }).select("versions currentVersion fileName fileUrl fileSize fileSizeBytes uploadedAt updatedAt createdAt");
-    
+
+    const file = await File.findOne({ _id: id, userId }).select(
+      "versions currentVersion fileName fileUrl fileSize fileSizeBytes uploadedAt updatedAt createdAt",
+    );
+
     if (!file) {
       const error = new Error("File not found");
       error.statusCode = 404;
       return next(error);
     }
-    
+
     res.json({
       success: true,
       versions: file.versions,
@@ -353,7 +366,7 @@ export const getFileVersions = async (req, res, next) => {
         fileSize: file.fileSize,
         fileSizeBytes: file.fileSizeBytes,
         uploadedAt: file.updatedAt || file.createdAt,
-      }
+      },
     });
   } catch (error) {
     next(error);
@@ -366,23 +379,25 @@ export const restoreFileVersion = async (req, res, next) => {
     const { id, version } = req.params;
     const userId = req.user.id;
     const versionToRestore = parseInt(version, 10);
-    
+
     const file = await File.findOne({ _id: id, userId });
-    
+
     if (!file) {
       const error = new Error("File not found");
       error.statusCode = 404;
       return next(error);
     }
-    
-    const versionData = file.versions.find(v => v.version === versionToRestore);
-    
+
+    const versionData = file.versions.find(
+      (v) => v.version === versionToRestore,
+    );
+
     if (!versionData) {
       const error = new Error("Version not found");
       error.statusCode = 404;
       return next(error);
     }
-    
+
     // Archive current active state
     file.versions.push({
       version: file.currentVersion || 1,
@@ -392,16 +407,16 @@ export const restoreFileVersion = async (req, res, next) => {
       checksum: file.checksum,
       uploadedAt: file.updatedAt || file.createdAt,
     });
-    
+
     // Restore the selected version data
     file.fileUrl = versionData.fileUrl;
     file.fileSize = versionData.fileSize;
     file.fileSizeBytes = versionData.fileSizeBytes;
     file.checksum = versionData.checksum;
     file.currentVersion = (file.currentVersion || 1) + 1; // Increment version number for the new state
-    
+
     await file.save();
-    
+
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
 
@@ -420,22 +435,24 @@ export const toggleFavorite = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const file = await File.findOne({ _id: id, userId });
-    
+
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
-    
+
     file.isFavorite = !file.isFavorite;
     await file.save();
-    
+
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
 
     res.json({
       success: true,
-      message: file.isFavorite ? "File marked as favorite" : "File removed from favorites",
+      message: file.isFavorite
+        ? "File marked as favorite"
+        : "File removed from favorites",
       isFavorite: file.isFavorite,
     });
   } catch (error) {
@@ -447,11 +464,11 @@ export const toggleFavorite = async (req, res, next) => {
 export const getFavoriteFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    
+
     const files = await File.find({ userId, isFavorite: true })
       .sort({ updatedAt: -1 })
       .select("-__v");
-    
+
     res.json({
       success: true,
       files,
@@ -461,7 +478,6 @@ export const getFavoriteFiles = async (req, res, next) => {
     next(error);
   }
 };
-
 
 // ✅ Update file tags
 export const updateFileTags = async (req, res, next) => {
@@ -477,7 +493,7 @@ export const updateFileTags = async (req, res, next) => {
     const file = await File.findOneAndUpdate(
       { _id: id, userId },
       { tags },
-      { new: true }
+      { new: true },
     );
 
     if (!file) {
@@ -536,8 +552,10 @@ export const updateFilePassword = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: password ? "Password protection enabled" : "Password protection disabled",
-      isPasswordProtected: !!password
+      message: password
+        ? "Password protection enabled"
+        : "Password protection disabled",
+      isPasswordProtected: !!password,
     });
   } catch (error) {
     next(error);
@@ -548,21 +566,21 @@ export const updateFilePassword = async (req, res, next) => {
 export const getSharedFileById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     // Check if ID is a valid ObjectId first to prevent crash
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(404).json({ error: "File not found" });
     }
-    
+
     // Find file, populate user username/email if we want to show who shared it
     const file = await File.findById(id).populate("userId", "username email");
-    
+
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
-    
+
     const isPasswordProtected = !!file.password;
-    
+
     // Return metadata, but hide fileUrl if password protected
     const fileDetails = {
       _id: file._id,
@@ -577,11 +595,15 @@ export const getSharedFileById = async (req, res, next) => {
       currentVersion: file.currentVersion || 1,
       // Only include fileUrl and versions if NOT password protected
       fileUrl: isPasswordProtected ? null : file.fileUrl,
-      versions: isPasswordProtected 
-        ? file.versions.map(v => ({ version: v.version, uploadedAt: v.uploadedAt, fileSize: v.fileSize }))
-        : file.versions
+      versions: isPasswordProtected
+        ? file.versions.map((v) => ({
+            version: v.version,
+            uploadedAt: v.uploadedAt,
+            fileSize: v.fileSize,
+          }))
+        : file.versions,
     };
-    
+
     res.json({ success: true, file: fileDetails });
   } catch (error) {
     next(error);
@@ -593,39 +615,37 @@ export const verifySharedFilePassword = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { password } = req.body;
-    
+
     if (!password) {
       return res.status(400).json({ error: "Password is required" });
     }
-    
+
     const file = await File.findById(id);
-    
+
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
-    
+
     if (!file.password) {
       return res.json({
         success: true,
         fileUrl: file.fileUrl,
-        versions: file.versions
+        versions: file.versions,
       });
     }
-    
+
     const isMatch = await bcrypt.compare(password, file.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid password" });
     }
-    
+
     res.json({
       success: true,
       message: "Password verified",
       fileUrl: file.fileUrl,
-      versions: file.versions
+      versions: file.versions,
     });
   } catch (error) {
     next(error);
   }
 };
-
-
