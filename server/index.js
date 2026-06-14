@@ -16,6 +16,8 @@ import { startExpirationJob } from "./jobs/expirationJob.js";
 import { startUploadSessionCleanupJob } from "./jobs/uploadSessionCleanup.js";
 import { connectRedis } from "./config/redis.js";
 import { ensureUploadTempRoot } from "./utils/chunkStorage.js";
+import { globalErrorHandler, notFoundHandler } from "./middleware/errorHandler.js";
+import { apiLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
 
@@ -53,15 +55,11 @@ app.use("/api/files", fileRoutes);
 app.use("/api/shares", shareRoutes);
 app.use("/", router);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "Something went wrong!" });
-});
-
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
+
+
 
 // Cloudinary config
 cloudinary.config({
@@ -76,6 +74,12 @@ app.post("/upload", (_req, res) => {
     error: "This endpoint is deprecated. Use /api/files/upload/init for resumable chunked uploads.",
   });
 });
+
+// 404 handler — must be after all routes
+app.use(notFoundHandler);
+
+// Global error handling middleware — must be last in the stack
+app.use(globalErrorHandler);
 
 // Create HTTP server
 const httpServer = createServer(app);

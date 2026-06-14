@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/UserSchema.js";
 
 // Generate 2FA Secret and QR code for setup
-export const generate2FA = async (req, res) => {
+export const generate2FA = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
@@ -22,13 +22,12 @@ export const generate2FA = async (req, res) => {
       qrCode: qrCodeUrl,
     });
   } catch (error) {
-    console.error("Error generating 2FA:", error);
-    res.status(500).json({ error: "Server error generating 2FA" });
+    next(error);
   }
 };
 
 // Verify code and Enable 2FA
-export const enable2FA = async (req, res) => {
+export const enable2FA = async (req, res, next) => {
   try {
     const { secret, token } = req.body;
     const user = await User.findById(req.user.id);
@@ -65,13 +64,12 @@ export const enable2FA = async (req, res) => {
       return res.status(400).json({ error: "Invalid verification code" });
     }
   } catch (error) {
-    console.error("Error enabling 2FA:", error);
-    res.status(500).json({ error: "Server error enabling 2FA" });
+    next(error);
   }
 };
 
 // Disable 2FA
-export const disable2FA = async (req, res) => {
+export const disable2FA = async (req, res, next) => {
   try {
     const { password } = req.body; // Require password to disable 2FA for security
     const user = await User.findById(req.user.id);
@@ -95,13 +93,12 @@ export const disable2FA = async (req, res) => {
 
     res.json({ success: true, message: "Two-factor authentication disabled" });
   } catch (error) {
-    console.error("Error disabling 2FA:", error);
-    res.status(500).json({ error: "Server error disabling 2FA" });
+    next(error);
   }
 };
 
 // Verify 2FA during Login
-export const verify2FALogin = async (req, res) => {
+export const verify2FALogin = async (req, res, next) => {
   try {
     const { tempToken, token } = req.body; // token is the TOTP code or a backup code
 
@@ -169,7 +166,6 @@ export const verify2FALogin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error verifying 2FA login:", error);
-    res.status(500).json({ error: "Server error verifying 2FA login" });
+    next(error);
   }
 };
