@@ -14,6 +14,7 @@ import ExpiredSharePage from "./components/ExpiredSharePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SharePage from "./components/Share/SharePage";
 import Settings from "./components/Home/Settings";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -56,6 +57,7 @@ const App: React.FC = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <ToastContainer position="top-right" autoClose={3000} />
+      <ScrollToTopButton />
     </>
   );
 };
