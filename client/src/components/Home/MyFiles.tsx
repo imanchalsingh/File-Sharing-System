@@ -97,6 +97,14 @@ const MyFiles: React.FC = () => {
 
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedFileForShare, setSelectedFileForShare] = useState<{
+    _id: string;
+    fileName: string;
+    fileUrl: string;
+  } | null>(null);
+
+  // Bulk download state
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
   const [selectedFileForShare, setSelectedFileForShare] = useState<{ _id: string; fileName: string; fileUrl: string } | null>(null);
 
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
@@ -636,6 +644,76 @@ const MyFiles: React.FC = () => {
     }
   };
 
+  // ✅ Download selected files as a ZIP archive
+  const handleDownloadSelected = async () => {
+    if (selectedFiles.length === 0) return;
+
+    if (selectedFiles.length === 1) {
+      const fileId = selectedFiles[0];
+      const file = files.find((f) => f.id === fileId);
+      if (file) {
+        await handleDownload(file.id, file.url, file.name);
+      }
+      return;
+    }
+
+    setIsDownloadingZip(true);
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+
+      // 1. Fetch all blobs in parallel
+      const blobs = await Promise.all(
+        selectedFiles.map(async (fileId) => {
+          const file = files.find((f) => f.id === fileId);
+          if (!file) throw new Error("File not found");
+
+          // Track download to backend
+          await trackDownload(file.id, file.name, file.url);
+
+          const response = await fetch(file.url);
+          const blob = await response.blob();
+          return { name: file.name, blob };
+        })
+      );
+
+      // 2. Add to zip with de-duplication
+      const nameCounts: { [key: string]: number } = {};
+      blobs.forEach(({ name, blob }) => {
+        let uniqueName = name;
+        if (nameCounts[name] !== undefined) {
+          nameCounts[name]++;
+          const extIndex = name.lastIndexOf(".");
+          const baseName = extIndex !== -1 ? name.slice(0, extIndex) : name;
+          const ext = extIndex !== -1 ? name.slice(extIndex) : "";
+          uniqueName = `${baseName} (${nameCounts[name]})${ext}`;
+        } else {
+          nameCounts[name] = 0;
+        }
+        zip.file(uniqueName, blob);
+      });
+
+      // 3. Generate and trigger download
+      const content = await zip.generateAsync({ type: "blob" });
+      const downloadUrl = window.URL.createObjectURL(content);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `SecureShare_download_${Date.now()}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("ZIP archive downloaded successfully!");
+      setSelectedFiles([]);
+    } catch (error: any) {
+      console.error("Bulk download failed:", error);
+      toast.error(error.message || "Failed to download selected files.");
+    } finally {
+      setIsDownloadingZip(false);
+    }
+  };
+
   // ✅ View image with tracking
   const handleImagePreview = (
     fileId: string,
@@ -1118,6 +1196,24 @@ formatFileSize
     </div>
   )}
      </div>
+
+            {/* Download Selected */}
+            {selectedFiles.length > 0 && (
+              <button
+                onClick={handleDownloadSelected}
+                disabled={isDownloadingZip}
+                className="p-2 bg-[#3498db] hover:bg-[#2980b9] text-white rounded-lg flex items-center disabled:opacity-50"
+              >
+                {isDownloadingZip ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download className="w-5 h-5" />
+                )}
+                <span className="hidden sm:inline ml-2">
+                  {isDownloadingZip ? "Zipping..." : "Download Selected"}
+                </span>
+              </button>
+            )}
 
             {/* Delete Selected */}
             {selectedFiles.length > 0 && (
@@ -1993,6 +2089,7 @@ formatFileSize
         )}
       </AnimatePresence>
 
+      {/* Share Link Modal */}
       {/* Share Modal */}
       {shareModalOpen && selectedFileForShare && (
         <ShareModal

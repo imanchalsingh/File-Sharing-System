@@ -9,6 +9,8 @@ import {
   extendShareLink,
   deleteShareLink,
   accessSharedFile,
+  trackShareDownload,
+  getDownloadAnalytics,
   getExpiringShares,
   getUserNotifications as getNotifications,
   markNotificationRead as markRead,
@@ -18,6 +20,9 @@ import {
 
 const router = express.Router();
 
+// Public routes - anyone with token can access
+router.get('/access/:token', accessSharedFile);
+router.post('/download/:token', trackShareDownload);
 // Public route - anyone with token can access
 router.get('/access/:token', downloadLimiter, accessSharedFile);
 
@@ -26,6 +31,7 @@ router.use(authenticateUser);
 
 router.post('/', createShareLink);
 router.get('/expiring', getExpiringShares);
+router.get('/analytics/downloads', getDownloadAnalytics);
 router.get('/file/:fileId', getShareLinks);
 router.put('/:shareId', updateShareLink);
 router.put('/:shareId/revoke', revokeShareLink);
