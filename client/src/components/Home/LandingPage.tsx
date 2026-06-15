@@ -445,7 +445,6 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
       </section>
-
       {/* Features Section */}
       <section id="features" className="container mx-auto px-6 py-20">
         <h2 className="text-4xl font-bold text-center mb-16">
@@ -487,7 +486,6 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
       </section>
-
       {/* Pricing Section */}
       <section id="pricing" className="container mx-auto px-6 py-20">
         <h2 className="text-4xl font-bold text-center mb-4">
@@ -553,7 +551,6 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
       </section>
-
       {/* About Section */}
       <section id="about" className="container mx-auto px-6 py-20">
         {/* Section Header */}
@@ -750,7 +747,6 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* Contact Section */}
       <section id="contact" className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
@@ -776,7 +772,6 @@ const LandingPage: React.FC = () => {
           </p>
         </div>
       </section>
-
       {/* Footer */}
       <footer className="border-t border-gray-200 dark:border-gray-800 bg-gradient-to-b from-transparent to-gray-100 dark:to-gray-950 mt-20">
         <div className="container mx-auto px-6 py-16">

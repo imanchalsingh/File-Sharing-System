@@ -9,7 +9,7 @@ import {
 } from '../utils/notificationService.js';
 
 // POST /api/shares - Create a new share link
-export const createShareLink = async (req, res) => {
+export const createShareLink = async (req, res, next) => {
   try {
     const { fileId, expiresAt, maxAccessCount } = req.body;
     const userId = req.user.id;
@@ -58,13 +58,12 @@ export const createShareLink = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Create share link error:', error);
-    res.status(500).json({ success: false, message: 'Failed to create share link' });
+    next(error);
   }
 };
 
 // GET /api/shares/file/:fileId - Get all share links for a file
-export const getShareLinks = async (req, res) => {
+export const getShareLinks = async (req, res, next) => {
   try {
     const { fileId } = req.params;
     const userId = req.user.id;
@@ -87,13 +86,12 @@ export const getShareLinks = async (req, res) => {
 
     res.json({ success: true, shares: sharesWithUrls });
   } catch (error) {
-    console.error('Get share links error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch share links' });
+    next(error);
   }
 };
 
 // PUT /api/shares/:shareId - Update share link expiration
-export const updateShareLink = async (req, res) => {
+export const updateShareLink = async (req, res, next) => {
   try {
     const { shareId } = req.params;
     const { expiresAt, maxAccessCount } = req.body;
@@ -127,13 +125,12 @@ export const updateShareLink = async (req, res) => {
 
     res.json({ success: true, share });
   } catch (error) {
-    console.error('Update share link error:', error);
-    res.status(500).json({ success: false, message: 'Failed to update share link' });
+    next(error);
   }
 };
 
 // PUT /api/shares/:shareId/revoke - Revoke a share link
-export const revokeShareLink = async (req, res) => {
+export const revokeShareLink = async (req, res, next) => {
   try {
     const { shareId } = req.params;
     const userId = req.user.id;
@@ -156,13 +153,12 @@ export const revokeShareLink = async (req, res) => {
 
     res.json({ success: true, message: 'Share link revoked', share });
   } catch (error) {
-    console.error('Revoke share link error:', error);
-    res.status(500).json({ success: false, message: 'Failed to revoke share link' });
+    next(error);
   }
 };
 
 // PUT /api/shares/:shareId/extend - Extend share link expiration
-export const extendShareLink = async (req, res) => {
+export const extendShareLink = async (req, res, next) => {
   try {
     const { shareId } = req.params;
     const { expiresAt } = req.body;
@@ -199,13 +195,12 @@ export const extendShareLink = async (req, res) => {
 
     res.json({ success: true, message: 'Share link extended', share });
   } catch (error) {
-    console.error('Extend share link error:', error);
-    res.status(500).json({ success: false, message: 'Failed to extend share link' });
+    next(error);
   }
 };
 
 // DELETE /api/shares/:shareId - Delete a share link permanently
-export const deleteShareLink = async (req, res) => {
+export const deleteShareLink = async (req, res, next) => {
   try {
     const { shareId } = req.params;
     const userId = req.user.id;
@@ -217,13 +212,12 @@ export const deleteShareLink = async (req, res) => {
 
     res.json({ success: true, message: 'Share link deleted' });
   } catch (error) {
-    console.error('Delete share link error:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete share link' });
+    next(error);
   }
 };
 
 // GET /api/shares/access/:token - Public access to shared file
-export const accessSharedFile = async (req, res) => {
+export const accessSharedFile = async (req, res, next) => {
   try {
     const { token } = req.params;
 
@@ -315,13 +309,12 @@ export const accessSharedFile = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Access shared file error:', error);
-    res.status(500).json({ success: false, message: 'Failed to access shared file' });
+    next(error);
   }
 };
 
 // POST /api/shares/download/:token - Record download of a shared file
-export const trackShareDownload = async (req, res) => {
+export const trackShareDownload = async (req, res, next) => {
   try {
     const { token } = req.params;
 
@@ -373,13 +366,12 @@ export const trackShareDownload = async (req, res) => {
 
     res.json({ success: true, downloadCount: share.downloadCount });
   } catch (error) {
-    console.error('Track share download error:', error);
-    res.status(500).json({ success: false, message: 'Failed to record download' });
+    next(error);
   }
 };
 
 // GET /api/shares/analytics/downloads - Gather detailed aggregated engagement metrics per user profile session
-export const getDownloadAnalytics = async (req, res) => {
+export const getDownloadAnalytics = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -392,13 +384,12 @@ export const getDownloadAnalytics = async (req, res) => {
 
     res.json({ success: true, shares: shareAnalytics });
   } catch (error) {
-    console.error('Fetch download analytics error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch download analytics metrics structures layout records' });
+    next(error);
   }
 };
 
 // GET /api/shares/expiring - Get shares expiring within 24h
-export const getExpiringShares = async (req, res) => {
+export const getExpiringShares = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const now = new Date();
@@ -415,26 +406,24 @@ export const getExpiringShares = async (req, res) => {
 
     res.json({ success: true, shares });
   } catch (error) {
-    console.error('Get expiring shares error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch expiring shares' });
+    next(error);
   }
 };
 
 // GET /api/shares/notifications - Get user notifications
-export const getUserNotifications = async (req, res) => {
+export const getUserNotifications = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const limit = parseInt(req.query.limit) || 20;
     const notifications = await fetchUserNotifications(userId, limit);
     res.json({ success: true, notifications });
   } catch (error) {
-    console.error('Get notifications error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch notifications' });
+    next(error);
   }
 };
 
 // PUT /api/shares/notifications/:notificationId/read - Mark notification as read
-export const markNotificationRead = async (req, res) => {
+export const markNotificationRead = async (req, res, next) => {
   try {
     const { notificationId } = req.params;
     const userId = req.user.id;
@@ -444,31 +433,28 @@ export const markNotificationRead = async (req, res) => {
     }
     res.json({ success: true, notification });
   } catch (error) {
-    console.error('Mark notification read error:', error);
-    res.status(500).json({ success: false, message: 'Failed to mark notification as read' });
+    next(error);
   }
 };
 
 // PUT /api/shares/notifications/read-all - Mark all notifications as read
-export const markAllRead = async (req, res) => {
+export const markAllRead = async (req, res, next) => {
   try {
     const userId = req.user.id;
     await markAllNotificationsRead(userId);
     res.json({ success: true, message: 'All notifications marked as read' });
   } catch (error) {
-    console.error('Mark all read error:', error);
-    res.status(500).json({ success: false, message: 'Failed to mark all notifications as read' });
+    next(error);
   }
 };
 
 // GET /api/shares/notifications/unread-count - Get unread notification count
-export const getUnreadCount = async (req, res) => {
+export const getUnreadCount = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const count = await fetchUnreadCount(userId);
     res.json({ success: true, count });
   } catch (error) {
-    console.error('Get unread count error:', error);
-    res.status(500).json({ success: false, message: 'Failed to get unread count' });
+    next(error);
   }
 };
