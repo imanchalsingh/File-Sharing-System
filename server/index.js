@@ -13,6 +13,7 @@ import fileRoutes from "./routes/files.js";
 import shareRoutes from "./routes/shares.js";
 import { startExpirationJob } from "./jobs/expirationJob.js";
 import { startUploadSessionCleanupJob } from "./jobs/uploadSessionCleanup.js";
+import { initQuotaResetJob } from "./jobs/quotaResetJob.js";
 import { connectRedis } from "./config/redis.js";
 import { ensureUploadTempRoot } from "./utils/chunkStorage.js";
 import {
@@ -41,6 +42,7 @@ connectRedis();
 // Start background jobs
 startExpirationJob();
 startUploadSessionCleanupJob();
+initQuotaResetJob();
 ensureUploadTempRoot().catch(console.error);
 
 app.use(express.json());
