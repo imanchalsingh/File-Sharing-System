@@ -100,8 +100,7 @@ async function loadUploadSessionForChunk(req, res, next) {
     req.chunkIndex = parsedIndex;
     next();
   } catch (error) {
-    console.error("Load upload session error:", error);
-    res.status(500).json({ error: "Failed to load upload session" });
+    next(error);
   }
 }
 
@@ -168,8 +167,7 @@ export const initUpload = async (req, res) => {
       session: formatSessionResponse(session),
     });
   } catch (error) {
-    console.error("Init upload error:", error);
-    res.status(500).json({ error: "Failed to initialize upload" });
+    next(error);
   }
 };
 
@@ -197,8 +195,7 @@ export const getUploadStatus = async (req, res) => {
       session: formatSessionResponse(session),
     });
   } catch (error) {
-    console.error("Get upload status error:", error);
-    res.status(500).json({ error: "Failed to fetch upload status" });
+    next(error);
   }
 };
 
@@ -215,8 +212,7 @@ export const getResumableUploads = async (req, res) => {
       sessions: sessions.map(formatSessionResponse),
     });
   } catch (error) {
-    console.error("Get resumable uploads error:", error);
-    res.status(500).json({ error: "Failed to fetch resumable uploads" });
+    next(error);
   }
 };
 
@@ -294,8 +290,7 @@ export const uploadChunk = async (req, res) => {
       chunkSize,
     });
   } catch (error) {
-    console.error("Upload chunk error:", error);
-    res.status(500).json({ error: error.message || "Failed to upload chunk" });
+    next(error);
   }
 };
 
@@ -319,8 +314,7 @@ export const cancelUpload = async (req, res) => {
       message: "Upload cancelled",
     });
   } catch (error) {
-    console.error("Cancel upload error:", error);
-    res.status(500).json({ error: "Failed to cancel upload" });
+    next(error);
   }
 };
 
