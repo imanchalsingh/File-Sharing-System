@@ -64,9 +64,8 @@ export const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Registration error:", error.message);
-
-    // Handle duplicate key errors (MongoDB)
+    // Handle duplicate key errors (MongoDB) — normalizer in globalErrorHandler also handles these,
+    // but we preserve this branch for the specific field-level message.
     if (error.code === 11000) {
       const field = Object.keys(error.keyValue)[0];
       return res.status(400).json({
@@ -80,11 +79,7 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ error: errors.join(", ") });
     }
 
-    res.status(500).json({
-      error: "Server Error",
-      message:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    next(error);
   }
 };
 
@@ -150,8 +145,7 @@ export const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error.message);
-    res.status(500).json({ error: "Server Error" });
+    next(error);
   }
 };
 
@@ -182,8 +176,7 @@ export const logoutUser = async (req, res) => {
 
     res.status(200).json({ success: true, message: "Logged out successfully" });
   } catch (error) {
-    console.error("Logout error:", error);
-    res.status(500).json({ error: "Logout failed" });
+    next(error);
   }
 };
 
@@ -212,10 +205,6 @@ export const getUser = async (req, res) => {
       return res.status(400).json({ error: "Invalid user ID" });
     }
 
-    res.status(500).json({
-      error: "Server Error",
-      message:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    next(error);
   }
 };
