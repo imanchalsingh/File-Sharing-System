@@ -32,13 +32,25 @@ const formatSize = (bytes: number): string => {
 };
 
 const LandingPage: React.FC = () => {
+  // Yeh function component ke andar add karo (toggleTheme ke neeche)
+  const handleNavClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    id: string,
+  ) => {
+    e.preventDefault();
+    const section = document.getElementById(id);
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   const navigate = useNavigate();
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeFeature, setActiveFeature] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [theme, setTheme] = useState(
-    document.documentElement.classList.contains("dark") ? "dark" : "light"
+    document.documentElement.classList.contains("dark") ? "dark" : "light",
   );
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,7 +93,7 @@ const LandingPage: React.FC = () => {
           if (f.id !== id) return f;
           const next = Math.min(f.progress + speed, 100);
           return { ...f, progress: next, done: next >= 100 };
-        })
+        }),
       );
     }, 300);
 
@@ -207,63 +219,65 @@ const LandingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
       {/* Navigation */}
-      <nav
-        className={`sticky top-0 z-50 transition-all duration-300 bg-white/80 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 shadow-[0_2px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_20px_rgba(0,0,0,0.4)]`}
-      >
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Cloud className="w-10 h-10 text-[#3498db]" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-[#3498db] to-[#2ecc71] bg-clip-text text-transparent">
-                SecureShare
-              </span>
-            </div>
-            <div className="hidden md:flex space-x-8">
-              <a
-                href="#features"
-                className="hover:text-[#3498db] transition-colors font-medium"
-              >
-                Features
-              </a>
-              <a
-                href="#pricing"
-                className="hover:text-[#3498db] transition-colors font-medium"
-              >
-                Pricing
-              </a>
-              <a
-                href="#about"
-                className="hover:text-[#3498db] transition-colors font-medium"
-              >
-                About
-              </a>
-              <a
-                href="#contact"
-                className="hover:text-[#3498db] transition-colors font-medium"
-              >
-                Contact
-              </a>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate("/login")}
-                className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors font-semibold"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => navigate("/login")}
-                className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity text-white shadow-md shadow-[#3498db]/30"
-              >
-                Get Started
-              </button>
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors ml-4"
-              >
-                {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-              </button>
-            </div>
+      <nav className="container mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Cloud className="w-10 h-10 text-[#3498db]" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-[#3498db] to-[#2ecc71] bg-clip-text text-transparent">
+              SecureShare
+            </span>
+          </div> 
+          <div className="hidden md:flex space-x-8">
+            <a
+              href="#features"
+              onClick={(e) => handleNavClick(e, "features")}
+              className="hover:text-[#3498db] transition-colors font-medium"
+            >
+              Features
+            </a>
+            <a
+              href="#pricing"
+              onClick={(e) => handleNavClick(e, "pricing")}
+              className="hover:text-[#3498db] transition-colors font-medium"
+            >
+              Pricing
+            </a>
+            <a
+              href="#about"
+              onClick={(e) => handleNavClick(e, "about")}
+              className="hover:text-[#3498db] transition-colors font-medium"
+            >
+              About
+            </a>
+            <a
+              href="#contact"
+              onClick={(e) => handleNavClick(e, "contact")}
+              className="hover:text-[#3498db] transition-colors font-medium"
+            >
+              Contact
+            </a>
+          </div>
+
+
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate("/login")}
+              className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors font-semibold"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => navigate("/login")}
+              className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity text-white"
+            >
+              Get Started
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors ml-4"
+            >
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
           </div>
         </div>
       </nav>
@@ -892,6 +906,6 @@ const LandingPage: React.FC = () => {
       </footer>
     </div>
   );
-};
+};;
 
 export default LandingPage;

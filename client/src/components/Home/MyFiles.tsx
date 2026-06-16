@@ -105,7 +105,7 @@ const MyFiles: React.FC = () => {
 
   // Bulk download state
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
-
+  
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
 
   // ✅ Load resumable upload sessions from localStorage
