@@ -17,6 +17,8 @@ import Settings from "./components/Home/Settings";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 const App: React.FC = () => {
   return (
@@ -52,6 +54,10 @@ const App: React.FC = () => {
         {/* Public Share Access Routes */}
         <Route path="/s/:token" element={<SharedFileAccess />} />
         <Route path="/expired" element={<ExpiredSharePage />} />
+
+        {/* Legal Pages */}
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
 
         {/* Redirect unknown paths to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
