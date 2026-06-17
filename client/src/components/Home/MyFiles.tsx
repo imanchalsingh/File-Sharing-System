@@ -36,6 +36,7 @@ interface TrackedFile {
   shareHistory: Array<{ timestamp: string; source?: string }>;
   downloadHistory: Array<{ timestamp: string }>;
   viewHistory: Array<{ timestamp: string }>;
+  uploadHistory?: Array<{ timestamp: string }>;
 }
 
 const MyFiles: React.FC = () => {
@@ -258,6 +259,7 @@ const MyFiles: React.FC = () => {
           shareHistory: [],
           downloadHistory: [],
           viewHistory: [],
+          uploadHistory: [{ timestamp: new Date().toISOString() }],
         };
 
         uploadedFiles.push(newFile);

@@ -45,6 +45,7 @@ interface TrackedFile {
   lastAccessed?: string;
   shareHistory: Array<{ timestamp: string; source?: string }>;
   downloadHistory: Array<{ timestamp: string }>;
+  uploadHistory?: Array<{ timestamp: string }>;
   viewHistory: Array<{ timestamp: string }>;
 }
 
@@ -251,32 +252,56 @@ const Analytics: React.FC = () => {
 
       // Recent activity (last 24 hours)
       const recentActivity = files
-        .flatMap((file) => {
-          const activities = [];
-          if (file.shareCount > 0) {
-            activities.push({
-              timestamp: file.lastAccessed || new Date().toISOString(),
-              time: formatTimeAgo(new Date(file.lastAccessed || new Date())),
-              file: file.name,
-              action: "share",
-              count: file.shareCount,
-            });
-          }
-          if (file.downloadCount > 0) {
-            activities.push({
-              timestamp: file.lastAccessed || new Date().toISOString(),
-              time: file.lastAccessed
-                ? formatTimeAgo(new Date(file.lastAccessed))
-                : "Recently",
-              file: file.name,
-              action: "download",
-              count: file.downloadCount,
-            });
-          }
-          return activities;
-        })
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        .slice(0, 5);
+  .flatMap((file) => {
+    const activities: any[] = [];
+
+    // Uploads
+    if (file.uploadHistory) {
+      file.uploadHistory.forEach((upload) => {
+        activities.push({
+          timestamp: upload.timestamp,
+          time: formatTimeAgo(new Date(upload.timestamp)),
+          file: file.name,
+          action: "upload",
+          count: 1,
+        });
+      });
+    }
+
+    // Shares
+    if (file.shareHistory) {
+      file.shareHistory.forEach((share) => {
+        activities.push({
+          timestamp: share.timestamp,
+          time: formatTimeAgo(new Date(share.timestamp)),
+          file: file.name,
+          action: "share",
+          count: 1,
+        });
+      });
+    }
+
+    // Downloads
+    if (file.downloadHistory) {
+      file.downloadHistory.forEach((download) => {
+        activities.push({
+          timestamp: download.timestamp,
+          time: formatTimeAgo(new Date(download.timestamp)),
+          file: file.name,
+          action: "download",
+          count: 1,
+        });
+      });
+    }
+
+    return activities;
+  })
+  .sort(
+    (a, b) =>
+      new Date(b.timestamp).getTime() -
+      new Date(a.timestamp).getTime()
+  )
+  .slice(0, 20);
 
       setAnalyticsData({
         dailyShares,
@@ -852,7 +877,9 @@ const Analytics: React.FC = () => {
                           : "bg-[#2ecc71]/20"
                       }`}
                     >
-                      {activity.action === "share" ? (
+                      {activity.action === "upload" ? (
+                        <FileText className="w-4 h-4 text-[#9b59b6]" />
+                      ) : activity.action === "share" ? (
                         <Share2 className="w-4 h-4 text-[#3498db]" />
                       ) : (
                         <Download className="w-4 h-4 text-[#2ecc71]" />
@@ -863,7 +890,11 @@ const Analytics: React.FC = () => {
                         {activity.file}
                       </div>
                       <div className="text-gray-600 dark:text-gray-400 text-xs capitalize">
-                        {activity.action} • {activity.count} times
+                        {activity.action === "upload"
+                          ? "Uploaded"
+                          : activity.action === "share"
+                            ? "Link Copied"
+                            : "Downloaded"}
                       </div>
                     </div>
                   </div>

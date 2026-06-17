@@ -6,7 +6,7 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0", // Suppress deprecation warnings for dependencies until we can update them
+    // "ignoreDeprecations": "6.0", // Suppress deprecation warnings for dependencies until we can update them
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
