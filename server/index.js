@@ -4,6 +4,8 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import dotenv from "dotenv";
 dotenv.config();
+import validateEnv from "./config/validateEnv.js";
+validateEnv();
 import connectDB from "./config/db.js";
 import router from "./routes/routers.js";
 import cors from "cors";
