@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../services/api";
 import {
   Cloud,
   Shield,
@@ -15,155 +15,262 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
+import { toast } from "react-toastify";
+
+const featureCards = [
+  { title: "Secure", description: "Military grade encryption", color: "#e74c3c", icon: <Shield /> },
+  { title: "Fast", description: "Lightning fast transfers", color: "#3498db", icon: <Zap /> },
+  { title: "Global", description: "Access from anywhere", color: "#2ecc71", icon: <Globe /> }
+];
+
+const demoAccounts = [
+  { email: "admin@example.com", password: "password123", role: "admin" },
+  { email: "user@example.com", password: "password123", role: "user" }
+];
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
-  });
-
-  const [theme, setTheme] = useState(
-    document.documentElement.classList.contains("dark") 
-    ? "dark" : "light",
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [theme, setTheme] = useState<string>(
+    localStorage.getItem("theme") === "dark" ? "dark" : "light"
   );
-
-  const toggleTheme = () => {
-    const isDark = document.documentElement.classList.contains("dark");
-
-    if (isDark) {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-      setTheme("light");
-    } else {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-      setTheme("dark");
-    }
-  };
 
   const handleRegisterRedirect = () => {
     navigate("/register");
   };
 
-  const handleLogin = async () => {
-    setErrorMsg(null);
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
 
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
+      setTheme("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      setTheme("light");
+    }
+
+    localStorage.setItem("theme", next);
+  };
+
+  // Handle login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setLoading(true);
+
+    // Validation
     if (!email || !password) {
-      setErrorMsg("Please enter both email and password.");
+      setErrorMsg("Please fill in all fields");
+      setLoading(false);
+      return;
+    }
+
+    if (!email.includes("@")) {
+      setErrorMsg("Please enter a valid email");
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters");
+      setLoading(false);
       return;
     }
 
     setLoading(true);
+
     try {
-      const response = await api.post("/login", {
-        email,
-        password,
-      });
+      const response = await api.post(
+        "/login",
+        { email, password },
+        { withCredentials: true }
+      );
 
-      localStorage.setItem("authToken", response.data.authToken);
-      localStorage.setItem("userEmail", email);
+      if (response.data.success) {
+        if (response.data.requires2FA) {
+          setRequires2FA(true);
+          setTempToken(response.data.tempToken);
+          toast.info("Two-factor authentication required");
+          return;
+        }
 
-      // Show success message
-      setErrorMsg(null);
-      alert("Login successful! Welcome back.");
-      navigate("/home");
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        setErrorMsg(
-          error.response?.data?.error ||
-            "Login failed. Please check your credentials.",
-        );
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        if (response.data.authToken) {
+          localStorage.setItem("authToken", response.data.authToken);
+        }
+        toast.success("Login successful!");
+        navigate("/home");
       } else {
-        setErrorMsg("Login failed. Please try again.");
+        setErrorMsg(response.data.error || "Invalid email or password");
       }
+    } catch (error: unknown) {
+      setErrorMsg("Invalid email or password.");
     } finally {
       setLoading(false);
     }
   };
 
-  const featureCards = [
-    {
-      icon: <Shield className="w-6 h-6" />,
-      title: "Secure Access",
-      description: "Bank-level encryption for all your data",
-      color: "#3498db",
-    },
-    {
-      icon: <Zap className="w-6 h-6" />,
-      title: "Instant Access",
-      description: "Access your files instantly from any device",
-      color: "#2ecc71",
-    },
-    {
-      icon: <Globe className="w-6 h-6" />,
-      title: "Anywhere Access",
-      description: "Access from any location worldwide",
-      color: "#9b59b6",
-    },
-  ];
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    
+    if (!totpCode || totpCode.length < 6) {
+      setErrorMsg("Please enter a valid 6-digit code or backup code");
+      return;
+    }
 
-  const demoAccounts = [
-    { email: "demo@secureshare.com", password: "demo123", role: "Demo User" },
-  ];
+    setLoading(true);
+
+    try {
+      const response = await api.post("/login/2fa", {
+        tempToken,
+        token: totpCode
+      });
+
+      if (response.data.success) {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        if (response.data.authToken) {
+          localStorage.setItem("authToken", response.data.authToken);
+        }
+        toast.success("Login successful!");
+        navigate("/home");
+      }
+    } catch (error: any) {
+      setErrorMsg(error.response?.data?.error || "Invalid verification code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle sign up redirect
+  const handleSignUp = () => {
+    navigate("/signup");
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 font-sans p-4">
       <div className="container mx-auto">
-        {/* Header */}
         <header className="flex items-center justify-between py-6">
           <Link to="/" className="flex items-center space-x-2 group">
             <Cloud className="w-10 h-10 text-[#3498db] group-hover:rotate-12 transition-transform" />
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">SecureShare</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">
+              SecureShare
+            </span>
           </Link>
+
           <div className="text-gray-600 dark:text-gray-400">
             New to SecureShare?{" "}
             <button
+              type="button"
               onClick={handleRegisterRedirect}
               className="text-[#3498db] hover:text-[#2980b9] font-medium transition-colors hover:underline"
             >
               Create Account
             </button>
+
             <button
-                        onClick={toggleTheme}
-                        className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
-                        hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
-                        hover:text-black dark:hover:text-white transition-colors ml-4"
-                      >
-                        {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-                      </button>
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors ml-4"
+            >
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
           </div>
         </header>
 
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-8">
-            {/* Left Column - Form */}
             <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-xl rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-2xl">
               <div className="text-center mb-10">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#3498db] to-[#2ecc71] rounded-2xl mb-6">
                   <LogIn className="w-8 h-8 text-white" />
                 </div>
+
                 <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">
                   Welcome Back
                 </h1>
+
                 <p className="text-gray-600 dark:text-gray-400 text-lg">
-                  Sign in to access your secure file storage
+                  {requires2FA ? "Enter your 2FA verification code" : "Sign in to access your secure file storage"}
                 </p>
               </div>
 
-              <div className="space-y-6">
+              {requires2FA ? (
+                <form className="space-y-6" onSubmit={handleVerify2FA}>
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 mb-2 font-medium">
+                      Authentication Code
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={totpCode}
+                        onChange={(e) => setTotpCode(e.target.value)}
+                        className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none pl-12 tracking-widest font-mono text-lg"
+                        placeholder="000000"
+                        maxLength={8}
+                      />
+                      <Shield className="absolute left-4 top-3.5 w-5 h-5 text-gray-500" />
+                    </div>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      Enter the 6-digit code from your authenticator app, or an 8-character backup code.
+                    </p>
+                  </div>
+
+                  {errorMsg && (
+                    <div className="p-4 bg-[#e74c3c]/10 border border-[#e74c3c] rounded-lg">
+                      <p className="text-[#e74c3c] text-sm">{errorMsg}</p>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-[#3498db] text-white rounded-lg font-medium hover:bg-[#2980b9] transition-colors"
+                  >
+                    {loading ? "Verifying..." : "Verify Code"}
+                  </button>
+
+                  <div className="text-center mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequires2FA(false);
+                        setTotpCode("");
+                        setTempToken("");
+                        setErrorMsg(null);
+                      }}
+                      className="text-sm text-[#3498db] hover:text-[#2980b9] transition-colors"
+                    >
+                      Back to login
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form
+                  className="space-y-6"
+                  autoComplete="off"
+                  onSubmit={handleLogin}
+                >
                 <div>
-                  <label className="blocktext-gray-700 dark:text-gray-300 mb-2 font-medium">
+                  <label className="block text-gray-700 dark:text-gray-300 mb-2 font-medium">
                     Email Address
                   </label>
+
                   <div className="relative">
                     <input
                       type="email"
+                      autoComplete="off"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none pl-12"
@@ -178,19 +285,26 @@ const Login: React.FC = () => {
                     <label className="block text-gray-700 dark:text-gray-300 font-medium">
                       Password
                     </label>
-                    <button className="text-sm text-[#3498db] hover:text-[#2980b9] transition-colors">
+
+                    <button
+                      type="button"
+                      className="text-sm text-[#3498db] hover:text-[#2980b9] transition-colors"
+                    >
                       Forgot password?
                     </button>
                   </div>
+
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
+                      autoComplete="new-password"
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full px-4 py-3 bg-white dark:bg-gray-900/50 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] focus:border-transparent outline-none pl-12 pr-10"
                       placeholder="Enter your password"
                     />
                     <Key className="absolute left-4 top-3 w-5 h-5 text-gray-400 dark:text-gray-500" />
+
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
@@ -207,54 +321,35 @@ const Login: React.FC = () => {
 
                 {errorMsg && (
                   <div className="p-4 bg-[#e74c3c]/10 border border-[#e74c3c] rounded-lg">
-                    <p className="text-[#e74c3c] text-sm flex items-center">
-                      <svg
-                        className="w-4 h-4 mr-2"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      {errorMsg}
-                    </p>
+                    <p className="text-[#e74c3c] text-sm">{errorMsg}</p>
                   </div>
                 )}
 
+                {/* Password Field */}
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Password (Verification)
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                
                 <button
-                  onClick={handleLogin}
+                  type="submit"
                   disabled={loading}
-                  className="w-full py-4 bg-gradient-to-r from-[#3498db] to-[#2ecc71] text-white font-bold rounded-xl shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
+                  className="w-full py-3 bg-[#3498db] text-white rounded-lg font-medium hover:bg-[#2980b9] transition-colors"
                 >
-                  {loading ? (
-                    <span className="flex items-center justify-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Signing In...
-                    </span>
-                  ) : (
-                    "Sign In"
-                  )}
+                  {loading ? "Signing In..." : "Sign In"}
                 </button>
 
                 <div className="text-center text-gray-600 dark:text-gray-400 text-sm">
@@ -268,14 +363,15 @@ const Login: React.FC = () => {
                   </a>
                 </div>
 
-                {/* Demo Accounts */}
                 <div className="border-t border-gray-700 pt-6">
                   <h4 className="text-gray-600 dark:text-gray-400 font-medium mb-3 text-center">
                     Demo Accounts (To be removed in production)
                   </h4>
+
                   <div className="grid gap-2">
                     {demoAccounts.map((account, index) => (
                       <button
+                        type="button"
                         key={index}
                         onClick={() => {
                           setEmail(account.email);
@@ -300,17 +396,17 @@ const Login: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              </div>
+              </form>
+              )}
             </div>
 
-            {/* Right Column - Features */}
             <div className="space-y-8">
-              {/* Welcome Card */}
               <div className="bg-gradient-to-br from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-2xl">
                 <div className="flex items-start mb-6">
                   <div className="p-3 bg-gradient-to-br from-[#3498db] to-[#2ecc71] rounded-xl mr-4">
                     <Lock className="w-8 h-8 text-white" />
                   </div>
+
                   <div>
                     <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                       Secure Access
@@ -332,12 +428,16 @@ const Login: React.FC = () => {
                       Access Available
                     </div>
                   </div>
+
                   <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-xl">
                     <div className="text-[#f1c40f] font-bold text-2xl mb-1">
                       100%
                     </div>
-                    <div className="text-gray-600 dark:text-gray-400 text-sm">Encrypted</div>
+                    <div className="text-gray-600 dark:text-gray-400 text-sm">
+                      Encrypted
+                    </div>
                   </div>
+
                   <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-xl">
                     <div className="text-[#9b59b6] font-bold text-2xl mb-1">
                       Zero
@@ -346,16 +446,18 @@ const Login: React.FC = () => {
                       Knowledge Access
                     </div>
                   </div>
+
                   <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-xl">
                     <div className="text-[#e74c3c] font-bold text-2xl mb-1">
                       256-bit
                     </div>
-                    <div className="text-gray-600 dark:text-gray-400 text-sm">AES Encryption</div>
+                    <div className="text-gray-600 dark:text-gray-400 text-sm">
+                      AES Encryption
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Feature Cards */}
               <div className="grid md:grid-cols-3 gap-4">
                 {featureCards.map((feature, index) => (
                   <div
@@ -369,9 +471,11 @@ const Login: React.FC = () => {
                     >
                       <div style={{ color: feature.color }}>{feature.icon}</div>
                     </div>
+
                     <h4 className="text-gray-900 dark:text-white font-bold mb-2">
                       {feature.title}
                     </h4>
+
                     <p className="text-gray-600 dark:text-gray-400 text-sm">
                       {feature.description}
                     </p>
@@ -379,75 +483,41 @@ const Login: React.FC = () => {
                 ))}
               </div>
 
-              {/* Recent Activity Card */}
-              <div className="bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-gray-900 dark:text-white font-bold">
-                    Recent Security Updates
-                  </h4>
-                  <div className="px-3 py-1 bg-[#2ecc71]/20 text-[#2ecc71] text-xs rounded-full">
-                    Secure
-                  </div>
-                </div>
-                <ul className="space-y-3">
-                  {[
-                    {
-                      text: "Enhanced two-factor authentication",
-                      time: "2 hours ago",
-                      color: "#3498db",
-                    },
-                    {
-                      text: "New encryption protocol implemented",
-                      time: "1 day ago",
-                      color: "#9b59b6",
-                    },
-                    {
-                      text: "Improved password hashing algorithm",
-                      time: "3 days ago",
-                      color: "#f1c40f",
-                    },
-                    {
-                      text: "Security audit completed",
-                      time: "1 week ago",
-                      color: "#2ecc71",
-                    },
-                  ].map((item, index) => (
-                    <li key={index} className="flex items-start">
-                      <div
-                        className="w-2 h-2 rounded-full mt-2 mr-3 flex-shrink-0"
-                        style={{ backgroundColor: item.color }}
-                      ></div>
-                      <div className="flex-1">
-                        <p className="text-gray-700 dark:text-gray-300 text-sm">{item.text}</p>
-                        <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">
-                          {item.time}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Quick Stats */}
               <div className="bg-white/70 dark:bg-gray-800/30 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
                 <h4 className="text-gray-900 dark:text-white font-bold mb-4">
                   SecureShare at a Glance
                 </h4>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Active Users</span>
-                    <span className="text-gray-900 dark:text-white font-bold">500K+</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Active Users
+                    </span>
+                    <span className="text-gray-900 dark:text-white font-bold">
+                      500K+
+                    </span>
                   </div>
+
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Files Secured</span>
-                    <span className="text-gray-900 dark:text-white font-bold">10M+</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Files Secured
+                    </span>
+                    <span className="text-gray-900 dark:text-white font-bold">
+                      10M+
+                    </span>
                   </div>
+
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Uptime</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Uptime
+                    </span>
                     <span className="text-[#2ecc71] font-bold">99.9%</span>
                   </div>
+
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Support Response</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Support Response
+                    </span>
                     <span className="text-[#f1c40f] font-bold">
                       Under 1 hour
                     </span>
@@ -458,7 +528,6 @@ const Login: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <footer className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800 text-center text-gray-600 dark:text-gray-500 text-sm">
           <p>
             © 2024 SecureShare. All access is logged and monitored for security

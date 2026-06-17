@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   LogOut,
@@ -11,9 +12,15 @@ import {
   User,
   Sun,
   Moon,
+  Star,
+  Share2,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
+import NotificationBell from "./NotificationBell";
+import api from "../../services/api";
+import { initiateSocketConnection, disconnectSocket } from "../../services/socket";
 
 
 const Home: React.FC = () => {
@@ -22,39 +29,61 @@ const Home: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [user] = useState({
-    email: localStorage.getItem("userEmail") || "user@example.com",
+  const [user, setUser] = useState({
+    email: "Loading...",
     storage: 3.2,
     storageLimit: 10,
   });
-
-  const [theme, setTheme] = useState(
-  document.documentElement.classList.contains("dark")
-    ? "dark"
-    : "light"
+  const [theme, setTheme] = useState<string>(() =>
+    localStorage.getItem("theme") === "dark" ? "dark" : "light",
   );
 
   const toggleTheme = () => {
-    const isDark = document.documentElement.classList.contains("dark");
-
-    if (isDark) {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-      setTheme("light");
-    } else {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    if (next === "dark") {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-      setTheme("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
     }
+    localStorage.setItem("theme", next);
   };
 
+ 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme === "dark") {
+    const fetchUser = async () => {
+      try {
+        const response = await api.get("/auth", {
+          withCredentials: true,
+        });
+        if (response.data.user) {
+          setUser({
+            email: response.data.user.email,
+            storage: response.data.storageUsed || 3.2,
+            storageLimit: response.data.storageLimit || 10,
+          });
+          initiateSocketConnection(response.data.user.id);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+      }
+    };
+    fetchUser();
+    
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
-    };
+    }
+  }, [theme]);
+
+  useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
@@ -91,16 +120,36 @@ const Home: React.FC = () => {
       path: "/home/myfiles",
     },
     {
+      icon: <Star className="w-5 h-5" />,
+      label: "Favorites",
+      path: "/home/favorites",
+    },
+    {
       icon: <BarChart3 className="w-5 h-5" />,
       label: "Analytics",
       path: "/home/analytics",
     },
+    {
+      icon: <Share2 className="w-5 h-5" />,
+      label: "Shares",
+      path: "/home/shares",
+    },
+    {
+      icon: <SettingsIcon className="w-5 h-5" />,
+      label: "Settings",
+      path: "/home/settings",
+    },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await api.post("/logout");
+      disconnectSocket();
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      navigate("/login");
+    }
   };
 
   const handleNavigation = (path: string) => {
@@ -134,6 +183,7 @@ const Home: React.FC = () => {
         )}
 
         <div className={`flex items-center ${isOpen ? "gap-2" : "gap-1"}`}>
+          <NotificationBell />
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
@@ -194,8 +244,8 @@ const Home: React.FC = () => {
             </div>
             {isOpen && (
               <div className="ml-3 flex-1 overflow-hidden">
-                <div className="text-gray-900 dark:text-white font-medium truncate">
-                  {user.email.split('@')[0]}
+                <div className="text-white font-medium truncate">
+                  {user.email.split("@")[0]}
                 </div>
                 <div className="text-gray-500 dark:text-gray-400 text-sm truncate">
                   {user.email}
@@ -233,13 +283,16 @@ const Home: React.FC = () => {
                 </span>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="p-2 text-gray-400 hover:text-red-400 transition-colors"
-              title="Logout"
-            >
-              <LogOut size={20} />
-            </button>
+            <div className="flex items-center space-x-2">
+              <NotificationBell />
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                title="Logout"
+              >
+                <LogOut size={20} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -294,8 +347,8 @@ const Home: React.FC = () => {
                   <User className="w-7 h-7 text-white" />
                 </div>
                 <div className="ml-4">
-                  <div className="text-gray-900 dark:text-white font-semibold text-lg">
-                    {user.email.split('@')[0]}
+                  <div className="text-white font-semibold text-lg">
+                    {user.email.split("@")[0]}
                   </div>
                   <div className="text-gray-500 dark:text-gray-400 text-sm">
                     {user.email}

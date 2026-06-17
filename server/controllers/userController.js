@@ -1,6 +1,7 @@
 import User from "../models/UserSchema.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import redisClient, { redisAvailable } from "../config/redis.js";
 
 // REGISTER
 export const registerUser = async (req, res) => {
@@ -54,6 +55,7 @@ export const registerUser = async (req, res) => {
     );
 
     return res.status(201).json({
+      success: true,
       authToken,
       message: "User registered successfully",
       user: {
@@ -63,9 +65,8 @@ export const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Registration error:", error.message);
-
-    // Handle duplicate key errors (MongoDB)
+    // Handle duplicate key errors (MongoDB) — normalizer in globalErrorHandler also handles these,
+    // but we preserve this branch for the specific field-level message.
     if (error.code === 11000) {
       const field = Object.keys(error.keyValue)[0];
       return res.status(400).json({
@@ -79,85 +80,185 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ error: errors.join(", ") });
     }
 
-    res.status(500).json({
-      error: "Server Error",
-      message:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    next(error);
   }
 };
 
 // LOGIN
-export const loginUser = async (req, res) => {
+
+export const loginUser = async (req, res, next) => {
   const { email, password } = req.body;
 
   try {
-    // Validate input
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    // Find user by email (case insensitive)
-    const user = await User.findOne({
-      email: email.toLowerCase().trim(),
-    });
+    const normalizedEmail = email.toLowerCase().trim();
 
-    if (!user) {
-      return res.status(401).json({ error: "Invalid credentials" }); // 401 for unauthorized
+    // --- Redis cache read (with DB fallback) ---
+    let user = null;
+
+    if (redisAvailable) {
+      try {
+        const cached = await redisClient.get(`user:${normalizedEmail}`);
+        if (cached) {
+          user = JSON.parse(cached);
+          console.log("Cache hit: user record served from Redis.");
+        }
+      } catch (redisError) {
+        console.error("Redis fetch failed, falling back to primary DB:", redisError.message);
+        // Non-fatal — fall through to MongoDB
+      }
     }
 
-    // Compare password
+    // --- Primary DB fallback ---
+    if (!user) {
+      user = await User.findOne({ email: normalizedEmail });
+
+      // Warm the cache if Redis is healthy (non-blocking, non-fatal)
+      if (user && redisAvailable) {
+        try {
+          await redisClient.setEx(`user:${normalizedEmail}`, 300, JSON.stringify(user));
+        } catch (redisError) {
+          console.error("Redis cache-write failed (non-fatal):", redisError.message);
+        }
+      }
+    }
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     // Generate JWT token
-    const payload = {
-      user: {
-        id: user.id,
-        email: user.email,
-      },
-    };
+    const payload = { user: { id: user._id || user.id, email: user.email } };
 
-    const authToken = jwt.sign(
-      payload,
-      process.env.JWT_SECRET || process.env.JWT_TOKEN,
-      {
-        expiresIn: process.env.JWT_EXPIRES_IN || "1h",
-      }
-    );
+    if (user.twoFactorEnabled) {
+      // Generate temporary token for 2FA verification (valid for 5 mins)
+      const tempToken = jwt.sign(
+        { userId: user._id || user.id },
+        process.env.JWT_SECRET || process.env.JWT_TOKEN,
+        { expiresIn: "5m" }
+      );
+
+      return res.json({
+        success: true,
+        requires2FA: true,
+        tempToken,
+        message: "Two-factor authentication required",
+      });
+    }
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET || process.env.JWT_TOKEN, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    });
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     res.json({
-      authToken,
+      success: true,
       message: "Login successful",
+      authToken: token,
       user: {
-        id: user.id,
+        id: user._id || user.id,
         username: user.username,
         email: user.email,
       },
     });
   } catch (error) {
-    console.error("Login error:", error.message);
-    res.status(500).json({
-      error: "Server Error",
-      message:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    next(error);
   }
 };
 
-// GET USER
-export const getUser = async (req, res) => {
+
+// LOGOUT
+
+export const logoutUser = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const token = req.cookies?.token;
+
+    if (token) {
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.exp) {
+        const ttl = decoded.exp - Math.floor(Date.now() / 1000);
+        if (ttl > 0 && redisAvailable) {
+          // Wrap in try/catch — a Redis failure must never prevent a successful logout
+          try {
+            await redisClient.setEx(`blacklist:${token}`, ttl, "blocked");
+            console.log("✅ Token blacklisted in Redis.");
+          } catch (redisError) {
+            console.error("Redis blacklist write failed (non-fatal, logout proceeds):", redisError.message);
+          }
+        }
+      }
+    }
+
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+    });
+
+    res.status(200).json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// GET USER
+export const getUser = async (req, res, next) => {
+  try {
+    const cacheKey = `user:profile:${req.user.id}`;
+    let user = null;
+
+    // --- Redis cache read (with DB fallback) ---
+    if (redisAvailable) {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+          user = JSON.parse(cached);
+          console.log("Cache hit: user profile served from Redis.");
+        }
+      } catch (redisError) {
+        console.error("Redis fetch failed, falling back to primary DB:", redisError.message);
+        // Non-fatal — fall through to MongoDB
+      }
+    }
+
+    // --- Primary DB fallback ---
+    if (!user) {
+      user = await User.findById(req.user.id).select("-password");
+
+      // Warm the cache if Redis is healthy (non-blocking, non-fatal)
+      if (user && redisAvailable) {
+        try {
+          await redisClient.setEx(cacheKey, 120, JSON.stringify(user));
+        } catch (redisError) {
+          console.error("Redis cache-write failed (non-fatal):", redisError.message);
+        }
+      }
+    }
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
     res.json({
       user: {
-        id: user.id,
+        id: user._id || user.id,
         username: user.username,
         email: user.email,
         createdAt: user.createdAt,
@@ -165,16 +266,6 @@ export const getUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get user error:", error.message);
-
-    if (error.name === "CastError") {
-      return res.status(400).json({ error: "Invalid user ID" });
-    }
-
-    res.status(500).json({
-      error: "Server Error",
-      message:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    next(error);
   }
 };
