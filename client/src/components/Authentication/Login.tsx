@@ -325,25 +325,7 @@ const Login: React.FC = () => {
                   </div>
                 )}
 
-                {/* Password Field */}
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Password (Verification)
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
-                    <input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-12 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-                
+
                 <button
                   type="submit"
                   disabled={loading}
