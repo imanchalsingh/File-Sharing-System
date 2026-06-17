@@ -62,7 +62,27 @@ export const saveFileInfo = async (req, res, next) => {
       return next(error);
     }
 
-    // Check if file already exists
+
+// Check for duplicate files using checksum
+if (checksum) {
+  const duplicateFile = await File.findOne({
+    checksum,
+    userId,
+  });
+
+  if (duplicateFile) {
+    return res.status(200).json({
+      success: true,
+      duplicate: true,
+      warning: "Duplicate file detected",
+      existingFile: {
+        id: duplicateFile._id,
+        fileName: duplicateFile.fileName,
+      },
+    });
+  }
+}
+
     const existingFile = await File.findOne({ fileName, userId });
 
     if (existingFile) {
