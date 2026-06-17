@@ -14,7 +14,7 @@ import {
   X,
   File,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 interface UploadedFile {
   id: string;
@@ -857,18 +857,27 @@ const LandingPage: React.FC = () => {
 
               <ul className="space-y-3">
                 {[
-                  "Privacy Policy",
-                  "Terms of Service",
-                  "Help Center",
-                  "Documentation",
+                  { label: "Privacy Policy", to: "/privacy" },
+                  { label: "Terms of Service", to: "/terms" },
+                  { label: "Help Center", to: "#" },
+                  { label: "Documentation", to: "#" },
                 ].map((item) => (
-                  <li key={item}>
-                    <a
-                      href="#"
-                      className="text-gray-600 dark:text-gray-400 hover:text-[#9b59b6] transition-colors duration-200"
-                    >
-                      {item}
-                    </a>
+                  <li key={item.label}>
+                    {item.to.startsWith("/") ? (
+                      <Link
+                        to={item.to}
+                        className="text-gray-600 dark:text-gray-400 hover:text-[#9b59b6] transition-colors duration-200"
+                      >
+                        {item.label}
+                      </Link>
+                    ) : (
+                      
+                        <a href={item.to}
+                        className="text-gray-600 dark:text-gray-400 hover:text-[#9b59b6] transition-colors duration-200"
+                      >
+                        {item.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -906,6 +915,6 @@ const LandingPage: React.FC = () => {
       </footer>
     </div>
   );
-};;
+};
 
 export default LandingPage;
