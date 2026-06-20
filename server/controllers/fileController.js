@@ -1,6 +1,7 @@
 import File from "../models/File.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
+import { enqueueScan } from "../jobs/scanQueue.js";
 
 // ✅ Get user's all files
 export const getUserFiles = async (req, res) => {
@@ -110,6 +111,13 @@ export const saveFileInfo = async (req, res) => {
     
     await newFile.save();
     
+    // Enqueue file for malware scanning
+    try {
+      await enqueueScan(newFile._id);
+    } catch (queueErr) {
+      console.error("Failed to enqueue scan job:", queueErr);
+    }
+
     res.status(201).json({
       success: true,
       message: "File info saved successfully",
@@ -516,8 +524,9 @@ export const getSharedFileById = async (req, res) => {
     }
     
     const isPasswordProtected = !!file.password;
+    const isSafeToShare = file.scanStatus === "safe";
     
-    // Return metadata, but hide fileUrl if password protected
+    // Return metadata, but hide fileUrl if password protected or not safe
     const fileDetails = {
       _id: file._id,
       fileName: file.fileName,
@@ -527,11 +536,12 @@ export const getSharedFileById = async (req, res) => {
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
       isPasswordProtected,
+      scanStatus: file.scanStatus,
       owner: file.userId ? { username: file.userId.username } : null,
       currentVersion: file.currentVersion || 1,
-      // Only include fileUrl and versions if NOT password protected
-      fileUrl: isPasswordProtected ? null : file.fileUrl,
-      versions: isPasswordProtected 
+      // Only include fileUrl and versions if NOT password protected and file is safe
+      fileUrl: (isPasswordProtected || !isSafeToShare) ? null : file.fileUrl,
+      versions: (isPasswordProtected || !isSafeToShare)
         ? file.versions.map(v => ({ version: v.version, uploadedAt: v.uploadedAt, fileSize: v.fileSize }))
         : file.versions
     };
@@ -560,6 +570,9 @@ export const verifySharedFilePassword = async (req, res) => {
     }
     
     if (!file.password) {
+      if (file.scanStatus !== "safe") {
+        return res.status(403).json({ error: "File is not safe for sharing. Scan status: " + file.scanStatus });
+      }
       return res.json({
         success: true,
         fileUrl: file.fileUrl,
@@ -570,6 +583,10 @@ export const verifySharedFilePassword = async (req, res) => {
     const isMatch = await bcrypt.compare(password, file.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid password" });
+    }
+    
+    if (file.scanStatus !== "safe") {
+      return res.status(403).json({ error: "File is not safe for sharing. Scan status: " + file.scanStatus });
     }
     
     res.json({

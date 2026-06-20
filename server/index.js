@@ -13,6 +13,7 @@ import analyticsRoutes from "./routes/analytics.js";
 import fileRoutes from "./routes/files.js";
 import shareRoutes from "./routes/shares.js";
 import { startExpirationJob } from "./jobs/expirationJob.js";
+import { startScanWorker } from "./jobs/scanWorker.js";
 import {connectRedis} from "./config/redis.js";
 
 const app = express();
@@ -35,6 +36,7 @@ connectDB();
 connectRedis();
 // Start background jobs
 startExpirationJob();
+startScanWorker();
 
 app.use(express.json());
 app.use(cookieParser()); 

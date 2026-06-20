@@ -48,6 +48,7 @@ interface TrackedFile {
   downloadHistory: Array<{ timestamp: string }>;
   viewHistory: Array<{ timestamp: string }>;
   password?: string;
+  scanStatus?: string;
 }
 
 const MyFiles: React.FC = () => {
@@ -75,6 +76,10 @@ const MyFiles: React.FC = () => {
   const [passwordValue, setPasswordValue] = useState("");
   const [isPasswordModalLoading, setIsPasswordModalLoading] = useState(false);
 
+  // Share Modal state
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedFileForShare, setSelectedFileForShare] = useState<{ _id: string, fileName: string, fileUrl: string } | null>(null);
+
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
 
   // ✅ UPDATED: Load files from BACKEND first, localStorage as fallback
@@ -101,6 +106,7 @@ const MyFiles: React.FC = () => {
             currentVersion: file.currentVersion,
             tags: file.tags || [],
             password: file.password,
+            scanStatus: file.scanStatus || "uploaded",
           }));
           setFiles(backendFiles);
           setLoading(false);
@@ -134,6 +140,7 @@ const MyFiles: React.FC = () => {
                 viewHistory: file.viewHistory || [],
                 tags: file.tags || [],
                 password: file.password,
+                scanStatus: file.scanStatus || "uploaded",
               }));
               setFiles(backendFiles);
               setLoading(false);
@@ -183,6 +190,7 @@ const MyFiles: React.FC = () => {
           currentVersion: file.currentVersion,
           tags: file.tags || [],
           password: file.password,
+          scanStatus: file.scanStatus || "uploaded",
         }));
         setFiles(backendFiles);
       }
@@ -447,6 +455,7 @@ const MyFiles: React.FC = () => {
           shareHistory: [],
           downloadHistory: [],
           viewHistory: [],
+          scanStatus: "uploaded",
         };
 
         uploadedFiles.push(newFile);
@@ -562,8 +571,14 @@ const MyFiles: React.FC = () => {
     fileId: string,
     fileUrl: string,
     fileName: string,
+    scanStatus?: string,
   ) => {
     try {
+      if (scanStatus && scanStatus !== "safe") {
+        toast.error(`Cannot download file. Scan status: ${scanStatus}`);
+        return;
+      }
+      
       // Track download to backend first
       await trackDownload(fileId, fileName, fileUrl);
 
@@ -1113,24 +1128,32 @@ formatFileSize
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDownload(file.id, file.url, file.name);
+                          if (file.scanStatus !== "safe") {
+                            toast.error(`Cannot download file. Status: ${file.scanStatus}`);
+                            return;
+                          }
+                          handleDownload(file.id, file.url, file.name, file.scanStatus);
                         }}
-                        className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
-                        title="Download"
+                        className={`p-2 rounded-full text-white ${file.scanStatus === 'safe' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-500 cursor-not-allowed'}`}
+                        title={file.scanStatus === 'safe' ? "Download" : "Scan in progress or failed"}
                       >
                         <Download className="w-4 h-4" />
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (file.scanStatus !== "safe") {
+                            toast.error(`Cannot share file. Status: ${file.scanStatus}`);
+                            return;
+                          }
                           const f = files.find(fi => fi.id === file.id);
                           if (f) {
                             setSelectedFileForShare({ _id: f.id, fileName: f.name, fileUrl: f.url });
                             setShareModalOpen(true);
                           }
                         }}
-                        className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
-                        title="Share"
+                        className={`p-2 rounded-full text-white ${file.scanStatus === 'safe' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-500 cursor-not-allowed'}`}
+                        title={file.scanStatus === 'safe' ? "Share" : "Scan in progress or failed"}
                       >
                         <Share2 className="w-4 h-4" />
                       </button>
@@ -1190,6 +1213,19 @@ formatFileSize
                           {file.name}
                         </h3>
                       </div>
+                      {file.scanStatus && (
+                        <span 
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full mr-1 shrink-0 ${
+                            file.scanStatus === 'safe' ? 'bg-green-500/20 text-green-400' :
+                            file.scanStatus === 'scanning' ? 'bg-blue-500/20 text-blue-400' :
+                            file.scanStatus === 'uploaded' ? 'bg-gray-500/20 text-gray-400' :
+                            'bg-red-500/20 text-red-400'
+                          }`}
+                          title={`Scan Status: ${file.scanStatus}`}
+                        >
+                          {file.scanStatus}
+                        </span>
+                      )}
                       {file.password && (
                         <span title="Password Protected">
                           <Lock className="w-3.5 h-3.5 text-yellow-400 shrink-0 ml-1" />
@@ -1298,6 +1334,19 @@ formatFileSize
                             <div className="text-white font-medium truncate max-w-[200px]">
                               {file.name}
                             </div>
+                            {file.scanStatus && (
+                              <span 
+                                className={`text-[10px] px-1.5 py-0.5 rounded-full ml-2 shrink-0 ${
+                                  file.scanStatus === 'safe' ? 'bg-green-500/20 text-green-400' :
+                                  file.scanStatus === 'scanning' ? 'bg-blue-500/20 text-blue-400' :
+                                  file.scanStatus === 'uploaded' ? 'bg-gray-500/20 text-gray-400' :
+                                  'bg-red-500/20 text-red-400'
+                                }`}
+                                title={`Scan Status: ${file.scanStatus}`}
+                              >
+                                {file.scanStatus}
+                              </span>
+                            )}
                             {file.password && (
                               <span title="Password Protected">
                                 <Lock className="w-3.5 h-3.5 text-yellow-400 shrink-0 ml-1.5" />
@@ -1339,23 +1388,31 @@ formatFileSize
                     <div className="col-span-2">
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() =>
-                            handleDownload(file.id, file.url, file.name)
-                          }
+                          onClick={() => {
+                            if (file.scanStatus !== "safe") {
+                              toast.error(`Cannot download. Status: ${file.scanStatus}`);
+                              return;
+                            }
+                            handleDownload(file.id, file.url, file.name, file.scanStatus);
+                          }}
                           className="p-1.5 hover:bg-gray-700 rounded"
                           title="Download"
                         >
-                          <Download className="w-4 h-4 text-gray-400 hover:text-white" />
+                          <Download className={`w-4 h-4 ${file.scanStatus === 'safe' ? 'text-gray-400 hover:text-white' : 'text-gray-600'}`} />
                         </button>
                         <button
                           onClick={() => {
+                            if (file.scanStatus !== "safe") {
+                              toast.error(`Cannot share. Status: ${file.scanStatus}`);
+                              return;
+                            }
                             setSelectedFileForShare({ _id: file.id, fileName: file.name, fileUrl: file.url });
                             setShareModalOpen(true);
                           }}
                           className="p-1.5 hover:bg-gray-700 rounded"
                           title="Share"
                         >
-                          <Share2 className="w-4 h-4 text-gray-400 hover:text-white" />
+                          <Share2 className={`w-4 h-4 ${file.scanStatus === 'safe' ? 'text-gray-400 hover:text-white' : 'text-gray-600'}`} />
                         </button>
                         <button
                           onClick={() => setShowFileStats(file.id)}
@@ -1813,6 +1870,18 @@ formatFileSize
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Share Modal */}
+      {shareModalOpen && selectedFileForShare && (
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={() => {
+            setShareModalOpen(false);
+            setSelectedFileForShare(null);
+          }}
+          file={selectedFileForShare}
+        />
+      )}
     </div>
   );
 };

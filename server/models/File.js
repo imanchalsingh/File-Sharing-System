@@ -91,6 +91,11 @@ const fileSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    scanStatus: {
+      type: String,
+      enum: ['uploaded', 'scanning', 'safe', 'infected', 'error'],
+      default: 'uploaded',
+    },
   },
   {
     timestamps: true,
