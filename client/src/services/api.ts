@@ -157,6 +157,7 @@ export const shareApi = {
     fileId: string;
     expiresAt?: string | null;
     maxAccessCount?: number | null;
+    slug?: string;
   }) => {
     const response = await api.post('/api/shares', data);
     return response.data;
@@ -167,7 +168,7 @@ export const shareApi = {
     return response.data;
   },
 
-  updateShareLink: async (shareId: string, data: { expiresAt?: string }) => {
+  updateShareLink: async (shareId: string, data: { expiresAt?: string; maxAccessCount?: number; slug?: string }) => {
     const response = await api.put(`/api/shares/${shareId}`, data);
     return response.data;
   },

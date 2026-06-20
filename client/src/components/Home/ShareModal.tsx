@@ -25,6 +25,7 @@ interface ShareModalProps {
 interface ShareLink {
   _id: string;
   token: string;
+  slug?: string;
   expiresAt: string | null;
   maxAccessCount: number | null;
   accessCount: number;
@@ -149,6 +150,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
     toLocalDateTimeValue(new Date(Date.now() + 24 * 60 * 60 * 1000))
   );
   const [maxAccess, setMaxAccess] = useState<string>("");
+  const [slug, setSlug] = useState<string>("");
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [existingShares, setExistingShares] = useState<ShareLink[]>([]);
@@ -174,6 +176,8 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
       fetchShares();
       setCreatedLink(null);
       setCopied(null);
+      setSlug("");
+      setMaxAccess("");
     }
   }, [isOpen, fetchShares]);
 
@@ -192,9 +196,10 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
         fileId: file._id,
         expiresAt,
         maxAccessCount: maxAccess ? parseInt(maxAccess, 10) : null,
+        slug: slug.trim() || undefined,
       });
 
-      const token = data.share?.token || data.token;
+      const token = data.share?.slug || data.share?.token || data.token;
       const link = `${window.location.origin}/s/${token}`;
       setCreatedLink(link);
       toast.success("Share link created successfully!");
@@ -234,6 +239,29 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
       fetchShares();
     } catch {
       toast.error("Failed to delete share link");
+    }
+  };
+
+  const handleEditSlug = async (shareId: string, currentSlug: string | undefined) => {
+    const newSlug = window.prompt(
+      "Enter new custom URL (letters, numbers, hyphens only).\nLeave blank to remove the custom URL and revert to token.",
+      currentSlug || ""
+    );
+    if (newSlug === null) return; // Cancelled
+    
+    const sanitizedSlug = newSlug.toLowerCase().replace(/[^a-z0-9-]/g, "");
+
+    try {
+      await shareApi.updateShareLink(shareId, { slug: sanitizedSlug });
+      toast.success("Custom link updated successfully");
+      fetchShares();
+      // Update createdLink if we were editing it
+      if (createdLink && createdLink.includes(shareId)) { // Rough check, since we don't map createdLink to shareId easily
+         // To be safe, just clear it or let it be
+         setCreatedLink(null);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to update custom link");
     }
   };
 
@@ -343,6 +371,34 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
                 </AnimatePresence>
               </div>
 
+              {/* ── Custom Link Slug ── */}
+              <div>
+                <label
+                  htmlFor="share-custom-slug"
+                  className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                >
+                  <Link className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+                  Custom Link <span className="font-normal text-gray-400">(optional)</span>
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-4 text-gray-500 dark:text-gray-400 text-sm font-mono select-none">
+                    /s/
+                  </span>
+                  <input
+                    id="share-custom-slug"
+                    type="text"
+                    placeholder="my-project"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                    maxLength={32}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/30 outline-none transition-all font-mono"
+                  />
+                </div>
+                {slug && slug.length < 3 && (
+                  <p className="mt-1 text-xs text-yellow-500">Must be at least 3 characters long.</p>
+                )}
+              </div>
+
               {/* ── Max Access Count ── */}
               <div>
                 <label
@@ -450,7 +506,8 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                     {existingShares.map((share) => {
                       const status = getStatusInfo(share);
-                      const shareUrl = `${window.location.origin}/s/${share.token}`;
+                      const identifier = share.slug || share.token;
+                      const shareUrl = `${window.location.origin}/s/${identifier}`;
                       return (
                         <motion.div
                           key={share._id}
@@ -464,8 +521,8 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
                           {/* Top row: token + status badge */}
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <code className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/60 px-2 py-0.5 rounded">
-                                {share.token.slice(0, 12)}…
+                              <code className="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/60 px-2 py-0.5 rounded" title={identifier}>
+                                {identifier.length > 15 ? `${identifier.slice(0, 15)}…` : identifier}
                               </code>
                               <span
                                 className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${status.bg} ${status.color} ${status.border}`}
@@ -513,6 +570,22 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
                               )}
                               Copy
                             </button>
+
+                            {share.status !== "revoked" &&
+                              !(
+                                share.expiresAt &&
+                                new Date(share.expiresAt).getTime() < Date.now()
+                              ) && (
+                                <button
+                                  id={`share-edit-${share._id}`}
+                                  onClick={() => handleEditSlug(share._id, share.slug)}
+                                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                  title="Edit custom link"
+                                >
+                                  <Link className="w-3 h-3" />
+                                  Edit
+                                </button>
+                              )}
 
                             {share.status !== "revoked" &&
                               !(

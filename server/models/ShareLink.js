@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const shareLinkSchema = new mongoose.Schema({
   token:          { type: String, required: true, unique: true, index: true },
+  slug:           { type: String, unique: true, sparse: true, trim: true, lowercase: true },
   fileId:         { type: mongoose.Schema.Types.ObjectId, ref: 'File', required: true },
   userId:         { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   expiresAt:      { type: Date, default: null },       // null = never expires

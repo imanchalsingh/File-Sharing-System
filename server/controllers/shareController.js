@@ -11,11 +11,28 @@ import {
 // POST /api/shares - Create a new share link
 export const createShareLink = async (req, res, next) => {
   try {
-    const { fileId, expiresAt, maxAccessCount } = req.body;
+    const { fileId, expiresAt, maxAccessCount, slug } = req.body;
     const userId = req.user.id;
 
     if (!fileId) {
       return res.status(400).json({ success: false, message: 'fileId is required' });
+    }
+
+    let finalSlug = undefined;
+    if (slug) {
+      finalSlug = slug.trim().toLowerCase();
+      
+      if (!/^[a-z0-9-]+$/.test(finalSlug)) {
+        return res.status(400).json({ success: false, message: 'Custom URL can only contain letters, numbers, and hyphens' });
+      }
+      if (finalSlug.length < 3 || finalSlug.length > 32) {
+        return res.status(400).json({ success: false, message: 'Custom URL must be between 3 and 32 characters long' });
+      }
+      
+      const reservedWords = ['admin', 'api', 'login', 'dashboard', 'settings', 's', 'shared', 'files', 'users', 'auth'];
+      if (reservedWords.includes(finalSlug)) {
+        return res.status(400).json({ success: false, message: 'This custom URL is reserved and cannot be used' });
+      }
     }
 
     // Verify file ownership
@@ -30,6 +47,7 @@ export const createShareLink = async (req, res, next) => {
 
     const shareLink = new ShareLink({
       token,
+      slug: finalSlug,
       fileId,
       userId,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
@@ -43,13 +61,14 @@ export const createShareLink = async (req, res, next) => {
     file.shareHistory.push({ timestamp: new Date(), source: 'link' });
     await file.save();
 
-    const shareUrl = `${process.env.SHARE_BASE_URL || 'http://localhost:5173/s'}/${token}`;
+    const shareUrl = `${process.env.SHARE_BASE_URL || 'http://localhost:5173/s'}/${shareLink.slug || token}`;
 
     res.status(201).json({
       success: true,
       share: {
         _id: shareLink._id,
         token: shareLink.token,
+        slug: shareLink.slug,
         url: shareUrl,
         expiresAt: shareLink.expiresAt,
         maxAccessCount: shareLink.maxAccessCount,
@@ -58,6 +77,9 @@ export const createShareLink = async (req, res, next) => {
       },
     });
   } catch (error) {
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.slug) {
+      return res.status(409).json({ success: false, message: 'This custom URL is already taken' });
+    }
     next(error);
   }
 };
@@ -81,7 +103,7 @@ export const getShareLinks = async (req, res, next) => {
     const baseUrl = process.env.SHARE_BASE_URL || 'http://localhost:5173/s';
     const sharesWithUrls = shares.map((share) => ({
       ...share,
-      url: `${baseUrl}/${share.token}`,
+      url: `${baseUrl}/${share.slug || share.token}`,
     }));
 
     res.json({ success: true, shares: sharesWithUrls });
@@ -94,7 +116,7 @@ export const getShareLinks = async (req, res, next) => {
 export const updateShareLink = async (req, res, next) => {
   try {
     const { shareId } = req.params;
-    const { expiresAt, maxAccessCount } = req.body;
+    const { expiresAt, maxAccessCount, slug } = req.body;
     const userId = req.user.id;
 
     const share = await ShareLink.findOne({ _id: shareId, userId });
@@ -116,6 +138,28 @@ export const updateShareLink = async (req, res, next) => {
       share.maxAccessCount = maxAccessCount;
     }
 
+    if (slug !== undefined) {
+      if (slug) {
+        const finalSlug = slug.trim().toLowerCase();
+        
+        if (!/^[a-z0-9-]+$/.test(finalSlug)) {
+          return res.status(400).json({ success: false, message: 'Custom URL can only contain letters, numbers, and hyphens' });
+        }
+        if (finalSlug.length < 3 || finalSlug.length > 32) {
+          return res.status(400).json({ success: false, message: 'Custom URL must be between 3 and 32 characters long' });
+        }
+        
+        const reservedWords = ['admin', 'api', 'login', 'dashboard', 'settings', 's', 'shared', 'files', 'users', 'auth'];
+        if (reservedWords.includes(finalSlug)) {
+          return res.status(400).json({ success: false, message: 'This custom URL is reserved and cannot be used' });
+        }
+        share.slug = finalSlug;
+      } else {
+        share.slug = undefined;
+        share.$unset('slug');
+      }
+    }
+
     // Reactivate if it was expired and new date is in the future
     if (share.status === 'expired' && share.expiresAt && share.expiresAt > new Date()) {
       share.status = 'active';
@@ -125,6 +169,9 @@ export const updateShareLink = async (req, res, next) => {
 
     res.json({ success: true, share });
   } catch (error) {
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.slug) {
+      return res.status(409).json({ success: false, message: 'This custom URL is already taken' });
+    }
     next(error);
   }
 };
@@ -221,7 +268,7 @@ export const accessSharedFile = async (req, res, next) => {
   try {
     const { token } = req.params;
 
-    const share = await ShareLink.findOne({ token }).populate('fileId', 'fileName fileUrl fileType fileSize fileSizeBytes');
+    const share = await ShareLink.findOne({ $or: [{ token }, { slug: token }] }).populate('fileId', 'fileName fileUrl fileType fileSize fileSizeBytes');
     if (!share) {
       return res.status(404).json({ success: false, error: 'not_found', message: 'Share link not found' });
     }
@@ -318,7 +365,7 @@ export const trackShareDownload = async (req, res, next) => {
   try {
     const { token } = req.params;
 
-    const share = await ShareLink.findOne({ token });
+    const share = await ShareLink.findOne({ $or: [{ token }, { slug: token }] });
     if (!share) {
       return res.status(404).json({ success: false, message: 'Share link not found' });
     }
