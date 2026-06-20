@@ -14,6 +14,8 @@ import fileRoutes from "./routes/files.js";
 import shareRoutes from "./routes/shares.js";
 import { startExpirationJob } from "./jobs/expirationJob.js";
 import { startScanWorker } from "./jobs/scanWorker.js";
+import { startWebhookWorker } from "./jobs/webhookWorker.js";
+import webhookRoutes from "./routes/webhooks.js";
 import {connectRedis} from "./config/redis.js";
 
 const app = express();
@@ -37,6 +39,7 @@ connectRedis();
 // Start background jobs
 startExpirationJob();
 startScanWorker();
+startWebhookWorker();
 
 app.use(express.json());
 app.use(cookieParser()); 
@@ -46,6 +49,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/track", analyticsRoutes);
 app.use("/api/files", fileRoutes);
 app.use("/api/shares", shareRoutes);
+app.use("/api/webhooks", webhookRoutes);
 app.use("/", router);
 
 // Error handling middleware

@@ -2,6 +2,7 @@ import File from "../models/File.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { enqueueScan } from "../jobs/scanQueue.js";
+import { dispatchWebhookEvent } from "../jobs/webhookQueue.js";
 
 // ✅ Get user's all files
 export const getUserFiles = async (req, res) => {
@@ -150,6 +151,15 @@ export const updateShareCount = async (req, res) => {
     
     await file.save();
     
+    try {
+      await dispatchWebhookEvent(file.userId, "file_shared", {
+        fileId: file._id,
+        fileName: file.fileName,
+        shareCount: file.shareCount,
+        source
+      });
+    } catch (e) {}
+    
     res.json({
       success: true,
       message: "Share count updated",
@@ -180,6 +190,14 @@ export const updateDownloadCount = async (req, res) => {
     
     await file.save();
     
+    try {
+      await dispatchWebhookEvent(file.userId, "download_completed", {
+        fileId: file._id,
+        fileName: file.fileName,
+        downloadCount: file.downloadCount
+      });
+    } catch (e) {}
+    
     res.json({
       success: true,
       message: "Download count updated",
@@ -209,6 +227,14 @@ export const updateViewCount = async (req, res) => {
     file.lastAccessed = new Date();
     
     await file.save();
+    
+    try {
+      await dispatchWebhookEvent(file.userId, "link_accessed", {
+        fileId: file._id,
+        fileName: file.fileName,
+        viewCount: file.viewCount
+      });
+    } catch (e) {}
     
     res.json({
       success: true,
