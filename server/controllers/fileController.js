@@ -1,6 +1,11 @@
 import File from "../models/File.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
+import { Readable } from "stream";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const { ZipArchive } = require("archiver");
+
 
 // ✅ Get user's all files
 export const getUserFiles = async (req, res, next) => {
@@ -324,6 +329,102 @@ export const bulkDeleteFiles = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+// ✅ Bulk download files as ZIP
+export const bulkDownloadFiles = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { fileIds } = req.body;
+
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+      const error = new Error("No file IDs provided");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (fileIds.length > 50) {
+      const error = new Error("Maximum of 50 files can be downloaded at once");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const files = await File.find({
+      _id: { $in: fileIds },
+      userId,
+    });
+
+    if (files.length === 0) {
+      const error = new Error("No valid files found for download");
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    // Set headers for ZIP download
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="bulk_download_${Date.now()}.zip"`
+    );
+
+    const archive = new ZipArchive({
+      zlib: { level: 5 }, // Moderate compression for speed
+    });
+
+    archive.on("error", function (err) {
+      console.error("Archive error:", err);
+      if (!res.headersSent) {
+        res.status(500).end("Error generating ZIP archive.");
+      } else {
+        res.end();
+      }
+    });
+
+    // Pipe archive data to the response
+    archive.pipe(res);
+
+    const fileNamesSeen = new Set();
+
+    for (const file of files) {
+      if (!file.fileUrl) continue;
+
+      try {
+        const response = await fetch(file.fileUrl);
+        if (!response.ok) {
+          console.warn(`Failed to fetch ${file.fileUrl}: ${response.statusText}`);
+          continue;
+        }
+
+        const nodeStream = Readable.fromWeb(response.body);
+
+        // Handle duplicate file names in the zip
+        let finalName = file.fileName;
+        let counter = 1;
+        while (fileNamesSeen.has(finalName)) {
+          const nameParts = file.fileName.split('.');
+          const ext = nameParts.length > 1 ? `.${nameParts.pop()}` : '';
+          const base = nameParts.join('.');
+          finalName = `${base} (${counter})${ext}`;
+          counter++;
+        }
+        fileNamesSeen.add(finalName);
+
+        archive.append(nodeStream, { name: finalName });
+      } catch (err) {
+        console.error(`Error appending file ${file.fileName}:`, err);
+      }
+    }
+
+    await archive.finalize();
+
+  } catch (error) {
+    if (!res.headersSent) {
+      next(error);
+    } else {
+      console.error("Error during bulk download stream:", error);
+      res.end();
+    }
   }
 };
 

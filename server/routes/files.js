@@ -18,6 +18,7 @@ import {
   updateViewCount,
   deleteFile,
   bulkDeleteFiles,
+  bulkDownloadFiles,
   getFileStats,
   getFileVersions,
   restoreFileVersion,
@@ -74,6 +75,9 @@ router.delete("/:id", deleteFile);
 
 // Bulk delete
 router.delete("/bulk-delete", bulkDeleteFiles);
+
+// Bulk download
+router.post("/bulk-download", downloadLimiter, bulkDownloadFiles);
 
 // Get file versions
 router.get("/:id/versions", getFileVersions);

@@ -689,46 +689,45 @@ const MyFiles: React.FC = () => {
 
     setIsDownloadingZip(true);
     try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-
-      // 1. Fetch all blobs in parallel
-      const blobs = await Promise.all(
-        selectedFiles.map(async (fileId) => {
-          const file = files.find((f) => f.id === fileId);
-          if (!file) throw new Error("File not found");
-
-          // Track download to backend
-          await trackDownload(file.id, file.name, file.url);
-
-          const response = await fetch(file.url);
-          const blob = await response.blob();
-          return { name: file.name, blob };
-        })
-      );
-
-      // 2. Add to zip with de-duplication
-      const nameCounts: { [key: string]: number } = {};
-      blobs.forEach(({ name, blob }) => {
-        let uniqueName = name;
-        if (nameCounts[name] !== undefined) {
-          nameCounts[name]++;
-          const extIndex = name.lastIndexOf(".");
-          const baseName = extIndex !== -1 ? name.slice(0, extIndex) : name;
-          const ext = extIndex !== -1 ? name.slice(extIndex) : "";
-          uniqueName = `${baseName} (${nameCounts[name]})${ext}`;
-        } else {
-          nameCounts[name] = 0;
-        }
-        zip.file(uniqueName, blob);
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_URL}/api/files/bulk-download`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ fileIds: selectedFiles }),
       });
 
-      // 3. Generate and trigger download
-      const content = await zip.generateAsync({ type: "blob" });
-      const downloadUrl = window.URL.createObjectURL(content);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to download selected files.");
+      }
+
+      // Track downloads for all selected files locally
+      selectedFiles.forEach((fileId) => {
+        const file = files.find((f) => f.id === fileId);
+        if (file) {
+          trackDownload(file.id, file.name, file.url);
+        }
+      });
+
+      // Get the filename from the Content-Disposition header if possible
+      const disposition = response.headers.get("Content-Disposition");
+      let filename = `SecureShare_download_${Date.now()}.zip`;
+      if (disposition && disposition.indexOf("attachment") !== -1) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.download = `SecureShare_download_${Date.now()}.zip`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
