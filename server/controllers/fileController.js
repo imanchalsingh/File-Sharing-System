@@ -4,57 +4,88 @@ import mongoose from "mongoose";
 import { enqueueScan } from "../jobs/scanQueue.js";
 
 // ✅ Get user's all files
-export const getUserFiles = async (req, res) => {
+export const getUserFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    
+
     const files = await File.find({ userId })
       .sort({ createdAt: -1 })
       .select("-__v");
-    
+
     res.json({
       success: true,
       files,
       count: files.length,
     });
   } catch (error) {
-    console.error("Get user files error:", error);
-    res.status(500).json({ error: "Failed to fetch files" });
+    next(error);
   }
 };
 
 // ✅ Get single file by ID
-export const getFileById = async (req, res) => {
+export const getFileById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const file = await File.findOne({ _id: id, userId });
-    
+
     if (!file) {
-      return res.status(404).json({ error: "File not found" });
+      const error = new Error("File not found");
+      error.statusCode = 404;
+      return next(error);
     }
-    
+
     res.json({ success: true, file });
   } catch (error) {
-    console.error("Get file error:", error);
-    res.status(500).json({ error: "Failed to fetch file" });
+    next(error);
   }
 };
 
 // ✅ Save file info after upload
-export const saveFileInfo = async (req, res) => {
+export const saveFileInfo = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { fileName, fileUrl, fileType, fileSize, fileSizeBytes, checksum, tags, password } = req.body;
-    
+    const {
+      fileName,
+      fileUrl,
+      fileType,
+      fileSize,
+      fileSizeBytes,
+      checksum,
+      tags,
+      password,
+    } = req.body;
+
     if (!fileName || !fileUrl) {
-      return res.status(400).json({ error: "File name and URL are required" });
+      const error = new Error("File name and URL are required");
+      error.statusCode = 400;
+      return next(error);
     }
-    
-    // Check if file already exists
+
+
+// Check for duplicate files using checksum
+if (checksum) {
+  const duplicateFile = await File.findOne({
+    checksum,
+    userId,
+  });
+
+  if (duplicateFile) {
+    return res.status(200).json({
+      success: true,
+      duplicate: true,
+      warning: "Duplicate file detected",
+      existingFile: {
+        id: duplicateFile._id,
+        fileName: duplicateFile.fileName,
+      },
+    });
+  }
+}
+
     const existingFile = await File.findOne({ fileName, userId });
-    
+
     if (existingFile) {
       // Archive the current state into versions array
       existingFile.versions.push({
@@ -65,7 +96,7 @@ export const saveFileInfo = async (req, res) => {
         checksum: existingFile.checksum,
         uploadedAt: existingFile.updatedAt || existingFile.createdAt,
       });
-      
+
       // Update with new file data
       existingFile.fileUrl = fileUrl;
       existingFile.fileType = fileType || existingFile.fileType;
@@ -73,9 +104,12 @@ export const saveFileInfo = async (req, res) => {
       existingFile.fileSizeBytes = fileSizeBytes || existingFile.fileSizeBytes;
       existingFile.checksum = checksum || existingFile.checksum;
       existingFile.currentVersion = (existingFile.currentVersion || 1) + 1;
-      
+
       await existingFile.save();
-      
+
+      const io = req.app.get("io");
+      if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", existingFile);
+
       return res.status(200).json({
         success: true,
         message: "File updated successfully as a new version",
@@ -99,7 +133,7 @@ export const saveFileInfo = async (req, res) => {
       userId,
       currentVersion: 1,
       tags: Array.isArray(tags) ? tags : [],
-      password: hashedPassword,     
+      password: hashedPassword,
       shareCount: 0,
       downloadCount: 0,
       viewCount: 0,
@@ -108,9 +142,8 @@ export const saveFileInfo = async (req, res) => {
       viewHistory: [],
       versions: [],
     });
-    
+
     await newFile.save();
-    
     // Enqueue file for malware scanning
     try {
       await enqueueScan(newFile._id);
@@ -118,162 +151,194 @@ export const saveFileInfo = async (req, res) => {
       console.error("Failed to enqueue scan job:", queueErr);
     }
 
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPLOADED", newFile);
+
     res.status(201).json({
       success: true,
       message: "File info saved successfully",
       file: newFile,
     });
   } catch (error) {
-    console.error("Save file info error:", error);
-    res.status(500).json({ error: "Failed to save file info" });
+    next(error);
   }
 };
 
 // ✅ Update file share count
-export const updateShareCount = async (req, res) => {
+export const updateShareCount = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { source = "direct_copy" } = req.body;
-    
+
     const file = await File.findById(id);
-    
+
     if (!file) {
-      return res.status(404).json({ error: "File not found" });
+      const error = new Error("File not found");
+      error.statusCode = 404;
+      return next(error);
     }
-    
+
     file.shareCount += 1;
     file.shareHistory.push({
       timestamp: new Date(),
       source,
     });
     file.lastAccessed = new Date();
-    
+
     await file.save();
-    
+
     res.json({
       success: true,
       message: "Share count updated",
       shareCount: file.shareCount,
     });
   } catch (error) {
-    console.error("Update share count error:", error);
-    res.status(500).json({ error: "Failed to update share count" });
+    next(error);
   }
 };
 
+import User from "../models/UserSchema.js";
+
 // ✅ Update file download count
-export const updateDownloadCount = async (req, res) => {
+export const updateDownloadCount = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const file = await File.findById(id);
-    
+
     if (!file) {
-      return res.status(404).json({ error: "File not found" });
+      const error = new Error("File not found");
+      error.statusCode = 404;
+      return next(error);
     }
-    
+
+    // Check user quota if authenticated user is downloading
+    if (req.user && req.user.id) {
+      const user = await User.findById(req.user.id);
+      if (user) {
+        const fileSizeBytes = file.fileSizeBytes || 0;
+        if (user.dailyBandwidth + fileSizeBytes > user.bandwidthLimit) {
+          const error = new Error(
+            "Daily bandwidth quota exceeded. Please try again tomorrow.",
+          );
+          error.statusCode = 429;
+          return next(error);
+        }
+        user.dailyBandwidth += fileSizeBytes;
+        await user.save();
+      }
+    }
+
     file.downloadCount += 1;
     file.downloadHistory.push({
       timestamp: new Date(),
     });
     file.lastAccessed = new Date();
-    
+
     await file.save();
-    
+
     res.json({
       success: true,
       message: "Download count updated",
       downloadCount: file.downloadCount,
     });
   } catch (error) {
-    console.error("Update download count error:", error);
-    res.status(500).json({ error: "Failed to update download count" });
+    next(error);
   }
 };
 
 // ✅ Update file view count
-export const updateViewCount = async (req, res) => {
+export const updateViewCount = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const file = await File.findById(id);
-    
+
     if (!file) {
-      return res.status(404).json({ error: "File not found" });
+      const error = new Error("File not found");
+      error.statusCode = 404;
+      return next(error);
     }
-    
+
     file.viewCount += 1;
     file.viewHistory.push({
       timestamp: new Date(),
     });
     file.lastAccessed = new Date();
-    
+
     await file.save();
-    
+
     res.json({
       success: true,
       message: "View count updated",
       viewCount: file.viewCount,
     });
   } catch (error) {
-    console.error("Update view count error:", error);
-    res.status(500).json({ error: "Failed to update view count" });
+    next(error);
   }
 };
 
 // ✅ Delete single file
-export const deleteFile = async (req, res) => {
+export const deleteFile = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const file = await File.findOneAndDelete({ _id: id, userId });
-    
+
     if (!file) {
-      return res.status(404).json({ error: "File not found" });
+      const error = new Error("File not found");
+      error.statusCode = 404;
+      return next(error);
     }
-    
+
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_DELETED", id);
+
     res.json({
       success: true,
       message: "File deleted successfully",
     });
   } catch (error) {
-    console.error("Delete file error:", error);
-    res.status(500).json({ error: "Failed to delete file" });
+    next(error);
   }
 };
 
 // ✅ Bulk delete files
-export const bulkDeleteFiles = async (req, res) => {
+export const bulkDeleteFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { fileIds } = req.body;
-    
+
     if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
-      return res.status(400).json({ error: "No file IDs provided" });
+      const error = new Error("No file IDs provided");
+      error.statusCode = 400;
+      return next(error);
     }
-    
+
     const result = await File.deleteMany({
       _id: { $in: fileIds },
       userId,
     });
-    
+
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILES_BULK_DELETED", fileIds);
+
     res.json({
       success: true,
       message: `${result.deletedCount} files deleted successfully`,
       deletedCount: result.deletedCount,
     });
   } catch (error) {
-    console.error("Bulk delete error:", error);
-    res.status(500).json({ error: "Failed to delete files" });
+    next(error);
   }
 };
 
 // ✅ Get file statistics for dashboard
-export const getFileStats = async (req, res) => {
+export const getFileStats = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    
+
     const totalFiles = await File.countDocuments({ userId });
     const totalShares = await File.aggregate([
       { $match: { userId } },
@@ -287,7 +352,7 @@ export const getFileStats = async (req, res) => {
       { $match: { userId } },
       { $group: { _id: null, total: { $sum: "$viewCount" } } },
     ]);
-    
+
     res.json({
       success: true,
       stats: {
@@ -298,23 +363,26 @@ export const getFileStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get file stats error:", error);
-    res.status(500).json({ error: "Failed to get file statistics" });
+    next(error);
   }
 };
 
 // ✅ Get file versions
-export const getFileVersions = async (req, res) => {
+export const getFileVersions = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
-    const file = await File.findOne({ _id: id, userId }).select("versions currentVersion fileName fileUrl fileSize fileSizeBytes uploadedAt updatedAt createdAt");
-    
+
+    const file = await File.findOne({ _id: id, userId }).select(
+      "versions currentVersion fileName fileUrl fileSize fileSizeBytes uploadedAt updatedAt createdAt",
+    );
+
     if (!file) {
-      return res.status(404).json({ error: "File not found" });
+      const error = new Error("File not found");
+      error.statusCode = 404;
+      return next(error);
     }
-    
+
     res.json({
       success: true,
       versions: file.versions,
@@ -325,33 +393,38 @@ export const getFileVersions = async (req, res) => {
         fileSize: file.fileSize,
         fileSizeBytes: file.fileSizeBytes,
         uploadedAt: file.updatedAt || file.createdAt,
-      }
+      },
     });
   } catch (error) {
-    console.error("Get file versions error:", error);
-    res.status(500).json({ error: "Failed to fetch file versions" });
+    next(error);
   }
 };
 
 // ✅ Restore a previous file version
-export const restoreFileVersion = async (req, res) => {
+export const restoreFileVersion = async (req, res, next) => {
   try {
     const { id, version } = req.params;
     const userId = req.user.id;
     const versionToRestore = parseInt(version, 10);
-    
+
     const file = await File.findOne({ _id: id, userId });
-    
+
     if (!file) {
-      return res.status(404).json({ error: "File not found" });
+      const error = new Error("File not found");
+      error.statusCode = 404;
+      return next(error);
     }
-    
-    const versionData = file.versions.find(v => v.version === versionToRestore);
-    
+
+    const versionData = file.versions.find(
+      (v) => v.version === versionToRestore,
+    );
+
     if (!versionData) {
-      return res.status(404).json({ error: "Version not found" });
+      const error = new Error("Version not found");
+      error.statusCode = 404;
+      return next(error);
     }
-    
+
     // Archive current active state
     file.versions.push({
       version: file.currentVersion || 1,
@@ -361,76 +434,80 @@ export const restoreFileVersion = async (req, res) => {
       checksum: file.checksum,
       uploadedAt: file.updatedAt || file.createdAt,
     });
-    
+
     // Restore the selected version data
     file.fileUrl = versionData.fileUrl;
     file.fileSize = versionData.fileSize;
     file.fileSizeBytes = versionData.fileSizeBytes;
     file.checksum = versionData.checksum;
     file.currentVersion = (file.currentVersion || 1) + 1; // Increment version number for the new state
-    
+
     await file.save();
-    
+
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
+
     res.json({
       success: true,
       message: "File version restored successfully",
       file,
     });
   } catch (error) {
-    console.error("Restore file version error:", error);
-    res.status(500).json({ error: "Failed to restore file version" });
+    next(error);
   }
 };
 
 // ✅ Toggle file favorite status
-export const toggleFavorite = async (req, res) => {
+export const toggleFavorite = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const file = await File.findOne({ _id: id, userId });
-    
+
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
-    
+
     file.isFavorite = !file.isFavorite;
     await file.save();
-    
+
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
+
     res.json({
       success: true,
-      message: file.isFavorite ? "File marked as favorite" : "File removed from favorites",
+      message: file.isFavorite
+        ? "File marked as favorite"
+        : "File removed from favorites",
       isFavorite: file.isFavorite,
     });
   } catch (error) {
-    console.error("Toggle favorite error:", error);
-    res.status(500).json({ error: "Failed to toggle favorite status" });
+    next(error);
   }
 };
 
 // ✅ Get all favorite files for user
-export const getFavoriteFiles = async (req, res) => {
+export const getFavoriteFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    
+
     const files = await File.find({ userId, isFavorite: true })
       .sort({ updatedAt: -1 })
       .select("-__v");
-    
+
     res.json({
       success: true,
       files,
       count: files.length,
     });
   } catch (error) {
-    console.error("Get favorites error:", error);
-    res.status(500).json({ error: "Failed to fetch favorite files" });
+    next(error);
   }
 };
 
-
 // ✅ Update file tags
-export const updateFileTags = async (req, res) => {
+export const updateFileTags = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -443,22 +520,24 @@ export const updateFileTags = async (req, res) => {
     const file = await File.findOneAndUpdate(
       { _id: id, userId },
       { tags },
-      { new: true }
+      { new: true },
     );
 
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
 
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
+
     res.json({ success: true, message: "Tags updated", tags: file.tags });
   } catch (error) {
-    console.error("Update tags error:", error);
-    res.status(500).json({ error: "Failed to update tags" });
+    next(error);
   }
 };
 
 // ✅ Get files by tag
-export const getFilesByTag = async (req, res) => {
+export const getFilesByTag = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { tag } = req.params;
@@ -470,13 +549,12 @@ export const getFilesByTag = async (req, res) => {
 
     res.json({ success: true, files, count: files.length });
   } catch (error) {
-    console.error("Get files by tag error:", error);
-    res.status(500).json({ error: "Failed to fetch files by tag" });
+    next(error);
   }
 };
 
 // ✅ Update file password protection
-export const updateFilePassword = async (req, res) => {
+export const updateFilePassword = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -495,38 +573,48 @@ export const updateFilePassword = async (req, res) => {
     }
 
     await file.save();
+
+    const io = req.app.get("io");
+    if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", file);
+
     res.json({
       success: true,
-      message: password ? "Password protection enabled" : "Password protection disabled",
-      isPasswordProtected: !!password
+      message: password
+        ? "Password protection enabled"
+        : "Password protection disabled",
+      isPasswordProtected: !!password,
     });
   } catch (error) {
-    console.error("Update password error:", error);
-    res.status(500).json({ error: "Failed to update password protection" });
+    next(error);
   }
 };
 
 // ✅ Get shared file details (public)
-export const getSharedFileById = async (req, res) => {
+export const getSharedFileById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     // Check if ID is a valid ObjectId first to prevent crash
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(404).json({ error: "File not found" });
     }
-    
+
     // Find file, populate user username/email if we want to show who shared it
     const file = await File.findById(id).populate("userId", "username email");
-    
+
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
-    
+
     const isPasswordProtected = !!file.password;
+<<<<<<< HEAD
     const isSafeToShare = file.scanStatus === "safe";
     
     // Return metadata, but hide fileUrl if password protected or not safe
+=======
+
+    // Return metadata, but hide fileUrl if password protected
+>>>>>>> main
     const fileDetails = {
       _id: file._id,
       fileName: file.fileName,
@@ -539,36 +627,47 @@ export const getSharedFileById = async (req, res) => {
       scanStatus: file.scanStatus,
       owner: file.userId ? { username: file.userId.username } : null,
       currentVersion: file.currentVersion || 1,
+<<<<<<< HEAD
       // Only include fileUrl and versions if NOT password protected and file is safe
       fileUrl: (isPasswordProtected || !isSafeToShare) ? null : file.fileUrl,
       versions: (isPasswordProtected || !isSafeToShare)
         ? file.versions.map(v => ({ version: v.version, uploadedAt: v.uploadedAt, fileSize: v.fileSize }))
         : file.versions
+=======
+      // Only include fileUrl and versions if NOT password protected
+      fileUrl: isPasswordProtected ? null : file.fileUrl,
+      versions: isPasswordProtected
+        ? file.versions.map((v) => ({
+            version: v.version,
+            uploadedAt: v.uploadedAt,
+            fileSize: v.fileSize,
+          }))
+        : file.versions,
+>>>>>>> main
     };
-    
+
     res.json({ success: true, file: fileDetails });
   } catch (error) {
-    console.error("Get shared file error:", error);
-    res.status(500).json({ error: "Failed to fetch shared file details" });
+    next(error);
   }
 };
 
 // ✅ Verify shared file password and get fileUrl
-export const verifySharedFilePassword = async (req, res) => {
+export const verifySharedFilePassword = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { password } = req.body;
-    
+
     if (!password) {
       return res.status(400).json({ error: "Password is required" });
     }
-    
+
     const file = await File.findById(id);
-    
+
     if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
-    
+
     if (!file.password) {
       if (file.scanStatus !== "safe") {
         return res.status(403).json({ error: "File is not safe for sharing. Scan status: " + file.scanStatus });
@@ -576,29 +675,30 @@ export const verifySharedFilePassword = async (req, res) => {
       return res.json({
         success: true,
         fileUrl: file.fileUrl,
-        versions: file.versions
+        versions: file.versions,
       });
     }
-    
+
     const isMatch = await bcrypt.compare(password, file.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid password" });
     }
+<<<<<<< HEAD
     
     if (file.scanStatus !== "safe") {
       return res.status(403).json({ error: "File is not safe for sharing. Scan status: " + file.scanStatus });
     }
     
+=======
+
+>>>>>>> main
     res.json({
       success: true,
       message: "Password verified",
       fileUrl: file.fileUrl,
-      versions: file.versions
+      versions: file.versions,
     });
   } catch (error) {
-    console.error("Verify password error:", error);
-    res.status(500).json({ error: "Verification failed" });
+    next(error);
   }
 };
-
-

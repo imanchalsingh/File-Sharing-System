@@ -1,5 +1,6 @@
 import express from 'express';
 import authenticateUser from '../middleware/authenticateUser.js';
+import { downloadLimiter } from '../middleware/rateLimiter.js';
 import {
   createShareLink,
   getShareLinks,
@@ -8,6 +9,8 @@ import {
   extendShareLink,
   deleteShareLink,
   accessSharedFile,
+  trackShareDownload,
+  getDownloadAnalytics,
   getExpiringShares,
   getUserNotifications as getNotifications,
   markNotificationRead as markRead,
@@ -17,14 +20,18 @@ import {
 
 const router = express.Router();
 
-// Public route - anyone with token can access
+// Public routes - anyone with token can access
 router.get('/access/:token', accessSharedFile);
+router.post('/download/:token', trackShareDownload);
+// Public route - anyone with token can access
+router.get('/access/:token', downloadLimiter, accessSharedFile);
 
 // All routes below require authentication
 router.use(authenticateUser);
 
 router.post('/', createShareLink);
 router.get('/expiring', getExpiringShares);
+router.get('/analytics/downloads', getDownloadAnalytics);
 router.get('/file/:fileId', getShareLinks);
 router.put('/:shareId', updateShareLink);
 router.put('/:shareId/revoke', revokeShareLink);

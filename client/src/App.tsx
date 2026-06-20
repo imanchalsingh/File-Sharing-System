@@ -13,8 +13,12 @@ import SharedFileAccess from "./components/SharedFileAccess";
 import ExpiredSharePage from "./components/ExpiredSharePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SharePage from "./components/Share/SharePage";
+import Settings from "./components/Home/Settings";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 const App: React.FC = () => {
   return (
@@ -44,16 +48,22 @@ const App: React.FC = () => {
           <Route path="analytics" element={<Analytics />} />
           <Route path="favorites" element={<Favorites />} />
           <Route path="shares" element={<ShareManager />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
 
         {/* Public Share Access Routes */}
         <Route path="/s/:token" element={<SharedFileAccess />} />
         <Route path="/expired" element={<ExpiredSharePage />} />
 
+        {/* Legal Pages */}
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+
         {/* Redirect unknown paths to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <ToastContainer position="top-right" autoClose={3000} />
+      <ScrollToTopButton />
     </>
   );
 };
