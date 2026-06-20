@@ -12,6 +12,7 @@ import cookieParser from "cookie-parser";
 import { v2 as cloudinary } from "cloudinary";
 import analyticsRoutes from "./routes/analytics.js";
 import fileRoutes from "./routes/files.js";
+import folderRoutes from "./routes/folders.js";
 import shareRoutes from "./routes/shares.js";
 import { startExpirationJob } from "./jobs/expirationJob.js";
 import { startUploadSessionCleanupJob } from "./jobs/uploadSessionCleanup.js";
@@ -57,6 +58,7 @@ app.use("/api", apiLimiter);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/track", analyticsRoutes);
 app.use("/api/files", fileRoutes);
+app.use("/api/folders", folderRoutes);
 app.use("/api/shares", shareRoutes);
 app.use("/", router);
 

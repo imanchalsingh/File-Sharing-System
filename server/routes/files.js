@@ -29,6 +29,7 @@ import {
   updateFilePassword,
   getSharedFileById,
   verifySharedFilePassword,
+  moveFile,
 } from "../controllers/fileController.js";
 
 const router = express.Router();
@@ -72,6 +73,9 @@ router.put("/:id/password", updateFilePassword);
 
 // Delete file
 router.delete("/:id", deleteFile);
+
+// Move file
+router.patch("/:id/move", moveFile);
 
 // Bulk delete
 router.delete("/bulk-delete", bulkDeleteFiles);

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { analyticsApi, fileApi, uploadApi } from "../../services/api";
+import { analyticsApi, fileApi, uploadApi, folderApi } from "../../services/api";
 import {
   uploadFileResumable,
   type UploadProgressState,
@@ -22,6 +22,12 @@ import {
   Image as ImageIcon,
   File,
   Folder,
+  FolderPlus,
+  FolderOpen,
+  FolderInput,
+  FolderOutput,
+  Edit2,
+  ChevronRight,
   CheckCircle,
   X,
   Grid,
@@ -69,6 +75,17 @@ interface TrackedFile {
 
 const MyFiles: React.FC = () => {
   const [files, setFiles] = useState<TrackedFile[]>([]);
+  const [folders, setFolders] = useState<any[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; name: string }[]>([
+    { id: null, name: "Root" }
+  ]);
+  const [showNewFolderModal, setShowNewFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showMoveModal, setShowMoveModal] = useState<{ type: "file" | "folder", id: string, currentParentId: string | null } | null>(null);
+  const [folderTree, setFolderTree] = useState<any[]>([]);
+  const [folderContextMenu, setFolderContextMenu] = useState<{ id: string, name: string } | null>(null);
+  
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState("All");
@@ -120,95 +137,88 @@ const MyFiles: React.FC = () => {
   }, []);
 
   // ✅ UPDATED: Load files from BACKEND first, localStorage as fallback
-  useEffect(() => {
-    const loadFiles = async () => {
-      setLoading(true);
-      try {
-        const data = await fileApi.getMyFiles();
-        if (data.files) {
-          const backendFiles = data.files.map((file: any) => ({
-            id: file._id,
-            name: file.fileName,
-            url: file.fileUrl,
-            type: file.fileType || "application",
-            size: file.fileSize || "0 KB",
-            uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
-            isFavorite: file.isFavorite || false,
-            shareCount: file.shareCount || 0,
-            downloadCount: file.downloadCount || 0,
-            viewCount: file.viewCount || 0,
-            shareHistory: file.shareHistory || [],
-            downloadHistory: file.downloadHistory || [],
-            viewHistory: file.viewHistory || [],
-            currentVersion: file.currentVersion,
-            tags: file.tags || [],
-            password: file.password,
-          }));
-          setFiles(backendFiles);
-          setLoading(false);
-          return;
-        }
-        // Try to fetch from backend
-        const token = localStorage.getItem("authToken");
-        if (token) {
-          const response = await fetch(`${API_URL}/api/files/my-files`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.files && data.files.length > 0) {
-              const backendFiles = data.files.map((file: any) => ({
-                id: file._id,
-                name: file.fileName,
-                url: file.fileUrl,
-                type: file.fileType || "application",
-                size: file.fileSize || "0 KB",
-                uploaded: new Date(file.createdAt).toLocaleDateString(),
-                isFavorite: file.isFavorite || false,
-                shareCount: file.shareCount || 0,
-                downloadCount: file.downloadCount || 0,
-                viewCount: file.viewCount || 0,
-                shareHistory: file.shareHistory || [],
-                downloadHistory: file.downloadHistory || [],
-                viewHistory: file.viewHistory || [],
-                tags: file.tags || [],
-                password: file.password,
-              }));
-              setFiles(backendFiles);
-              setLoading(false);
-              return;
-            }
-          }
-        }
-        
-        // Fallback to localStorage
-        const stored = localStorage.getItem("uploadedFiles");
-        if (stored) {
-          setFiles(JSON.parse(stored));
-        }
-      } catch (error) {
-        console.error("Error loading files:", error);
-        // Fallback to localStorage
-        const stored = localStorage.getItem("uploadedFiles");
-        if (stored) {
-          setFiles(JSON.parse(stored));
-        }
-      } finally {
-        setLoading(false);
+  const updateBreadcrumbs = (tree: any[], targetId: string | null) => {
+    if (!targetId) {
+      setBreadcrumbs([{ id: null, name: "Root" }]);
+      return;
+    }
+    const path: any[] = [];
+    let currentId = targetId;
+    while (currentId) {
+      const folder = tree.find((f: any) => f._id === currentId);
+      if (folder) {
+        path.unshift({ id: folder._id, name: folder.name });
+        currentId = folder.parentId;
+      } else {
+        break;
       }
-    };
+    }
+    setBreadcrumbs([{ id: null, name: "Root" }, ...path]);
+  };
 
-    loadFiles();
-  }, []);
+  const loadFolderData = async () => {
+    setLoading(true);
+    try {
+      const [treeData, contentsData] = await Promise.all([
+        folderApi.getTree().catch(() => ({ folders: [] })),
+        folderApi.getContents(currentFolderId).catch((err) => {
+          if (err.response?.status === 404 && currentFolderId !== null) {
+            toast.error("Folder not found. Redirecting to root.");
+            setCurrentFolderId(null);
+          }
+          return { subfolders: [], files: [] };
+        })
+      ]);
+
+      if (treeData.folders) {
+        setFolderTree(treeData.folders);
+        updateBreadcrumbs(treeData.folders, currentFolderId);
+      }
+
+      if (contentsData.subfolders) {
+        setFolders(contentsData.subfolders);
+      }
+
+      if (contentsData.files) {
+        const backendFiles = contentsData.files.map((file: any) => ({
+          id: file._id,
+          name: file.fileName,
+          url: file.fileUrl,
+          type: file.fileType || "application",
+          size: file.fileSize || "0 KB",
+          uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
+          isFavorite: file.isFavorite || false,
+          shareCount: file.shareCount || 0,
+          downloadCount: file.downloadCount || 0,
+          viewCount: file.viewCount || 0,
+          shareHistory: file.shareHistory || [],
+          downloadHistory: file.downloadHistory || [],
+          viewHistory: file.viewHistory || [],
+          currentVersion: file.currentVersion,
+          tags: file.tags || [],
+          password: file.password,
+        }));
+        setFiles(backendFiles);
+      }
+    } catch (error) {
+      console.error("Error loading folder contents:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFolderData();
+  }, [currentFolderId]);
 
   const refreshFiles = async () => {
     try {
-      const data = await fileApi.getMyFiles();
-      if (data.files) {
-        const backendFiles = data.files.map((file: any) => ({
+      const contentsData = await folderApi.getContents(currentFolderId);
+      if (contentsData.subfolders) {
+        setFolders(contentsData.subfolders);
+      }
+      if (contentsData.files) {
+        const backendFiles = contentsData.files.map((file: any) => ({
           id: file._id,
           name: file.fileName,
           url: file.fileUrl,
@@ -230,6 +240,58 @@ const MyFiles: React.FC = () => {
       }
     } catch (error) {
       console.error("Error refreshing files:", error);
+    }
+
+  };
+
+  const handleCreateFolder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFolderName.trim()) return;
+    try {
+      await folderApi.create(newFolderName, currentFolderId);
+      setShowNewFolderModal(false);
+      setNewFolderName("");
+      toast.success("Folder created successfully");
+      loadFolderData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to create folder");
+    }
+  };
+
+  const handleRenameFolder = async (id: string, newName: string) => {
+    try {
+      await folderApi.rename(id, newName);
+      toast.success("Folder renamed successfully");
+      loadFolderData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to rename folder");
+    }
+  };
+
+  const handleDeleteFolder = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this folder? Its contents will be moved to the parent folder.")) return;
+    try {
+      await folderApi.delete(id, false);
+      toast.success("Folder deleted successfully");
+      loadFolderData();
+    } catch (error: any) {
+      toast.error("Failed to delete folder");
+    }
+  };
+
+  const handleMoveSubmit = async (targetFolderId: string | null) => {
+    if (!showMoveModal) return;
+    try {
+      if (showMoveModal.type === "folder") {
+        await folderApi.move(showMoveModal.id, targetFolderId);
+      } else {
+        await fileApi.moveFile(showMoveModal.id, targetFolderId);
+      }
+      toast.success("Item moved successfully");
+      setShowMoveModal(null);
+      loadFolderData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to move item");
     }
   };
 
@@ -460,32 +522,6 @@ const MyFiles: React.FC = () => {
           },
         });
 
-<<<<<<< HEAD
-        // In real app, replace with actual upload API
-        // const res = await axios.post("/upload", formData);
-        const mockUrl = URL.createObjectURL(file); // Simulated URL
-
-        clearInterval(progressInterval);
-
-        const newFile: TrackedFile = {
-          id: Date.now().toString() + index,
-          name: file.name,
-          url: mockUrl,
-          type: file.type.split("/")[0],
-          size: formatFileSize(file.size),
-          uploaded: new Date().toLocaleDateString(),
-          shareCount: 0,
-          downloadCount: 0,
-          viewCount: 0,
-          shareHistory: [],
-          downloadHistory: [],
-          viewHistory: [],
-          uploadHistory: [{ timestamp: new Date().toISOString() }],
-        };
-
-        uploadedFiles.push(newFile);
-        setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
-=======
         await fileApi.saveFileInfo({
           fileName: file.name,
           fileUrl: result.fileUrl,
@@ -493,8 +529,8 @@ const MyFiles: React.FC = () => {
           fileSize: formatFileSize(file.size),
           fileSizeBytes: file.size,
           checksum: result.checksum,
+          folderId: currentFolderId,
         });
->>>>>>> upstream/main
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           toast.info("Upload cancelled.");
@@ -1130,6 +1166,21 @@ formatFileSize
         onChange={handleFileUpload}
       />
 
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
+        {breadcrumbs.map((crumb, idx) => (
+          <React.Fragment key={crumb.id || "root"}>
+            <button
+              onClick={() => setCurrentFolderId(crumb.id)}
+              className="hover:text-[#3498db] transition-colors font-medium flex items-center"
+            >
+              {crumb.id === null ? <Folder className="w-4 h-4 mr-1" /> : crumb.name}
+            </button>
+            {idx < breadcrumbs.length - 1 && <ChevronRight className="w-4 h-4 text-gray-400" />}
+          </React.Fragment>
+        ))}
+      </div>
+
       {/* Toolbar */}
       <div className="mb-6 p-4 bg-white/80 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -1172,6 +1223,15 @@ formatFileSize
 
           {/* Actions */}
           <div className="flex items-center space-x-3">
+            {/* New Folder Button */}
+            <button
+              onClick={() => setShowNewFolderModal(true)}
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center"
+            >
+              <FolderPlus className="w-4 h-4 mr-2" />
+              New Folder
+            </button>
+
             {/* Upload Button */}
             <label className="relative cursor-pointer">
               <input
@@ -1319,19 +1379,48 @@ formatFileSize
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
-        >{filteredFiles.length === 0 && (
+        >{filteredFiles.length === 0 && folders.length === 0 && (
           <div className="text-center py-12">
             <h3 className="text-xl font-semibold text-gray-400">
-              No files found
+              No items found
             </h3>
             <p className="text-gray-500 mt-2">
               Try changing your search or filter.
             </p>
           </div>
         )}
-          {filteredFiles.length > 0 && (
+          {(folders.length > 0 || filteredFiles.length > 0) && (
   viewMode === "grid" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {folders.map((folder) => (
+                <motion.div
+                  key={folder._id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white/50 dark:bg-gray-800/30 transition-all duration-300 hover:scale-[1.02] flex flex-col cursor-pointer"
+                  onClick={() => setCurrentFolderId(folder._id)}
+                >
+                  <div className="h-24 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50">
+                    <Folder className="w-12 h-12 text-[#3498db]" />
+                  </div>
+                  <div className="p-3 bg-white dark:bg-gray-800 flex-1 flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {folder.name}
+                    </p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFolderContextMenu({ id: folder._id, name: folder.name });
+                      }}
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                    >
+                      <MoreVertical className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+
               {filteredFiles.map((file) => (
                 <motion.div
                   key={file.id}
@@ -1437,6 +1526,16 @@ formatFileSize
                         title="Share"
                       >
                         <Share2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowMoveModal({ type: "file", id: file.id, currentParentId: currentFolderId });
+                        }}
+                        className="p-2 bg-blue-500/20 rounded-full text-blue-400 hover:bg-blue-500/30"
+                        title="Move"
+                      >
+                        <FolderOutput className="w-4 h-4" />
                       </button>
                       <button
                         onClick={(e) => {
@@ -1568,6 +1667,48 @@ formatFileSize
               </div>
 
               <div className="divide-y divide-gray-700">
+                {folders.map((folder) => (
+                  <div
+                    key={folder._id}
+                    onClick={() => setCurrentFolderId(folder._id)}
+                    className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-gray-800/50 transition-colors cursor-pointer"
+                  >
+                    <div className="col-span-4 flex items-center">
+                      <div className="w-5 h-5 mr-3" /> {/* Spacer for checkbox */}
+                      <div className="flex items-center">
+                        <div className="p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg mr-3">
+                          <Folder className="w-5 h-5 text-[#3498db]" />
+                        </div>
+                        <div>
+                          <div className="text-white font-medium truncate max-w-[200px]">
+                            {folder.name}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-gray-800 text-gray-300">
+                        FOLDER
+                      </span>
+                    </div>
+                    <div className="col-span-4" /> {/* Empty columns for stats */}
+                    <div className="col-span-2">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFolderContextMenu({ id: folder._id, name: folder.name });
+                          }}
+                          className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
+                          title="Options"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
                 {filteredFiles.map((file) => (
                   <div
                     key={file.id}
@@ -1688,6 +1829,13 @@ formatFileSize
                           ) : (
                             <Unlock className="w-4 h-4 text-gray-400 hover:text-white" />
                           )}
+                        </button>
+                        <button
+                          onClick={() => setShowMoveModal({ type: "file", id: file.id, currentParentId: currentFolderId })}
+                          className="p-1.5 hover:bg-blue-500/20 rounded"
+                          title="Move"
+                        >
+                          <FolderOutput className="w-4 h-4 text-blue-400 hover:text-blue-300" />
                         </button>
                         <button
                           onClick={() => handleDelete(file.id)}
@@ -2130,6 +2278,188 @@ formatFileSize
           file={selectedFileForShare}
         />
       )}
+
+      {/* New Folder Modal */}
+      <AnimatePresence>
+        {showNewFolderModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowNewFolderModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-sm w-full shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4 dark:text-white">New Folder</h3>
+              <form onSubmit={handleCreateFolder}>
+                <input
+                  type="text"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Folder name"
+                  autoFocus
+                  className="w-full px-4 py-2 border rounded-lg mb-4 bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:outline-none focus:border-[#3498db]"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewFolderModal(false)}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#3498db] text-white rounded-lg hover:bg-blue-600"
+                    disabled={!newFolderName.trim()}
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Folder Context Menu (Options) Modal */}
+      <AnimatePresence>
+        {folderContextMenu && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setFolderContextMenu(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-sm w-full shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4 dark:text-white truncate">
+                Folder: {folderContextMenu.name}
+              </h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    const newName = window.prompt("Enter new folder name:", folderContextMenu.name);
+                    if (newName && newName !== folderContextMenu.name) {
+                      handleRenameFolder(folderContextMenu.id, newName);
+                    }
+                    setFolderContextMenu(null);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white flex items-center"
+                >
+                  <Edit2 className="w-5 h-5 mr-3 text-gray-500" />
+                  Rename
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMoveModal({ type: "folder", id: folderContextMenu.id, currentParentId: currentFolderId });
+                    setFolderContextMenu(null);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white flex items-center"
+                >
+                  <FolderOutput className="w-5 h-5 mr-3 text-gray-500" />
+                  Move
+                </button>
+                <button
+                  onClick={() => {
+                    handleDeleteFolder(folderContextMenu.id);
+                    setFolderContextMenu(null);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 flex items-center"
+                >
+                  <Trash2 className="w-5 h-5 mr-3" />
+                  Delete
+                </button>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setFolderContextMenu(null)}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Move Item Modal */}
+      <AnimatePresence>
+        {showMoveModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowMoveModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full shadow-xl max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4 dark:text-white">
+                Move {showMoveModal.type === "folder" ? "Folder" : "File"}
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">Select destination folder:</p>
+              
+              <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                <button
+                  onClick={() => handleMoveSubmit(null)}
+                  className={`w-full text-left px-4 py-3 rounded-lg border dark:text-white flex items-center ${
+                    null === showMoveModal.currentParentId ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  }`}
+                  disabled={null === showMoveModal.currentParentId}
+                >
+                  <Folder className="w-5 h-5 mr-3 text-gray-400" />
+                  Root
+                </button>
+                {/* Recursively rendering the tree might be complex, so we show a flat list of all folders for now */}
+                {folderTree.map((f: any) => (
+                  <button
+                    key={f._id}
+                    onClick={() => handleMoveSubmit(f._id)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border dark:text-white flex items-center ${
+                      f._id === showMoveModal.currentParentId ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    }`}
+                    disabled={f._id === showMoveModal.currentParentId || (showMoveModal.type === "folder" && f._id === showMoveModal.id)}
+                  >
+                    <Folder className="w-5 h-5 mr-3 text-[#3498db]" />
+                    <div className="flex flex-col">
+                      <span>{f.name}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                <button
+                  onClick={() => setShowMoveModal(null)}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

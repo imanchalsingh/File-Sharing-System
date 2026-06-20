@@ -7,12 +7,19 @@ const require = createRequire(import.meta.url);
 const { ZipArchive } = require("archiver");
 
 
-// ✅ Get user's all files
+// ✅ Get user's all files (with optional folder filter)
 export const getUserFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { folderId } = req.query; // 'null' string or objectId
 
-    const files = await File.find({ userId })
+    const query = { userId, isDeleted: false };
+    
+    if (folderId !== undefined) {
+      query.folderId = folderId === "null" || folderId === "" ? null : folderId;
+    }
+
+    const files = await File.find(query)
       .sort({ createdAt: -1 })
       .select("-__v");
 
@@ -59,6 +66,7 @@ export const saveFileInfo = async (req, res, next) => {
       checksum,
       tags,
       password,
+      folderId,
     } = req.body;
 
     if (!fileName || !fileUrl) {
@@ -134,6 +142,7 @@ if (checksum) {
       fileSize: fileSize || "0 KB",
       fileSizeBytes: fileSizeBytes || 0,
       checksum: checksum || null,
+      folderId: folderId || null,
       userId,
       currentVersion: 1,
       tags: Array.isArray(tags) ? tags : [],
@@ -765,6 +774,49 @@ export const verifySharedFilePassword = async (req, res, next) => {
       message: "Password verified",
       fileUrl: file.fileUrl,
       versions: file.versions,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ✅ Move a file to another folder
+export const moveFile = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { folderId } = req.body;
+    const userId = req.user.id;
+    const newFolderId = folderId || null;
+
+    const file = await File.findOne({ _id: id, userId });
+    if (!file) {
+      const error = new Error("File not found or unauthorized");
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    if (newFolderId) {
+      // Need to import Folder model for validation
+      // But fileController doesn't import Folder yet. We can avoid importing it
+      // if we trust the API or we can just import mongoose and query the 'folders' collection
+      const folderExists = await mongoose.connection.collection("folders").findOne({ 
+        _id: new mongoose.Types.ObjectId(newFolderId), 
+        userId: new mongoose.Types.ObjectId(userId) 
+      });
+      if (!folderExists) {
+        const error = new Error("Destination folder not found or unauthorized");
+        error.statusCode = 404;
+        return next(error);
+      }
+    }
+
+    file.folderId = newFolderId;
+    await file.save();
+
+    res.status(200).json({
+      success: true,
+      message: "File moved successfully",
+      file,
     });
   } catch (error) {
     next(error);

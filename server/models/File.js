@@ -50,6 +50,11 @@ const fileSchema = new mongoose.Schema(
       ref: "User",
       required: [true, "User ID is required"],
     },
+    folderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Folder",
+      default: null, // null means root folder
+    },
     shareCount: {
       type: Number,
       default: 0,
@@ -163,6 +168,7 @@ fileSchema.index({ userId: 1, shareCount: -1 });
 fileSchema.index({ userId: 1, tags: 1 });
 fileSchema.index({ _id: 1, userId: 1 });
 fileSchema.index({ isDeleted: 1, userId: 1 });
+fileSchema.index({ userId: 1, folderId: 1 });
 
 const File = mongoose.model("File", fileSchema);
 
