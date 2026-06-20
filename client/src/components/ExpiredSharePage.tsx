@@ -11,7 +11,7 @@ const cardVariants = {
     scale: 1,
     transition: { duration: 0.5, ease: 'easeOut' },
   },
-};
+} as const;
 
 const iconVariants = {
   hidden: { scale: 0, rotate: -180 },
@@ -20,7 +20,7 @@ const iconVariants = {
     rotate: 0,
     transition: { duration: 0.6, ease: 'easeOut', delay: 0.2 },
   },
-};
+} as const;
 
 const ExpiredSharePage: React.FC = () => {
   return (

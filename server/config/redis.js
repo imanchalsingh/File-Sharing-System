@@ -17,8 +17,25 @@ export const connectRedis = async () => {
   }
 };
 
-redisClient.on("error", () => {
+// Mark Redis as unavailable on any connection error
+redisClient.on("error", (err) => {
+  if (redisAvailable) {
+    console.warn("⚠️  Redis connection error — falling back to primary DB:", err.message);
+  }
   redisAvailable = false;
+});
+
+// Restore availability when the connection is re-established
+redisClient.on("ready", () => {
+  if (!redisAvailable) {
+    console.log("✅ Redis reconnected — cache is active again.");
+  }
+  redisAvailable = true;
+});
+
+// Log reconnection attempts without toggling the flag (still unavailable during this phase)
+redisClient.on("reconnecting", () => {
+  console.log("🔄 Redis is reconnecting...");
 });
 
 export { redisAvailable };

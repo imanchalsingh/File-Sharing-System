@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { shareApi } from '../services/api';
+import { shareApi, analyticsApi } from '../services/api';
 import {
   Download,
   Clock,
@@ -13,15 +13,18 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 interface SharedFileData {
+  _id?: string;
   fileName: string;
   fileType: string;
-  fileSize: number;
+  fileSize: string | number;
   fileUrl: string;
   createdAt: string;
-  expiresAt: string;
+  expiresAt: string | null;
   accessCount: number;
+  downloadCount?: number;
 }
 
 interface ErrorState {
@@ -57,13 +60,15 @@ const cardVariants = {
     scale: 1,
     transition: { duration: 0.5, ease: 'easeOut' },
   },
-};
+} as const;
 
 const SharedFileAccess: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const [fileData, setFileData] = useState<SharedFileData | null>(null);
   const [error, setError] = useState<ErrorState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const viewTrackedRef = useRef(false);
 
   useEffect(() => {
     const fetchSharedFile = async () => {
@@ -74,8 +79,38 @@ const SharedFileAccess: React.FC = () => {
       }
 
       try {
-        const data = await shareApi.accessSharedFile(token);
-        setFileData(data);
+        const res = await shareApi.accessSharedFile(token);
+        if (res.success && res.file) {
+          const mappedData: SharedFileData = {
+            _id: res.file._id,
+            fileName: res.file.fileName,
+            fileType: res.file.fileType,
+            fileSize: res.file.fileSize,
+            fileUrl: res.file.fileUrl,
+            createdAt: res.share?.createdAt,
+            expiresAt: res.share?.expiresAt,
+            accessCount: res.share?.accessCount,
+            downloadCount: res.share?.downloadCount || 0,
+          };
+          setFileData(mappedData);
+
+          // Track view safely
+          if (!viewTrackedRef.current) {
+            try {
+              await analyticsApi.trackAction("view", {
+                fileId: res.file._id,
+                fileName: res.file.fileName,
+                fileUrl: res.file.fileUrl,
+                source: "shared_link"
+              });
+              viewTrackedRef.current = true;
+            } catch (err) {
+              console.error("View tracking error:", err);
+            }
+          }
+        } else {
+          setError({ status: 500, message: 'Invalid response structure' });
+        }
       } catch (err: unknown) {
         if (axios.isAxiosError(err) && err.response) {
           const status = err.response.status;
@@ -240,6 +275,54 @@ const SharedFileAccess: React.FC = () => {
     );
   }
 
+  const handleDownload = async () => {
+    if (!token || !fileData) return;
+    setIsDownloading(true);
+
+    try {
+      // 1. Track download in analytics
+      try {
+        await analyticsApi.trackAction("download", {
+          fileId: fileData._id || "",
+          fileName: fileData.fileName,
+          fileUrl: fileData.fileUrl,
+          source: "shared_link"
+        });
+      } catch (err) {
+        console.error("Analytics tracking failed:", err);
+      }
+
+      // 2. Increment share download count on backend
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/shares/download/${token}`, {
+          method: "POST"
+        });
+        setFileData(prev => prev ? { ...prev, downloadCount: (prev.downloadCount || 0) + 1 } : null);
+      } catch (countErr) {
+        console.error("Failed to increment download count in DB:", countErr);
+      }
+
+      // 3. Download the file blob
+      const response = await fetch(fileData.fileUrl);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = fileData.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("Download started!");
+    } catch (err) {
+      console.error("Download failed:", err);
+      toast.error("Download failed. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   // Valid File State
   if (!fileData) return null;
 
@@ -282,7 +365,7 @@ const SharedFileAccess: React.FC = () => {
             <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/5">
               <span className="text-gray-400 text-sm">Size</span>
               <span id="shared-file-size" className="text-gray-200 text-sm font-medium">
-                {formatFileSize(fileData.fileSize)}
+                {typeof fileData.fileSize === 'number' ? formatFileSize(fileData.fileSize) : fileData.fileSize}
               </span>
             </div>
             <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/5">
@@ -311,22 +394,26 @@ const SharedFileAccess: React.FC = () => {
           </div>
 
           {/* Download Button */}
-          <a
+          <button
             id="shared-file-download-btn"
-            href={fileData.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+            onClick={handleDownload}
+            disabled={isDownloading}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl
               bg-gradient-to-r from-[#3498db] to-[#2ecc71]
               text-white font-semibold text-base
               hover:shadow-lg hover:shadow-[#3498db]/30
               hover:scale-[1.02] active:scale-[0.98]
-              transition-all duration-200"
+              transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Download className="w-5 h-5" />
-            Download File
-            <ExternalLink className="w-4 h-4 opacity-60" />
-          </a>
+            {isDownloading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                Download File
+              </>
+            )}
+          </button>
 
           {/* Warning */}
           {fileData.expiresAt && (
