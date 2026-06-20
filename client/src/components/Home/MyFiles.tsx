@@ -60,15 +60,9 @@ interface TrackedFile {
   shareHistory: Array<{ timestamp: string; source?: string }>;
   downloadHistory: Array<{ timestamp: string }>;
   viewHistory: Array<{ timestamp: string }>;
-<<<<<<< HEAD
   uploadHistory?: Array<{ timestamp: string }>;
-=======
   password?: string;
-<<<<<<< HEAD
   scanStatus?: string;
-=======
->>>>>>> upstream/main
->>>>>>> main
 }
 
 const MyFiles: React.FC = () => {
