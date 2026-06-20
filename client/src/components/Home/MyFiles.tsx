@@ -40,6 +40,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import ShareModal from "./ShareModal";
+import { enqueueUpload, getQueuedUploads, removeQueuedUpload, updateQueuedUpload } from "../../services/offlineQueue";
+import type { QueuedUpload } from "../../services/offlineQueue";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -111,14 +113,103 @@ const MyFiles: React.FC = () => {
 
   // Bulk download state
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
-  // ✅ Load files from localStorage (temporary - will be replaced with backend)
+
+  // Offline capabilities state
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [queuedUploads, setQueuedUploads] = useState<QueuedUpload[]>([]);
+  const [isSyncingOfflineQueue, setIsSyncingOfflineQueue] = useState(false);
 
   // ✅ Load resumable upload sessions from localStorage
   useEffect(() => {
     setPendingResumeSessions(
       loadStoredSessions().filter((session) => session.status !== "completed"),
     );
+
+    // Initialize offline queue state
+    const loadOfflineQueue = async () => {
+      try {
+        const uploads = await getQueuedUploads();
+        setQueuedUploads(uploads);
+      } catch (e) {
+        console.error("Failed to load offline queue:", e);
+      }
+    };
+    loadOfflineQueue();
+
+    // Setup network listeners
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.info("Connectivity restored. Preparing to sync uploads...");
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning("You are offline. Uploads will be queued locally.");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
+
+  // Sync Offline Queue
+  useEffect(() => {
+    if (isOnline && queuedUploads.length > 0 && !isSyncingOfflineQueue) {
+      syncOfflineQueue();
+    }
+  }, [isOnline, queuedUploads, isSyncingOfflineQueue]);
+
+  const syncOfflineQueue = async () => {
+    setIsSyncingOfflineQueue(true);
+    toast.info(`Starting sync for ${queuedUploads.length} queued upload(s)...`);
+
+    for (const queued of queuedUploads) {
+      if (queued.status === 'syncing') continue;
+
+      try {
+        // Update status in UI and DB
+        const updatedQueued = { ...queued, status: 'syncing' as const };
+        await updateQueuedUpload(updatedQueued);
+        setQueuedUploads((prev) => prev.map((q) => (q.id === queued.id ? updatedQueued : q)));
+
+        // Upload file via existing resumable architecture
+        const result = await uploadFileResumable({
+          file: queued.file,
+          onProgress: (state) => {
+            // Optional: Show background progress
+          },
+        });
+
+        // Save file info
+        await fileApi.saveFileInfo({
+          fileName: queued.file.name,
+          fileUrl: result.fileUrl,
+          fileType: queued.file.type.split("/")[0] || "application",
+          fileSize: formatFileSize(queued.file.size),
+          fileSizeBytes: queued.file.size,
+          checksum: result.checksum,
+        });
+
+        // Remove from queue upon success
+        await removeQueuedUpload(queued.id);
+        setQueuedUploads((prev) => prev.filter((q) => q.id !== queued.id));
+        toast.success(`Successfully synced: ${queued.file.name}`);
+
+      } catch (e) {
+        console.error(`Failed to sync queued upload ${queued.file.name}:`, e);
+        const failedQueued = { ...queued, status: 'failed' as const, retryCount: queued.retryCount + 1 };
+        await updateQueuedUpload(failedQueued);
+        setQueuedUploads((prev) => prev.map((q) => (q.id === queued.id ? failedQueued : q)));
+        toast.error(`Sync failed for: ${queued.file.name}`);
+      }
+    }
+
+    setIsSyncingOfflineQueue(false);
+    refreshFiles();
+  };
 
   // ✅ UPDATED: Load files from BACKEND first, localStorage as fallback
   useEffect(() => {
@@ -486,6 +577,27 @@ const MyFiles: React.FC = () => {
 
     if (resumeSessionId && selectedFilesList.length !== 1) {
       toast.error("Select the original file to resume an interrupted upload.");
+      e.target.value = "";
+      return;
+    }
+
+    if (!isOnline) {
+      toast.info(`Offline: Queuing ${selectedFilesList.length} file(s) for upload when connection is restored.`);
+      
+      const newUploads: QueuedUpload[] = [];
+      for (const file of selectedFilesList) {
+        try {
+          const queued = await enqueueUpload(file);
+          newUploads.push(queued);
+        } catch (e) {
+          console.error("Failed to queue upload offline:", e);
+        }
+      }
+      
+      if (newUploads.length > 0) {
+        setQueuedUploads((prev) => [...prev, ...newUploads]);
+      }
+      
       e.target.value = "";
       return;
     }
@@ -951,6 +1063,41 @@ formatFileSize
 
   return (
     <div className="px-4 sm:px-6">
+      {/* Offline Status Indicators */}
+      {!isOnline && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-6 flex items-center justify-between">
+          <div className="flex items-center text-yellow-500">
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+            </svg>
+            <span className="font-medium text-sm">You are currently offline.</span>
+          </div>
+          <span className="text-sm text-yellow-500/80">New uploads will be queued locally.</span>
+        </div>
+      )}
+
+      {queuedUploads.length > 0 && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center text-blue-400">
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span className="font-medium text-sm">
+              {queuedUploads.length} queued upload(s) 
+              {isSyncingOfflineQueue ? " - Syncing..." : isOnline ? " - Ready to sync" : " - Waiting for network"}
+            </span>
+          </div>
+          {isOnline && !isSyncingOfflineQueue && (
+            <button 
+              onClick={syncOfflineQueue}
+              className="text-xs px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors whitespace-nowrap"
+            >
+              Sync Now
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Header with Stats */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
