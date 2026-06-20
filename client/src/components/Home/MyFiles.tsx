@@ -97,12 +97,6 @@ const MyFiles: React.FC = () => {
   const [passwordValue, setPasswordValue] = useState("");
   const [isPasswordModalLoading, setIsPasswordModalLoading] = useState(false);
 
-<<<<<<< HEAD
-  // Share Modal state
-  const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [selectedFileForShare, setSelectedFileForShare] = useState<{ _id: string, fileName: string, fileUrl: string } | null>(null);
-
-=======
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedFileForShare, setSelectedFileForShare] = useState<{
@@ -113,8 +107,6 @@ const MyFiles: React.FC = () => {
 
   // Bulk download state
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
-  
->>>>>>> main
   // ✅ Load files from localStorage (temporary - will be replaced with backend)
 
   // ✅ Load resumable upload sessions from localStorage
@@ -468,36 +460,6 @@ const MyFiles: React.FC = () => {
           },
         });
 
-<<<<<<< HEAD
-        // In real app, replace with actual upload API
-        // const res = await axios.post("/upload", formData);
-        const mockUrl = URL.createObjectURL(file); // Simulated URL
-
-        clearInterval(progressInterval);
-
-        const newFile: TrackedFile = {
-          id: Date.now().toString() + index,
-          name: file.name,
-          url: mockUrl,
-          type: file.type.split("/")[0],
-          size: formatFileSize(file.size),
-          uploaded: new Date().toLocaleDateString(),
-          shareCount: 0,
-          downloadCount: 0,
-          viewCount: 0,
-          shareHistory: [],
-          downloadHistory: [],
-          viewHistory: [],
-<<<<<<< HEAD
-          scanStatus: "uploaded",
-=======
-          uploadHistory: [{ timestamp: new Date().toISOString() }],
->>>>>>> main
-        };
-
-        uploadedFiles.push(newFile);
-        setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
-=======
         await fileApi.saveFileInfo({
           fileName: file.name,
           fileUrl: result.fileUrl,
@@ -506,7 +468,6 @@ const MyFiles: React.FC = () => {
           fileSizeBytes: file.size,
           checksum: result.checksum,
         });
->>>>>>> upstream/main
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           toast.info("Upload cancelled.");
@@ -2178,12 +2139,7 @@ formatFileSize
           </motion.div>
         )}
       </AnimatePresence>
-<<<<<<< HEAD
-      
-=======
-
       {/* Share Link Modal */}
->>>>>>> main
       {/* Share Modal */}
       {shareModalOpen && selectedFileForShare && (
         <ShareModal
