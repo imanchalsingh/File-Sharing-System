@@ -514,6 +514,15 @@ const MyFiles: React.FC = () => {
           sessionId: resumeSessionId || undefined,
           signal: abortControllerRef.current.signal,
           shouldPause: () => pauseRef.current,
+          onDuplicateDetected: async () => {
+            return new Promise((resolve) => {
+              const useExisting = window.confirm(
+                `The file "${file.name}" already exists in your library.\n\n` +
+                `Would you like to instantly link to the existing file instead of re-uploading? (Saves time and storage)`
+              );
+              resolve(useExisting ? "link" : "upload");
+            });
+          },
           onProgress: (state) => {
             const overallProgress =
               ((index + state.progressPercent / 100) / selectedFilesList.length) * 100;

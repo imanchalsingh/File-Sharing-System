@@ -234,11 +234,14 @@ export const uploadApi = {
     mimeType?: string;
     expectedChecksum?: string;
     sessionId?: string;
+    forceUpload?: boolean;
   }) => {
     const response = await api.post("/api/files/upload/init", data);
     return response.data as {
       success: boolean;
-      session: import("./uploadTypes").UploadSessionInfo;
+      session?: import("./uploadTypes").UploadSessionInfo;
+      duplicateExists?: boolean;
+      existingFileUrl?: string;
     };
   },
 

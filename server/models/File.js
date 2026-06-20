@@ -169,6 +169,7 @@ fileSchema.index({ userId: 1, tags: 1 });
 fileSchema.index({ _id: 1, userId: 1 });
 fileSchema.index({ isDeleted: 1, userId: 1 });
 fileSchema.index({ userId: 1, folderId: 1 });
+fileSchema.index({ userId: 1, checksum: 1 });
 
 const File = mongoose.model("File", fileSchema);
 
