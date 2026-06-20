@@ -1037,6 +1037,7 @@ interface TrackedFile {
   lastAccessed?: string;
   shareHistory: Array<{ timestamp: string; source?: string }>;
   downloadHistory: Array<{ timestamp: string }>;
+  uploadHistory?: Array<{ timestamp: string }>;
   viewHistory: Array<{ timestamp: string }>;
 }
 
@@ -1157,6 +1158,60 @@ async function fetchStats(period: string): Promise<AnalyticsData> {
     })
   );
 
+<<<<<<< HEAD
+      // Recent activity (last 24 hours)
+      const recentActivity = files
+  .flatMap((file) => {
+    const activities: any[] = [];
+
+    // Uploads
+    if (file.uploadHistory) {
+      file.uploadHistory.forEach((upload) => {
+        activities.push({
+          timestamp: upload.timestamp,
+          time: formatTimeAgo(new Date(upload.timestamp)),
+          file: file.name,
+          action: "upload",
+          count: 1,
+        });
+      });
+    }
+
+    // Shares
+    if (file.shareHistory) {
+      file.shareHistory.forEach((share) => {
+        activities.push({
+          timestamp: share.timestamp,
+          time: formatTimeAgo(new Date(share.timestamp)),
+          file: file.name,
+          action: "share",
+          count: 1,
+        });
+      });
+    }
+
+    // Downloads
+    if (file.downloadHistory) {
+      file.downloadHistory.forEach((download) => {
+        activities.push({
+          timestamp: download.timestamp,
+          time: formatTimeAgo(new Date(download.timestamp)),
+          file: file.name,
+          action: "download",
+          count: 1,
+        });
+      });
+    }
+
+    return activities;
+  })
+  .sort(
+    (a, b) =>
+      new Date(b.timestamp).getTime() -
+      new Date(a.timestamp).getTime()
+  )
+  .slice(0, 20);
+=======
   // ── shareSources ─────────────────────────────────────────────────────────
   const rawSources: Array<{ _id: string; count: number }> =
     statsRes.shareSources ?? [];
@@ -1167,6 +1222,7 @@ async function fetchStats(period: string): Promise<AnalyticsData> {
       totalSourceCount > 0 ? Math.round((s.count / totalSourceCount) * 100) : 0,
     color: getSourceColor(s._id),
   }));
+>>>>>>> upstream/main
 
   // ── hourlyActivity ───────────────────────────────────────────────────────
   const totalHourlyShares = (statsRes.hourlyActivity ?? []).reduce(
@@ -1706,7 +1762,9 @@ const Analytics: React.FC = () => {
                           : "bg-[#2ecc71]/20"
                       }`}
                     >
-                      {activity.action === "share" ? (
+                      {activity.action === "upload" ? (
+                        <FileText className="w-4 h-4 text-[#9b59b6]" />
+                      ) : activity.action === "share" ? (
                         <Share2 className="w-4 h-4 text-[#3498db]" />
                       ) : (
                         <Download className="w-4 h-4 text-[#2ecc71]" />
@@ -1717,7 +1775,11 @@ const Analytics: React.FC = () => {
                         {activity.file}
                       </div>
                       <div className="text-gray-600 dark:text-gray-400 text-xs capitalize">
-                        {activity.action} • {activity.count} times
+                        {activity.action === "upload"
+                          ? "Uploaded"
+                          : activity.action === "share"
+                            ? "Link Copied"
+                            : "Downloaded"}
                       </div>
                     </div>
                   </div>

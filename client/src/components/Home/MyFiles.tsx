@@ -60,7 +60,11 @@ interface TrackedFile {
   shareHistory: Array<{ timestamp: string; source?: string }>;
   downloadHistory: Array<{ timestamp: string }>;
   viewHistory: Array<{ timestamp: string }>;
+<<<<<<< HEAD
+  uploadHistory?: Array<{ timestamp: string }>;
+=======
   password?: string;
+>>>>>>> upstream/main
 }
 
 const MyFiles: React.FC = () => {
@@ -456,6 +460,32 @@ const MyFiles: React.FC = () => {
           },
         });
 
+<<<<<<< HEAD
+        // In real app, replace with actual upload API
+        // const res = await axios.post("/upload", formData);
+        const mockUrl = URL.createObjectURL(file); // Simulated URL
+
+        clearInterval(progressInterval);
+
+        const newFile: TrackedFile = {
+          id: Date.now().toString() + index,
+          name: file.name,
+          url: mockUrl,
+          type: file.type.split("/")[0],
+          size: formatFileSize(file.size),
+          uploaded: new Date().toLocaleDateString(),
+          shareCount: 0,
+          downloadCount: 0,
+          viewCount: 0,
+          shareHistory: [],
+          downloadHistory: [],
+          viewHistory: [],
+          uploadHistory: [{ timestamp: new Date().toISOString() }],
+        };
+
+        uploadedFiles.push(newFile);
+        setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
+=======
         await fileApi.saveFileInfo({
           fileName: file.name,
           fileUrl: result.fileUrl,
@@ -464,6 +494,7 @@ const MyFiles: React.FC = () => {
           fileSizeBytes: file.size,
           checksum: result.checksum,
         });
+>>>>>>> upstream/main
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           toast.info("Upload cancelled.");
