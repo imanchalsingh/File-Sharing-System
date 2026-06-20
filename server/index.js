@@ -15,6 +15,7 @@ import fileRoutes from "./routes/files.js";
 import shareRoutes from "./routes/shares.js";
 import { startExpirationJob } from "./jobs/expirationJob.js";
 import { startScanWorker } from "./jobs/scanWorker.js";
+import { startIndexWorker } from "./jobs/indexWorker.js";
 import { startWebhookWorker } from "./jobs/webhookWorker.js";
 import webhookRoutes from "./routes/webhooks.js";
 import { startUploadSessionCleanupJob } from "./jobs/uploadSessionCleanup.js";
@@ -47,6 +48,7 @@ connectRedis();
 // Start background jobs
 startExpirationJob();
 startScanWorker();
+startIndexWorker();
 startWebhookWorker();
 startUploadSessionCleanupJob();
 initQuotaResetJob();

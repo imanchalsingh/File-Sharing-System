@@ -5,12 +5,12 @@ import {
   updateWebhook,
   deleteWebhook,
 } from "../controllers/webhookController.js";
-import { verifyToken } from "../middleware/auth.js";
+import authenticateUser from '../middleware/authenticateUser.js';
 
 const router = express.Router();
 
 // All webhook routes require authentication
-router.use(verifyToken);
+router.use(authenticateUser);
 
 router.post("/", createWebhook);
 router.get("/", getWebhooks);

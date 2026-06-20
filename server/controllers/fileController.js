@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { enqueueScan } from "../jobs/scanQueue.js";
 import { dispatchWebhookEvent } from "../jobs/webhookQueue.js";
+import { enqueueIndex } from "../jobs/indexQueue.js";
 
 // ✅ Get user's all files
 export const getUserFiles = async (req, res, next) => {
@@ -108,6 +109,14 @@ if (checksum) {
 
       await existingFile.save();
 
+      // Enqueue updated version for malware scanning and document indexing
+      try {
+        await enqueueScan(existingFile._id);
+        await enqueueIndex(existingFile._id);
+      } catch (queueErr) {
+        console.error("Failed to enqueue background jobs for updated version:", queueErr);
+      }
+
       const io = req.app.get("io");
       if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", existingFile);
 
@@ -145,11 +154,12 @@ if (checksum) {
     });
 
     await newFile.save();
-    // Enqueue file for malware scanning
+    // Enqueue file for malware scanning and document indexing
     try {
       await enqueueScan(newFile._id);
+      await enqueueIndex(newFile._id);
     } catch (queueErr) {
-      console.error("Failed to enqueue scan job:", queueErr);
+      console.error("Failed to enqueue background jobs:", queueErr);
     }
 
     const io = req.app.get("io");
@@ -698,6 +708,123 @@ export const verifySharedFilePassword = async (req, res, next) => {
       message: "Password verified",
       fileUrl: file.fileUrl,
       versions: file.versions,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Helper to escape HTML tags in text to prevent XSS
+const escapeHtml = (text) => {
+  if (!text) return "";
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+// Helper to generate text snippet with matching query highlighted
+const generateSearchSnippet = (text, query) => {
+  if (!text || !query) return null;
+
+  const cleanQuery = query.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const regex = new RegExp(`(${cleanQuery})`, 'i');
+  const match = text.match(regex);
+
+  if (!match) return null;
+
+  const matchIndex = match.index;
+  const start = Math.max(0, matchIndex - 60);
+  const end = Math.min(text.length, matchIndex + query.length + 60);
+
+  let snippet = text.substring(start, end);
+  let escapedSnippet = escapeHtml(snippet);
+
+  const highlightRegex = new RegExp(`(${cleanQuery})`, 'gi');
+  const highlighted = escapedSnippet.replace(
+    highlightRegex,
+    '<mark class="bg-yellow-500/30 text-yellow-600 dark:text-yellow-200 px-1 rounded font-semibold">$1</mark>'
+  );
+
+  let finalSnippet = highlighted;
+  if (start > 0) finalSnippet = '...' + finalSnippet;
+  if (end < text.length) finalSnippet = finalSnippet + '...';
+
+  return finalSnippet;
+};
+
+// ✅ Search files (filename, tags, content)
+export const searchFiles = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { q } = req.query;
+
+    if (!q || !q.trim()) {
+      return res.json({ success: true, files: [], count: 0 });
+    }
+
+    const queryStr = q.trim();
+    const searchRegex = new RegExp(queryStr, "i");
+
+    let files = [];
+    // 1. Text Search (Full-text index)
+    try {
+      files = await File.find(
+        {
+          userId,
+          isDeleted: { $ne: true },
+          $text: { $search: queryStr }
+        },
+        { score: { $meta: "textScore" } }
+      ).sort({ score: { $meta: "textScore" } });
+    } catch (err) {
+      console.warn("[Search] Text search failed or not indexed yet:", err.message);
+    }
+
+    // 2. Regex fallback/extension to capture partial matches in names, tags or text
+    const regexFiles = await File.find({
+      userId,
+      isDeleted: { $ne: true },
+      _id: { $nin: files.map((f) => f._id) },
+      $or: [
+        { fileName: searchRegex },
+        { tags: { $in: [searchRegex] } },
+        { extractedText: searchRegex }
+      ]
+    });
+
+    const allFiles = [...files, ...regexFiles];
+
+    // 3. Process matches (determine type and generate snippet)
+    const results = allFiles.map((file) => {
+      const fileObj = file.toObject();
+      let matchType = "filename";
+      let snippet = null;
+
+      const lowerQuery = queryStr.toLowerCase();
+      
+      if (file.fileName.toLowerCase().includes(lowerQuery)) {
+        matchType = "filename";
+      } else if (file.tags && file.tags.some(t => t.toLowerCase().includes(lowerQuery))) {
+        matchType = "metadata";
+      } else if (file.extractedText && file.extractedText.toLowerCase().includes(lowerQuery)) {
+        matchType = "content";
+        snippet = generateSearchSnippet(file.extractedText, queryStr);
+      }
+
+      return {
+        ...fileObj,
+        matchType,
+        snippet,
+      };
+    });
+
+    res.json({
+      success: true,
+      files: results,
+      count: results.length,
     });
   } catch (error) {
     next(error);

@@ -63,12 +63,16 @@ interface TrackedFile {
   uploadHistory?: Array<{ timestamp: string }>;
   password?: string;
   scanStatus?: string;
+  matchType?: string;
+  snippet?: string;
 }
 
 const MyFiles: React.FC = () => {
   const [files, setFiles] = useState<TrackedFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<TrackedFile[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [selectedType, setSelectedType] = useState("All");
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -244,6 +248,54 @@ const MyFiles: React.FC = () => {
       return () => unsubscribeFromFiles();
     });
   }, []);
+
+  // ✅ Backend Search Integration
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults(null);
+        setIsSearching(false);
+        return;
+      }
+      
+      setIsSearching(true);
+      try {
+        const response = await fileApi.searchFiles(searchQuery);
+        if (response && response.files) {
+          const mappedResults = response.files.map((file: any) => ({
+            id: file._id,
+            name: file.fileName,
+            url: file.fileUrl,
+            type: file.fileType || "application",
+            size: file.fileSize || "0 KB",
+            uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
+            isFavorite: file.isFavorite || false,
+            shareCount: file.shareCount || 0,
+            downloadCount: file.downloadCount || 0,
+            viewCount: file.viewCount || 0,
+            shareHistory: file.shareHistory || [],
+            downloadHistory: file.downloadHistory || [],
+            viewHistory: file.viewHistory || [],
+            currentVersion: file.currentVersion,
+            tags: file.tags || [],
+            password: file.password,
+            scanStatus: file.scanStatus || "uploaded",
+            matchType: file.matchType,
+            snippet: file.snippet,
+          }));
+          setSearchResults(mappedResults);
+        }
+      } catch (error) {
+        console.error("Failed to perform search:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timer = setTimeout(performSearch, 400); // 400ms debounce
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // ✅ Track link copy with BACKEND API
   const trackLinkCopy = async (
@@ -775,18 +827,16 @@ const MyFiles: React.FC = () => {
   };
 
   // ✅ Filter files based on search, type, and activeFilter
-  const filteredFiles = files.filter((file) => {
-    const matchesSearch = file.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+  const baseFiles = searchResults !== null ? searchResults : files;
   
+  const filteredFiles = baseFiles.filter((file) => {
     const matchesType =
       selectedType === "All" || getFileType(file.name) === selectedType;
 
     const matchesActiveFilter =
       activeFilter === "all" || file.type === activeFilter;
   
-    return matchesSearch && matchesType && matchesActiveFilter;
+    return matchesType && matchesActiveFilter;
   });
 
   const searchResultCount = filteredFiles.length;
@@ -1506,6 +1556,25 @@ formatFileSize
                       <span>{file.uploaded}</span>
                     </div>
 
+                    {/* Search Snippet (if searching) */}
+                    {searchQuery.trim().length > 0 && file.matchType && (
+                      <div className="mb-2 text-xs">
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider mb-1 ${
+                          file.matchType === 'content' ? 'bg-purple-500/20 text-purple-400' :
+                          file.matchType === 'metadata' ? 'bg-green-500/20 text-green-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {file.matchType} match
+                        </span>
+                        {file.snippet && (
+                          <p 
+                            className="text-gray-300 italic line-clamp-2 leading-relaxed mt-1" 
+                            dangerouslySetInnerHTML={{ __html: file.snippet }}
+                          />
+                        )}
+                      </div>
+                    )}
+
                     {/* Mini Stats */}
                     <div className="flex justify-between text-xs">
                       <div
@@ -1624,6 +1693,25 @@ formatFileSize
                           </div>
                           <div className="text-gray-400 text-xs">
                             {file.size}
+
+                            {/* Search Snippet (if searching) */}
+                            {searchQuery.trim().length > 0 && file.matchType && (
+                              <div className="mt-1 flex items-center gap-2">
+                                <span className={`inline-block px-1 py-0.5 rounded text-[9px] uppercase tracking-wider ${
+                                  file.matchType === 'content' ? 'bg-purple-500/20 text-purple-400' :
+                                  file.matchType === 'metadata' ? 'bg-green-500/20 text-green-400' :
+                                  'bg-blue-500/20 text-blue-400'
+                                }`}>
+                                  {file.matchType} match
+                                </span>
+                                {file.snippet && (
+                                  <span 
+                                    className="text-gray-300 italic truncate max-w-[200px] inline-block align-bottom" 
+                                    dangerouslySetInnerHTML={{ __html: file.snippet }}
+                                  />
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

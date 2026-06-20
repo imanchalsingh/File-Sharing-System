@@ -156,6 +156,15 @@ const fileSchema = new mongoose.Schema(
       enum: ['uploaded', 'scanning', 'safe', 'infected', 'error'],
       default: 'uploaded',
     },
+    extractedText: {
+      type: String,
+      default: null,
+    },
+    indexingStatus: {
+      type: String,
+      enum: ['pending', 'processing', 'completed', 'failed', 'skipped'],
+      default: 'pending',
+    },
   },
   {
     timestamps: true,
@@ -168,6 +177,23 @@ fileSchema.index({ userId: 1, shareCount: -1 });
 fileSchema.index({ userId: 1, tags: 1 });
 fileSchema.index({ _id: 1, userId: 1 });
 fileSchema.index({ isDeleted: 1, userId: 1 });
+
+// Multi-field text index for full-text search
+fileSchema.index(
+  {
+    fileName: "text",
+    tags: "text",
+    extractedText: "text",
+  },
+  {
+    weights: {
+      fileName: 10,
+      tags: 5,
+      extractedText: 1,
+    },
+    name: "FileTextIndex",
+  }
+);
 
 const File = mongoose.model("File", fileSchema);
 
