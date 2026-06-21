@@ -156,6 +156,30 @@ BREAKING CHANGE: Shared file URLs now include a version prefix `/v2/`.
 Old links will redirect automatically for 30 days.
 ```
 
+## AI Skills
+
+This repo ships a set of project-specific AI skills in [`.agents/skills/`](../.agents/skills/). If you use Claude Code, these load automatically and give the model context tuned to _this_ codebase rather than generic advice.
+
+### Available skills
+
+| Skill | When to use |
+|---|---|
+| `conventional-commit` | Run before every commit — it reads your staged diff and writes the commit message for you, so the `commit-msg` hook never rejects your work |
+| `nodejs-express-server` | Adding a route, middleware, or auth change to `server/` — gives patterns aligned with Express 5 and the existing code structure |
+| `redis-best-practices` | Touching anything that uses the optional Redis layer (rate-limiting, session caching) — covers key naming, TTL, and connection pooling |
+| `vitest-testing-patterns` | Writing or fixing tests in `client/__tests__/` — covers mocking, async patterns, and coverage setup for Vitest |
+| `wcag-audit-patterns` | Before submitting UI changes — catches accessibility violations early so reviewers don't have to |
+
+### Workflow
+
+1. Make your code changes as normal.
+2. Before committing, invoke the `conventional-commit` skill — it stages your files, inspects the diff, and produces a spec-compliant message that passes `commitlint`.
+3. When adding server routes or middleware, open the `nodejs-express-server` skill for copy-paste patterns (error handling, auth guards, input validation).
+4. When writing tests, invoke `vitest-testing-patterns` for mock setup and file organisation that matches the existing `__tests__/` structure.
+5. For any UI change, run `wcag-audit-patterns` to check for accessibility issues before opening a PR.
+
+Skills reduce the feedback loop: you get project-specific guidance inline instead of waiting for a review comment to point out the same pattern.
+
 ## Pull Request Guidelines
 
 1. Push your branch to your fork.
