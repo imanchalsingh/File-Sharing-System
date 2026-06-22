@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import ShareLink from '../models/ShareLink.js';
 import { createNotification } from '../utils/notificationService.js';
+import { dispatchWebhookEvent } from './webhookQueue.js';
 
 export const startExpirationJob = () => {
   // Run every 5 minutes
@@ -25,6 +26,14 @@ export const startExpirationJob = () => {
           fileId: link.fileId?._id || link.fileId,
           message: `Share link for "${link.fileId?.fileName || 'Unknown file'}" has expired.`,
         });
+        
+        try {
+          await dispatchWebhookEvent(link.userId, "link_expired", {
+            shareId: link._id,
+            fileId: link.fileId?._id || link.fileId,
+            fileName: link.fileId?.fileName || 'Unknown file'
+          });
+        } catch (e) {}
       }
 
       if (expiredLinks.length > 0) {

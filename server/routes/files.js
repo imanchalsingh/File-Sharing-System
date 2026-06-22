@@ -28,6 +28,7 @@ import {
   updateFilePassword,
   getSharedFileById,
   verifySharedFilePassword,
+  searchFiles,
 } from "../controllers/fileController.js";
 
 const router = express.Router();
@@ -46,6 +47,9 @@ router.get("/upload/resumable", getResumableUploads);
 router.get("/upload/status/:sessionId", getUploadStatus);
 router.post("/upload/chunk", ...chunkUploadMiddleware, uploadChunk);
 router.delete("/upload/:sessionId", cancelUpload);
+
+// Search files
+router.get("/search", searchFiles);
 
 // Get all user files
 router.get("/my-files", getUserFiles);

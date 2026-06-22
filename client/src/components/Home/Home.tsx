@@ -135,6 +135,11 @@ const Home: React.FC = () => {
       path: "/home/shares",
     },
     {
+      icon: <Globe className="w-5 h-5" />,
+      label: "Webhooks",
+      path: "/home/webhooks",
+    },
+    {
       icon: <SettingsIcon className="w-5 h-5" />,
       label: "Settings",
       path: "/home/settings",

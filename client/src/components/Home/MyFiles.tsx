@@ -40,6 +40,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import ShareModal from "./ShareModal";
+import { enqueueUpload, getQueuedUploads, removeQueuedUpload, updateQueuedUpload } from "../../services/offlineQueue";
+import type { QueuedUpload } from "../../services/offlineQueue";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -60,17 +62,19 @@ interface TrackedFile {
   shareHistory: Array<{ timestamp: string; source?: string }>;
   downloadHistory: Array<{ timestamp: string }>;
   viewHistory: Array<{ timestamp: string }>;
-<<<<<<< HEAD
   uploadHistory?: Array<{ timestamp: string }>;
-=======
   password?: string;
->>>>>>> upstream/main
+  scanStatus?: string;
+  matchType?: string;
+  snippet?: string;
 }
 
 const MyFiles: React.FC = () => {
   const [files, setFiles] = useState<TrackedFile[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<TrackedFile[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [selectedType, setSelectedType] = useState("All");
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -109,15 +113,103 @@ const MyFiles: React.FC = () => {
 
   // Bulk download state
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
-  
-  // ✅ Load files from localStorage (temporary - will be replaced with backend)
+
+  // Offline capabilities state
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [queuedUploads, setQueuedUploads] = useState<QueuedUpload[]>([]);
+  const [isSyncingOfflineQueue, setIsSyncingOfflineQueue] = useState(false);
 
   // ✅ Load resumable upload sessions from localStorage
   useEffect(() => {
     setPendingResumeSessions(
       loadStoredSessions().filter((session) => session.status !== "completed"),
     );
+
+    // Initialize offline queue state
+    const loadOfflineQueue = async () => {
+      try {
+        const uploads = await getQueuedUploads();
+        setQueuedUploads(uploads);
+      } catch (e) {
+        console.error("Failed to load offline queue:", e);
+      }
+    };
+    loadOfflineQueue();
+
+    // Setup network listeners
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.info("Connectivity restored. Preparing to sync uploads...");
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning("You are offline. Uploads will be queued locally.");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
+
+  // Sync Offline Queue
+  useEffect(() => {
+    if (isOnline && queuedUploads.length > 0 && !isSyncingOfflineQueue) {
+      syncOfflineQueue();
+    }
+  }, [isOnline, queuedUploads, isSyncingOfflineQueue]);
+
+  const syncOfflineQueue = async () => {
+    setIsSyncingOfflineQueue(true);
+    toast.info(`Starting sync for ${queuedUploads.length} queued upload(s)...`);
+
+    for (const queued of queuedUploads) {
+      if (queued.status === 'syncing') continue;
+
+      try {
+        // Update status in UI and DB
+        const updatedQueued = { ...queued, status: 'syncing' as const };
+        await updateQueuedUpload(updatedQueued);
+        setQueuedUploads((prev) => prev.map((q) => (q.id === queued.id ? updatedQueued : q)));
+
+        // Upload file via existing resumable architecture
+        const result = await uploadFileResumable({
+          file: queued.file,
+          onProgress: (state) => {
+            // Optional: Show background progress
+          },
+        });
+
+        // Save file info
+        await fileApi.saveFileInfo({
+          fileName: queued.file.name,
+          fileUrl: result.fileUrl,
+          fileType: queued.file.type.split("/")[0] || "application",
+          fileSize: formatFileSize(queued.file.size),
+          fileSizeBytes: queued.file.size,
+          checksum: result.checksum,
+        });
+
+        // Remove from queue upon success
+        await removeQueuedUpload(queued.id);
+        setQueuedUploads((prev) => prev.filter((q) => q.id !== queued.id));
+        toast.success(`Successfully synced: ${queued.file.name}`);
+
+      } catch (e) {
+        console.error(`Failed to sync queued upload ${queued.file.name}:`, e);
+        const failedQueued = { ...queued, status: 'failed' as const, retryCount: queued.retryCount + 1 };
+        await updateQueuedUpload(failedQueued);
+        setQueuedUploads((prev) => prev.map((q) => (q.id === queued.id ? failedQueued : q)));
+        toast.error(`Sync failed for: ${queued.file.name}`);
+      }
+    }
+
+    setIsSyncingOfflineQueue(false);
+    refreshFiles();
+  };
 
   // ✅ UPDATED: Load files from BACKEND first, localStorage as fallback
   useEffect(() => {
@@ -143,6 +235,7 @@ const MyFiles: React.FC = () => {
             currentVersion: file.currentVersion,
             tags: file.tags || [],
             password: file.password,
+            scanStatus: file.scanStatus || "uploaded",
           }));
           setFiles(backendFiles);
           setLoading(false);
@@ -176,6 +269,7 @@ const MyFiles: React.FC = () => {
                 viewHistory: file.viewHistory || [],
                 tags: file.tags || [],
                 password: file.password,
+                scanStatus: file.scanStatus || "uploaded",
               }));
               setFiles(backendFiles);
               setLoading(false);
@@ -225,6 +319,7 @@ const MyFiles: React.FC = () => {
           currentVersion: file.currentVersion,
           tags: file.tags || [],
           password: file.password,
+          scanStatus: file.scanStatus || "uploaded",
         }));
         setFiles(backendFiles);
       }
@@ -244,6 +339,54 @@ const MyFiles: React.FC = () => {
       return () => unsubscribeFromFiles();
     });
   }, []);
+
+  // ✅ Backend Search Integration
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults(null);
+        setIsSearching(false);
+        return;
+      }
+      
+      setIsSearching(true);
+      try {
+        const response = await fileApi.searchFiles(searchQuery);
+        if (response && response.files) {
+          const mappedResults = response.files.map((file: any) => ({
+            id: file._id,
+            name: file.fileName,
+            url: file.fileUrl,
+            type: file.fileType || "application",
+            size: file.fileSize || "0 KB",
+            uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
+            isFavorite: file.isFavorite || false,
+            shareCount: file.shareCount || 0,
+            downloadCount: file.downloadCount || 0,
+            viewCount: file.viewCount || 0,
+            shareHistory: file.shareHistory || [],
+            downloadHistory: file.downloadHistory || [],
+            viewHistory: file.viewHistory || [],
+            currentVersion: file.currentVersion,
+            tags: file.tags || [],
+            password: file.password,
+            scanStatus: file.scanStatus || "uploaded",
+            matchType: file.matchType,
+            snippet: file.snippet,
+          }));
+          setSearchResults(mappedResults);
+        }
+      } catch (error) {
+        console.error("Failed to perform search:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timer = setTimeout(performSearch, 400); // 400ms debounce
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // ✅ Track link copy with BACKEND API
   const trackLinkCopy = async (
@@ -438,6 +581,27 @@ const MyFiles: React.FC = () => {
       return;
     }
 
+    if (!isOnline) {
+      toast.info(`Offline: Queuing ${selectedFilesList.length} file(s) for upload when connection is restored.`);
+      
+      const newUploads: QueuedUpload[] = [];
+      for (const file of selectedFilesList) {
+        try {
+          const queued = await enqueueUpload(file);
+          newUploads.push(queued);
+        } catch (e) {
+          console.error("Failed to queue upload offline:", e);
+        }
+      }
+      
+      if (newUploads.length > 0) {
+        setQueuedUploads((prev) => [...prev, ...newUploads]);
+      }
+      
+      e.target.value = "";
+      return;
+    }
+
     setIsUploading(true);
     setIsPaused(false);
     pauseRef.current = false;
@@ -460,32 +624,6 @@ const MyFiles: React.FC = () => {
           },
         });
 
-<<<<<<< HEAD
-        // In real app, replace with actual upload API
-        // const res = await axios.post("/upload", formData);
-        const mockUrl = URL.createObjectURL(file); // Simulated URL
-
-        clearInterval(progressInterval);
-
-        const newFile: TrackedFile = {
-          id: Date.now().toString() + index,
-          name: file.name,
-          url: mockUrl,
-          type: file.type.split("/")[0],
-          size: formatFileSize(file.size),
-          uploaded: new Date().toLocaleDateString(),
-          shareCount: 0,
-          downloadCount: 0,
-          viewCount: 0,
-          shareHistory: [],
-          downloadHistory: [],
-          viewHistory: [],
-          uploadHistory: [{ timestamp: new Date().toISOString() }],
-        };
-
-        uploadedFiles.push(newFile);
-        setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
-=======
         await fileApi.saveFileInfo({
           fileName: file.name,
           fileUrl: result.fileUrl,
@@ -494,7 +632,6 @@ const MyFiles: React.FC = () => {
           fileSizeBytes: file.size,
           checksum: result.checksum,
         });
->>>>>>> upstream/main
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           toast.info("Upload cancelled.");
@@ -652,8 +789,14 @@ const MyFiles: React.FC = () => {
     fileId: string,
     fileUrl: string,
     fileName: string,
+    scanStatus?: string,
   ) => {
     try {
+      if (scanStatus && scanStatus !== "safe") {
+        toast.error(`Cannot download file. Scan status: ${scanStatus}`);
+        return;
+      }
+      
       // Track download to backend first
       await trackDownload(fileId, fileName, fileUrl);
 
@@ -796,18 +939,16 @@ const MyFiles: React.FC = () => {
   };
 
   // ✅ Filter files based on search, type, and activeFilter
-  const filteredFiles = files.filter((file) => {
-    const matchesSearch = file.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+  const baseFiles = searchResults !== null ? searchResults : files;
   
+  const filteredFiles = baseFiles.filter((file) => {
     const matchesType =
       selectedType === "All" || getFileType(file.name) === selectedType;
 
     const matchesActiveFilter =
       activeFilter === "all" || file.type === activeFilter;
   
-    return matchesSearch && matchesType && matchesActiveFilter;
+    return matchesType && matchesActiveFilter;
   });
 
   const searchResultCount = filteredFiles.length;
@@ -922,6 +1063,41 @@ formatFileSize
 
   return (
     <div className="px-4 sm:px-6">
+      {/* Offline Status Indicators */}
+      {!isOnline && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-6 flex items-center justify-between">
+          <div className="flex items-center text-yellow-500">
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+            </svg>
+            <span className="font-medium text-sm">You are currently offline.</span>
+          </div>
+          <span className="text-sm text-yellow-500/80">New uploads will be queued locally.</span>
+        </div>
+      )}
+
+      {queuedUploads.length > 0 && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center text-blue-400">
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span className="font-medium text-sm">
+              {queuedUploads.length} queued upload(s) 
+              {isSyncingOfflineQueue ? " - Syncing..." : isOnline ? " - Ready to sync" : " - Waiting for network"}
+            </span>
+          </div>
+          {isOnline && !isSyncingOfflineQueue && (
+            <button 
+              onClick={syncOfflineQueue}
+              className="text-xs px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors whitespace-nowrap"
+            >
+              Sync Now
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Header with Stats */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -1418,24 +1594,32 @@ formatFileSize
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDownload(file.id, file.url, file.name);
+                          if (file.scanStatus !== "safe") {
+                            toast.error(`Cannot download file. Status: ${file.scanStatus}`);
+                            return;
+                          }
+                          handleDownload(file.id, file.url, file.name, file.scanStatus);
                         }}
-                        className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
-                        title="Download"
+                        className={`p-2 rounded-full text-white ${file.scanStatus === 'safe' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-500 cursor-not-allowed'}`}
+                        title={file.scanStatus === 'safe' ? "Download" : "Scan in progress or failed"}
                       >
                         <Download className="w-4 h-4" />
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (file.scanStatus !== "safe") {
+                            toast.error(`Cannot share file. Status: ${file.scanStatus}`);
+                            return;
+                          }
                           const f = files.find(fi => fi.id === file.id);
                           if (f) {
                             setSelectedFileForShare({ _id: f.id, fileName: f.name, fileUrl: f.url });
                             setShareModalOpen(true);
                           }
                         }}
-                        className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
-                        title="Share"
+                        className={`p-2 rounded-full text-white ${file.scanStatus === 'safe' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-500 cursor-not-allowed'}`}
+                        title={file.scanStatus === 'safe' ? "Share" : "Scan in progress or failed"}
                       >
                         <Share2 className="w-4 h-4" />
                       </button>
@@ -1495,6 +1679,19 @@ formatFileSize
                           {file.name}
                         </h3>
                       </div>
+                      {file.scanStatus && (
+                        <span 
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full mr-1 shrink-0 ${
+                            file.scanStatus === 'safe' ? 'bg-green-500/20 text-green-400' :
+                            file.scanStatus === 'scanning' ? 'bg-blue-500/20 text-blue-400' :
+                            file.scanStatus === 'uploaded' ? 'bg-gray-500/20 text-gray-400' :
+                            'bg-red-500/20 text-red-400'
+                          }`}
+                          title={`Scan Status: ${file.scanStatus}`}
+                        >
+                          {file.scanStatus}
+                        </span>
+                      )}
                       {file.password && (
                         <span title="Password Protected">
                           <Lock className="w-3.5 h-3.5 text-yellow-400 shrink-0 ml-1" />
@@ -1505,6 +1702,25 @@ formatFileSize
                       <span>{file.size}</span>
                       <span>{file.uploaded}</span>
                     </div>
+
+                    {/* Search Snippet (if searching) */}
+                    {searchQuery.trim().length > 0 && file.matchType && (
+                      <div className="mb-2 text-xs">
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider mb-1 ${
+                          file.matchType === 'content' ? 'bg-purple-500/20 text-purple-400' :
+                          file.matchType === 'metadata' ? 'bg-green-500/20 text-green-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {file.matchType} match
+                        </span>
+                        {file.snippet && (
+                          <p 
+                            className="text-gray-300 italic line-clamp-2 leading-relaxed mt-1" 
+                            dangerouslySetInnerHTML={{ __html: file.snippet }}
+                          />
+                        )}
+                      </div>
+                    )}
 
                     {/* Mini Stats */}
                     <div className="flex justify-between text-xs">
@@ -1603,6 +1819,19 @@ formatFileSize
                             <div className="text-white font-medium truncate max-w-[200px]">
                               {file.name}
                             </div>
+                            {file.scanStatus && (
+                              <span 
+                                className={`text-[10px] px-1.5 py-0.5 rounded-full ml-2 shrink-0 ${
+                                  file.scanStatus === 'safe' ? 'bg-green-500/20 text-green-400' :
+                                  file.scanStatus === 'scanning' ? 'bg-blue-500/20 text-blue-400' :
+                                  file.scanStatus === 'uploaded' ? 'bg-gray-500/20 text-gray-400' :
+                                  'bg-red-500/20 text-red-400'
+                                }`}
+                                title={`Scan Status: ${file.scanStatus}`}
+                              >
+                                {file.scanStatus}
+                              </span>
+                            )}
                             {file.password && (
                               <span title="Password Protected">
                                 <Lock className="w-3.5 h-3.5 text-yellow-400 shrink-0 ml-1.5" />
@@ -1611,6 +1840,25 @@ formatFileSize
                           </div>
                           <div className="text-gray-400 text-xs">
                             {file.size}
+
+                            {/* Search Snippet (if searching) */}
+                            {searchQuery.trim().length > 0 && file.matchType && (
+                              <div className="mt-1 flex items-center gap-2">
+                                <span className={`inline-block px-1 py-0.5 rounded text-[9px] uppercase tracking-wider ${
+                                  file.matchType === 'content' ? 'bg-purple-500/20 text-purple-400' :
+                                  file.matchType === 'metadata' ? 'bg-green-500/20 text-green-400' :
+                                  'bg-blue-500/20 text-blue-400'
+                                }`}>
+                                  {file.matchType} match
+                                </span>
+                                {file.snippet && (
+                                  <span 
+                                    className="text-gray-300 italic truncate max-w-[200px] inline-block align-bottom" 
+                                    dangerouslySetInnerHTML={{ __html: file.snippet }}
+                                  />
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1644,23 +1892,31 @@ formatFileSize
                     <div className="col-span-2">
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() =>
-                            handleDownload(file.id, file.url, file.name)
-                          }
+                          onClick={() => {
+                            if (file.scanStatus !== "safe") {
+                              toast.error(`Cannot download. Status: ${file.scanStatus}`);
+                              return;
+                            }
+                            handleDownload(file.id, file.url, file.name, file.scanStatus);
+                          }}
                           className="p-1.5 hover:bg-gray-700 rounded"
                           title="Download"
                         >
-                          <Download className="w-4 h-4 text-gray-400 hover:text-white" />
+                          <Download className={`w-4 h-4 ${file.scanStatus === 'safe' ? 'text-gray-400 hover:text-white' : 'text-gray-600'}`} />
                         </button>
                         <button
                           onClick={() => {
+                            if (file.scanStatus !== "safe") {
+                              toast.error(`Cannot share. Status: ${file.scanStatus}`);
+                              return;
+                            }
                             setSelectedFileForShare({ _id: file.id, fileName: file.name, fileUrl: file.url });
                             setShareModalOpen(true);
                           }}
                           className="p-1.5 hover:bg-gray-700 rounded"
                           title="Share"
                         >
-                          <Share2 className="w-4 h-4 text-gray-400 hover:text-white" />
+                          <Share2 className={`w-4 h-4 ${file.scanStatus === 'safe' ? 'text-gray-400 hover:text-white' : 'text-gray-600'}`} />
                         </button>
                         <button
                           onClick={() => setShowFileStats(file.id)}
@@ -2118,7 +2374,6 @@ formatFileSize
           </motion.div>
         )}
       </AnimatePresence>
-
       {/* Share Link Modal */}
       {/* Share Modal */}
       {shareModalOpen && selectedFileForShare && (

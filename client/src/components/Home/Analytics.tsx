@@ -1158,60 +1158,6 @@ async function fetchStats(period: string): Promise<AnalyticsData> {
     })
   );
 
-<<<<<<< HEAD
-      // Recent activity (last 24 hours)
-      const recentActivity = files
-  .flatMap((file) => {
-    const activities: any[] = [];
-
-    // Uploads
-    if (file.uploadHistory) {
-      file.uploadHistory.forEach((upload) => {
-        activities.push({
-          timestamp: upload.timestamp,
-          time: formatTimeAgo(new Date(upload.timestamp)),
-          file: file.name,
-          action: "upload",
-          count: 1,
-        });
-      });
-    }
-
-    // Shares
-    if (file.shareHistory) {
-      file.shareHistory.forEach((share) => {
-        activities.push({
-          timestamp: share.timestamp,
-          time: formatTimeAgo(new Date(share.timestamp)),
-          file: file.name,
-          action: "share",
-          count: 1,
-        });
-      });
-    }
-
-    // Downloads
-    if (file.downloadHistory) {
-      file.downloadHistory.forEach((download) => {
-        activities.push({
-          timestamp: download.timestamp,
-          time: formatTimeAgo(new Date(download.timestamp)),
-          file: file.name,
-          action: "download",
-          count: 1,
-        });
-      });
-    }
-
-    return activities;
-  })
-  .sort(
-    (a, b) =>
-      new Date(b.timestamp).getTime() -
-      new Date(a.timestamp).getTime()
-  )
-  .slice(0, 20);
-=======
   // ── shareSources ─────────────────────────────────────────────────────────
   const rawSources: Array<{ _id: string; count: number }> =
     statsRes.shareSources ?? [];
@@ -1222,7 +1168,6 @@ async function fetchStats(period: string): Promise<AnalyticsData> {
       totalSourceCount > 0 ? Math.round((s.count / totalSourceCount) * 100) : 0,
     color: getSourceColor(s._id),
   }));
->>>>>>> upstream/main
 
   // ── hourlyActivity ───────────────────────────────────────────────────────
   const totalHourlyShares = (statsRes.hourlyActivity ?? []).reduce(

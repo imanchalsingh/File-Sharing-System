@@ -51,6 +51,11 @@ export const fileApi = {
     return response.data;
   },
 
+  searchFiles: async (query: string) => {
+    const response = await api.get(`/api/files/search?q=${encodeURIComponent(query)}`);
+    return response.data;
+  },
+
   saveFileInfo: async (data: {
     fileName: string;
     fileUrl: string;
