@@ -113,6 +113,46 @@ export const fileApi = {
     const response = await api.post(`/api/files/shared/${fileId}/verify-password`, { password });
     return response.data;
   },
+
+  moveFile: async (fileId: string, folderId: string | null) => {
+    const response = await api.patch(`/api/files/${fileId}/move`, { folderId });
+    return response.data;
+  },
+};
+
+// ==================== FOLDER APIs ====================
+
+export const folderApi = {
+  create: async (name: string, parentId: string | null = null) => {
+    const response = await api.post("/api/folders", { name, parentId });
+    return response.data;
+  },
+
+  getTree: async () => {
+    const response = await api.get("/api/folders/tree");
+    return response.data;
+  },
+
+  getContents: async (folderId: string | null = null) => {
+    const id = folderId || "root";
+    const response = await api.get(`/api/folders/${id}/contents`);
+    return response.data;
+  },
+
+  rename: async (folderId: string, name: string) => {
+    const response = await api.patch(`/api/folders/${folderId}/rename`, { name });
+    return response.data;
+  },
+
+  move: async (folderId: string, newParentId: string | null) => {
+    const response = await api.patch(`/api/folders/${folderId}/move`, { parentId: newParentId });
+    return response.data;
+  },
+
+  delete: async (folderId: string, force: boolean = false) => {
+    const response = await api.delete(`/api/folders/${folderId}?force=${force}`);
+    return response.data;
+  },
 };
 
 // ==================== SHARE APIs ====================
@@ -122,6 +162,7 @@ export const shareApi = {
     fileId: string;
     expiresAt?: string | null;
     maxAccessCount?: number | null;
+    slug?: string;
   }) => {
     const response = await api.post('/api/shares', data);
     return response.data;
@@ -132,7 +173,7 @@ export const shareApi = {
     return response.data;
   },
 
-  updateShareLink: async (shareId: string, data: { expiresAt?: string }) => {
+  updateShareLink: async (shareId: string, data: { expiresAt?: string; maxAccessCount?: number; slug?: string }) => {
     const response = await api.put(`/api/shares/${shareId}`, data);
     return response.data;
   },
@@ -198,11 +239,14 @@ export const uploadApi = {
     mimeType?: string;
     expectedChecksum?: string;
     sessionId?: string;
+    forceUpload?: boolean;
   }) => {
     const response = await api.post("/api/files/upload/init", data);
     return response.data as {
       success: boolean;
-      session: import("./uploadTypes").UploadSessionInfo;
+      session?: import("./uploadTypes").UploadSessionInfo;
+      duplicateExists?: boolean;
+      existingFileUrl?: string;
     };
   },
 

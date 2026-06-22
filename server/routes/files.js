@@ -18,6 +18,7 @@ import {
   updateViewCount,
   deleteFile,
   bulkDeleteFiles,
+  bulkDownloadFiles,
   getFileStats,
   getFileVersions,
   restoreFileVersion,
@@ -28,7 +29,7 @@ import {
   updateFilePassword,
   getSharedFileById,
   verifySharedFilePassword,
-  searchFiles,
+  moveFile,
 } from "../controllers/fileController.js";
 
 const router = express.Router();
@@ -76,8 +77,14 @@ router.put("/:id/password", updateFilePassword);
 // Delete file
 router.delete("/:id", deleteFile);
 
+// Move file
+router.patch("/:id/move", moveFile);
+
 // Bulk delete
 router.delete("/bulk-delete", bulkDeleteFiles);
+
+// Bulk download
+router.post("/bulk-download", downloadLimiter, bulkDownloadFiles);
 
 // Get file versions
 router.get("/:id/versions", getFileVersions);

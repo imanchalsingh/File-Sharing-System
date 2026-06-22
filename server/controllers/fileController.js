@@ -1,16 +1,25 @@
 import File from "../models/File.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
-import { enqueueScan } from "../jobs/scanQueue.js";
-import { dispatchWebhookEvent } from "../jobs/webhookQueue.js";
-import { enqueueIndex } from "../jobs/indexQueue.js";
+import { Readable } from "stream";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const { ZipArchive } = require("archiver");
 
-// ✅ Get user's all files
+
+// ✅ Get user's all files (with optional folder filter)
 export const getUserFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { folderId } = req.query; // 'null' string or objectId
 
-    const files = await File.find({ userId })
+    const query = { userId, isDeleted: false };
+    
+    if (folderId !== undefined) {
+      query.folderId = folderId === "null" || folderId === "" ? null : folderId;
+    }
+
+    const files = await File.find(query)
       .sort({ createdAt: -1 })
       .select("-__v");
 
@@ -57,6 +66,7 @@ export const saveFileInfo = async (req, res, next) => {
       checksum,
       tags,
       password,
+      folderId,
     } = req.body;
 
     if (!fileName || !fileUrl) {
@@ -140,6 +150,7 @@ if (checksum) {
       fileSize: fileSize || "0 KB",
       fileSizeBytes: fileSizeBytes || 0,
       checksum: checksum || null,
+      folderId: folderId || null,
       userId,
       currentVersion: 1,
       tags: Array.isArray(tags) ? tags : [],
@@ -364,6 +375,102 @@ export const bulkDeleteFiles = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+// ✅ Bulk download files as ZIP
+export const bulkDownloadFiles = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { fileIds } = req.body;
+
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+      const error = new Error("No file IDs provided");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (fileIds.length > 50) {
+      const error = new Error("Maximum of 50 files can be downloaded at once");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const files = await File.find({
+      _id: { $in: fileIds },
+      userId,
+    });
+
+    if (files.length === 0) {
+      const error = new Error("No valid files found for download");
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    // Set headers for ZIP download
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="bulk_download_${Date.now()}.zip"`
+    );
+
+    const archive = new ZipArchive({
+      zlib: { level: 5 }, // Moderate compression for speed
+    });
+
+    archive.on("error", function (err) {
+      console.error("Archive error:", err);
+      if (!res.headersSent) {
+        res.status(500).end("Error generating ZIP archive.");
+      } else {
+        res.end();
+      }
+    });
+
+    // Pipe archive data to the response
+    archive.pipe(res);
+
+    const fileNamesSeen = new Set();
+
+    for (const file of files) {
+      if (!file.fileUrl) continue;
+
+      try {
+        const response = await fetch(file.fileUrl);
+        if (!response.ok) {
+          console.warn(`Failed to fetch ${file.fileUrl}: ${response.statusText}`);
+          continue;
+        }
+
+        const nodeStream = Readable.fromWeb(response.body);
+
+        // Handle duplicate file names in the zip
+        let finalName = file.fileName;
+        let counter = 1;
+        while (fileNamesSeen.has(finalName)) {
+          const nameParts = file.fileName.split('.');
+          const ext = nameParts.length > 1 ? `.${nameParts.pop()}` : '';
+          const base = nameParts.join('.');
+          finalName = `${base} (${counter})${ext}`;
+          counter++;
+        }
+        fileNamesSeen.add(finalName);
+
+        archive.append(nodeStream, { name: finalName });
+      } catch (err) {
+        console.error(`Error appending file ${file.fileName}:`, err);
+      }
+    }
+
+    await archive.finalize();
+
+  } catch (error) {
+    if (!res.headersSent) {
+      next(error);
+    } else {
+      console.error("Error during bulk download stream:", error);
+      res.end();
+    }
   }
 };
 
@@ -714,117 +821,43 @@ export const verifySharedFilePassword = async (req, res, next) => {
   }
 };
 
-// Helper to escape HTML tags in text to prevent XSS
-const escapeHtml = (text) => {
-  if (!text) return "";
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-};
-
-// Helper to generate text snippet with matching query highlighted
-const generateSearchSnippet = (text, query) => {
-  if (!text || !query) return null;
-
-  const cleanQuery = query.trim().replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-  const regex = new RegExp(`(${cleanQuery})`, 'i');
-  const match = text.match(regex);
-
-  if (!match) return null;
-
-  const matchIndex = match.index;
-  const start = Math.max(0, matchIndex - 60);
-  const end = Math.min(text.length, matchIndex + query.length + 60);
-
-  let snippet = text.substring(start, end);
-  let escapedSnippet = escapeHtml(snippet);
-
-  const highlightRegex = new RegExp(`(${cleanQuery})`, 'gi');
-  const highlighted = escapedSnippet.replace(
-    highlightRegex,
-    '<mark class="bg-yellow-500/30 text-yellow-600 dark:text-yellow-200 px-1 rounded font-semibold">$1</mark>'
-  );
-
-  let finalSnippet = highlighted;
-  if (start > 0) finalSnippet = '...' + finalSnippet;
-  if (end < text.length) finalSnippet = finalSnippet + '...';
-
-  return finalSnippet;
-};
-
-// ✅ Search files (filename, tags, content)
-export const searchFiles = async (req, res, next) => {
+// ✅ Move a file to another folder
+export const moveFile = async (req, res, next) => {
   try {
+    const { id } = req.params;
+    const { folderId } = req.body;
     const userId = req.user.id;
-    const { q } = req.query;
+    const newFolderId = folderId || null;
 
-    if (!q || !q.trim()) {
-      return res.json({ success: true, files: [], count: 0 });
+    const file = await File.findOne({ _id: id, userId });
+    if (!file) {
+      const error = new Error("File not found or unauthorized");
+      error.statusCode = 404;
+      return next(error);
     }
 
-    const queryStr = q.trim();
-    const searchRegex = new RegExp(queryStr, "i");
-
-    let files = [];
-    // 1. Text Search (Full-text index)
-    try {
-      files = await File.find(
-        {
-          userId,
-          isDeleted: { $ne: true },
-          $text: { $search: queryStr }
-        },
-        { score: { $meta: "textScore" } }
-      ).sort({ score: { $meta: "textScore" } });
-    } catch (err) {
-      console.warn("[Search] Text search failed or not indexed yet:", err.message);
-    }
-
-    // 2. Regex fallback/extension to capture partial matches in names, tags or text
-    const regexFiles = await File.find({
-      userId,
-      isDeleted: { $ne: true },
-      _id: { $nin: files.map((f) => f._id) },
-      $or: [
-        { fileName: searchRegex },
-        { tags: { $in: [searchRegex] } },
-        { extractedText: searchRegex }
-      ]
-    });
-
-    const allFiles = [...files, ...regexFiles];
-
-    // 3. Process matches (determine type and generate snippet)
-    const results = allFiles.map((file) => {
-      const fileObj = file.toObject();
-      let matchType = "filename";
-      let snippet = null;
-
-      const lowerQuery = queryStr.toLowerCase();
-      
-      if (file.fileName.toLowerCase().includes(lowerQuery)) {
-        matchType = "filename";
-      } else if (file.tags && file.tags.some(t => t.toLowerCase().includes(lowerQuery))) {
-        matchType = "metadata";
-      } else if (file.extractedText && file.extractedText.toLowerCase().includes(lowerQuery)) {
-        matchType = "content";
-        snippet = generateSearchSnippet(file.extractedText, queryStr);
+    if (newFolderId) {
+      // Need to import Folder model for validation
+      // But fileController doesn't import Folder yet. We can avoid importing it
+      // if we trust the API or we can just import mongoose and query the 'folders' collection
+      const folderExists = await mongoose.connection.collection("folders").findOne({ 
+        _id: new mongoose.Types.ObjectId(newFolderId), 
+        userId: new mongoose.Types.ObjectId(userId) 
+      });
+      if (!folderExists) {
+        const error = new Error("Destination folder not found or unauthorized");
+        error.statusCode = 404;
+        return next(error);
       }
+    }
 
-      return {
-        ...fileObj,
-        matchType,
-        snippet,
-      };
-    });
+    file.folderId = newFolderId;
+    await file.save();
 
-    res.json({
+    res.status(200).json({
       success: true,
-      files: results,
-      count: results.length,
+      message: "File moved successfully",
+      file,
     });
   } catch (error) {
     next(error);

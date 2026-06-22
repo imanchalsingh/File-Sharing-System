@@ -5,6 +5,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { createReadStream } from "fs";
 import fs from "fs/promises";
 import UploadSession from "../models/UploadSession.js";
+import File from "../models/File.js";
 import {
   UPLOAD_CHUNK_SIZE_BYTES,
   UPLOAD_SESSION_TTL_HOURS,
@@ -106,7 +107,7 @@ async function loadUploadSessionForChunk(req, res, next) {
 
 export const initUpload = async (req, res) => {
   try {
-    const { fileName, fileSizeBytes, mimeType, expectedChecksum, sessionId } = req.body;
+    const { fileName, fileSizeBytes, mimeType, expectedChecksum, sessionId, forceUpload } = req.body;
     const userId = req.user.id;
 
     if (!fileName || !fileSizeBytes) {
@@ -116,6 +117,22 @@ export const initUpload = async (req, res) => {
     const sizeError = validateFileSize(Number(fileSizeBytes));
     if (sizeError) {
       return res.status(400).json({ error: sizeError });
+    }
+
+    if (!sessionId && expectedChecksum && !forceUpload) {
+      const duplicate = await File.findOne({
+        userId,
+        checksum: expectedChecksum,
+        isDeleted: false,
+      }).select("fileUrl");
+
+      if (duplicate) {
+        return res.status(200).json({
+          success: true,
+          duplicateExists: true,
+          existingFileUrl: duplicate.fileUrl,
+        });
+      }
     }
 
     if (sessionId) {
