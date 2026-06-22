@@ -12,6 +12,7 @@ import ShareManager from "./components/Home/ShareManager";
 import SharedFileAccess from "./components/SharedFileAccess";
 import ExpiredSharePage from "./components/ExpiredSharePage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Webhooks from "./components/Home/Webhooks";
 import SharePage from "./components/Share/SharePage";
 import Settings from "./components/Home/Settings";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -48,6 +49,7 @@ const App: React.FC = () => {
           <Route path="analytics" element={<Analytics />} />
           <Route path="favorites" element={<Favorites />} />
           <Route path="shares" element={<ShareManager />} />
+          <Route path="webhooks" element={<Webhooks />} />
           <Route path="settings" element={<Settings />} />
         </Route>
 

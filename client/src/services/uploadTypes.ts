@@ -38,6 +38,7 @@ export interface ResumableUploadOptions {
   onProgress?: (state: UploadProgressState) => void;
   shouldPause?: () => boolean;
   signal?: AbortSignal;
+  onDuplicateDetected?: () => Promise<'link' | 'upload'>;
 }
 
 export function calculateTotalChunks(fileSizeBytes: number, chunkSize: number) {

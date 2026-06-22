@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "conventional-commit": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/conventional-commit/SKILL.md",
+      "computedHash": "f29c9486cede6c7b2df0cfb0a2e4aa67446552b991bcf17d1b309e903171f03d"
+    },
+    "mongodb-schema-design": {
+      "source": "mongodb/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mongodb-schema-design/SKILL.md",
+      "computedHash": "7e2e43bee81674d391fa65e36177b4c137d158f759e116abab8687b2e64393bb"
+    },
+    "nodejs-express-server": {
+      "source": "aj-geddes/useful-ai-prompts",
+      "sourceType": "github",
+      "skillPath": "skills/nodejs-express-server/SKILL.md",
+      "computedHash": "8a7fe50351131f99b7bc7750bb4be6e7cbd7919b3b346c8fc7f857fb1ecad059"
+    },
+    "redis-best-practices": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "redis-best-practices/SKILL.md",
+      "computedHash": "7d5b0f93221b2b0f1f1c35352d06990a9d18226aa95f546b161b10a4fdaabf6b"
+    },
+    "vitest-testing-patterns": {
+      "source": "erichowens/some_claude_skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/vitest-testing-patterns/SKILL.md",
+      "computedHash": "3b1cbfed0898d8bef74c8e54eb14e12c9e4045e65acb1e5c5348a43b7ed1ef80"
+    },
+    "wcag-audit-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/accessibility-compliance/skills/wcag-audit-patterns/SKILL.md",
+      "computedHash": "931332c7fc4dadbb32848b8f497efa793e120a6e8ff7524c1b90d18cac4f1d65"
+    }
+  }
+}

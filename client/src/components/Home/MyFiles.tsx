@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { analyticsApi, fileApi, uploadApi } from "../../services/api";
+import { analyticsApi, fileApi, uploadApi, folderApi } from "../../services/api";
 import {
   uploadFileResumable,
   type UploadProgressState,
@@ -22,6 +22,12 @@ import {
   Image as ImageIcon,
   File,
   Folder,
+  FolderPlus,
+  FolderOpen,
+  FolderInput,
+  FolderOutput,
+  Edit2,
+  ChevronRight,
   CheckCircle,
   X,
   Grid,
@@ -40,6 +46,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import ShareModal from "./ShareModal";
+import { enqueueUpload, getQueuedUploads, removeQueuedUpload, updateQueuedUpload } from "../../services/offlineQueue";
+import type { QueuedUpload } from "../../services/offlineQueue";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -63,12 +71,27 @@ interface TrackedFile {
   uploadHistory?: Array<{ timestamp: string }>;
   password?: string;
   scanStatus?: string;
+  matchType?: string;
+  snippet?: string;
 }
 
 const MyFiles: React.FC = () => {
   const [files, setFiles] = useState<TrackedFile[]>([]);
+  const [folders, setFolders] = useState<any[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; name: string }[]>([
+    { id: null, name: "Root" }
+  ]);
+  const [showNewFolderModal, setShowNewFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showMoveModal, setShowMoveModal] = useState<{ type: "file" | "folder", id: string, currentParentId: string | null } | null>(null);
+  const [folderTree, setFolderTree] = useState<any[]>([]);
+  const [folderContextMenu, setFolderContextMenu] = useState<{ id: string, name: string } | null>(null);
+  
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<TrackedFile[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [selectedType, setSelectedType] = useState("All");
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -97,12 +120,6 @@ const MyFiles: React.FC = () => {
   const [passwordValue, setPasswordValue] = useState("");
   const [isPasswordModalLoading, setIsPasswordModalLoading] = useState(false);
 
-<<<<<<< HEAD
-  // Share Modal state
-  const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [selectedFileForShare, setSelectedFileForShare] = useState<{ _id: string, fileName: string, fileUrl: string } | null>(null);
-
-=======
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedFileForShare, setSelectedFileForShare] = useState<{
@@ -113,109 +130,187 @@ const MyFiles: React.FC = () => {
 
   // Bulk download state
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
-  
->>>>>>> main
-  // ✅ Load files from localStorage (temporary - will be replaced with backend)
+
+  // Offline capabilities state
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [queuedUploads, setQueuedUploads] = useState<QueuedUpload[]>([]);
+  const [isSyncingOfflineQueue, setIsSyncingOfflineQueue] = useState(false);
 
   // ✅ Load resumable upload sessions from localStorage
   useEffect(() => {
     setPendingResumeSessions(
       loadStoredSessions().filter((session) => session.status !== "completed"),
     );
-  }, []);
 
-  // ✅ UPDATED: Load files from BACKEND first, localStorage as fallback
-  useEffect(() => {
-    const loadFiles = async () => {
-      setLoading(true);
+    // Initialize offline queue state
+    const loadOfflineQueue = async () => {
       try {
-        const data = await fileApi.getMyFiles();
-        if (data.files) {
-          const backendFiles = data.files.map((file: any) => ({
-            id: file._id,
-            name: file.fileName,
-            url: file.fileUrl,
-            type: file.fileType || "application",
-            size: file.fileSize || "0 KB",
-            uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
-            isFavorite: file.isFavorite || false,
-            shareCount: file.shareCount || 0,
-            downloadCount: file.downloadCount || 0,
-            viewCount: file.viewCount || 0,
-            shareHistory: file.shareHistory || [],
-            downloadHistory: file.downloadHistory || [],
-            viewHistory: file.viewHistory || [],
-            currentVersion: file.currentVersion,
-            tags: file.tags || [],
-            password: file.password,
-            scanStatus: file.scanStatus || "uploaded",
-          }));
-          setFiles(backendFiles);
-          setLoading(false);
-          return;
-        }
-        // Try to fetch from backend
-        const token = localStorage.getItem("authToken");
-        if (token) {
-          const response = await fetch(`${API_URL}/api/files/my-files`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.files && data.files.length > 0) {
-              const backendFiles = data.files.map((file: any) => ({
-                id: file._id,
-                name: file.fileName,
-                url: file.fileUrl,
-                type: file.fileType || "application",
-                size: file.fileSize || "0 KB",
-                uploaded: new Date(file.createdAt).toLocaleDateString(),
-                isFavorite: file.isFavorite || false,
-                shareCount: file.shareCount || 0,
-                downloadCount: file.downloadCount || 0,
-                viewCount: file.viewCount || 0,
-                shareHistory: file.shareHistory || [],
-                downloadHistory: file.downloadHistory || [],
-                viewHistory: file.viewHistory || [],
-                tags: file.tags || [],
-                password: file.password,
-                scanStatus: file.scanStatus || "uploaded",
-              }));
-              setFiles(backendFiles);
-              setLoading(false);
-              return;
-            }
-          }
-        }
-        
-        // Fallback to localStorage
-        const stored = localStorage.getItem("uploadedFiles");
-        if (stored) {
-          setFiles(JSON.parse(stored));
-        }
-      } catch (error) {
-        console.error("Error loading files:", error);
-        // Fallback to localStorage
-        const stored = localStorage.getItem("uploadedFiles");
-        if (stored) {
-          setFiles(JSON.parse(stored));
-        }
-      } finally {
-        setLoading(false);
+        const uploads = await getQueuedUploads();
+        setQueuedUploads(uploads);
+      } catch (e) {
+        console.error("Failed to load offline queue:", e);
       }
     };
+    loadOfflineQueue();
 
-    loadFiles();
+    // Setup network listeners
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.info("Connectivity restored. Preparing to sync uploads...");
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning("You are offline. Uploads will be queued locally.");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
+
+  // Sync Offline Queue
+  useEffect(() => {
+    if (isOnline && queuedUploads.length > 0 && !isSyncingOfflineQueue) {
+      syncOfflineQueue();
+    }
+  }, [isOnline, queuedUploads, isSyncingOfflineQueue]);
+
+  const syncOfflineQueue = async () => {
+    setIsSyncingOfflineQueue(true);
+    toast.info(`Starting sync for ${queuedUploads.length} queued upload(s)...`);
+
+    for (const queued of queuedUploads) {
+      if (queued.status === 'syncing') continue;
+
+      try {
+        // Update status in UI and DB
+        const updatedQueued = { ...queued, status: 'syncing' as const };
+        await updateQueuedUpload(updatedQueued);
+        setQueuedUploads((prev) => prev.map((q) => (q.id === queued.id ? updatedQueued : q)));
+
+        // Upload file via existing resumable architecture
+        const result = await uploadFileResumable({
+          file: queued.file,
+          onProgress: (state) => {
+            // Optional: Show background progress
+          },
+        });
+
+        // Save file info
+        await fileApi.saveFileInfo({
+          fileName: queued.file.name,
+          fileUrl: result.fileUrl,
+          fileType: queued.file.type.split("/")[0] || "application",
+          fileSize: formatFileSize(queued.file.size),
+          fileSizeBytes: queued.file.size,
+          checksum: result.checksum,
+        });
+
+        // Remove from queue upon success
+        await removeQueuedUpload(queued.id);
+        setQueuedUploads((prev) => prev.filter((q) => q.id !== queued.id));
+        toast.success(`Successfully synced: ${queued.file.name}`);
+
+      } catch (e) {
+        console.error(`Failed to sync queued upload ${queued.file.name}:`, e);
+        const failedQueued = { ...queued, status: 'failed' as const, retryCount: queued.retryCount + 1 };
+        await updateQueuedUpload(failedQueued);
+        setQueuedUploads((prev) => prev.map((q) => (q.id === queued.id ? failedQueued : q)));
+        toast.error(`Sync failed for: ${queued.file.name}`);
+      }
+    }
+
+    setIsSyncingOfflineQueue(false);
+    refreshFiles();
+  };
+
+  // ✅ UPDATED: Load files from BACKEND first, localStorage as fallback
+  const updateBreadcrumbs = (tree: any[], targetId: string | null) => {
+    if (!targetId) {
+      setBreadcrumbs([{ id: null, name: "Root" }]);
+      return;
+    }
+    const path: any[] = [];
+    let currentId = targetId;
+    while (currentId) {
+      const folder = tree.find((f: any) => f._id === currentId);
+      if (folder) {
+        path.unshift({ id: folder._id, name: folder.name });
+        currentId = folder.parentId;
+      } else {
+        break;
+      }
+    }
+    setBreadcrumbs([{ id: null, name: "Root" }, ...path]);
+  };
+
+  const loadFolderData = async () => {
+    setLoading(true);
+    try {
+      const [treeData, contentsData] = await Promise.all([
+        folderApi.getTree().catch(() => ({ folders: [] })),
+        folderApi.getContents(currentFolderId).catch((err) => {
+          if (err.response?.status === 404 && currentFolderId !== null) {
+            toast.error("Folder not found. Redirecting to root.");
+            setCurrentFolderId(null);
+          }
+          return { subfolders: [], files: [] };
+        })
+      ]);
+
+      if (treeData.folders) {
+        setFolderTree(treeData.folders);
+        updateBreadcrumbs(treeData.folders, currentFolderId);
+      }
+
+      if (contentsData.subfolders) {
+        setFolders(contentsData.subfolders);
+      }
+
+      if (contentsData.files) {
+        const backendFiles = contentsData.files.map((file: any) => ({
+          id: file._id,
+          name: file.fileName,
+          url: file.fileUrl,
+          type: file.fileType || "application",
+          size: file.fileSize || "0 KB",
+          uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
+          isFavorite: file.isFavorite || false,
+          shareCount: file.shareCount || 0,
+          downloadCount: file.downloadCount || 0,
+          viewCount: file.viewCount || 0,
+          shareHistory: file.shareHistory || [],
+          downloadHistory: file.downloadHistory || [],
+          viewHistory: file.viewHistory || [],
+          currentVersion: file.currentVersion,
+          tags: file.tags || [],
+          password: file.password,
+        }));
+        setFiles(backendFiles);
+      }
+    } catch (error) {
+      console.error("Error loading folder contents:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFolderData();
+  }, [currentFolderId]);
 
   const refreshFiles = async () => {
     try {
-      const data = await fileApi.getMyFiles();
-      if (data.files) {
-        const backendFiles = data.files.map((file: any) => ({
+      const contentsData = await folderApi.getContents(currentFolderId);
+      if (contentsData.subfolders) {
+        setFolders(contentsData.subfolders);
+      }
+      if (contentsData.files) {
+        const backendFiles = contentsData.files.map((file: any) => ({
           id: file._id,
           name: file.fileName,
           url: file.fileUrl,
@@ -239,6 +334,58 @@ const MyFiles: React.FC = () => {
     } catch (error) {
       console.error("Error refreshing files:", error);
     }
+
+  };
+
+  const handleCreateFolder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFolderName.trim()) return;
+    try {
+      await folderApi.create(newFolderName, currentFolderId);
+      setShowNewFolderModal(false);
+      setNewFolderName("");
+      toast.success("Folder created successfully");
+      loadFolderData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to create folder");
+    }
+  };
+
+  const handleRenameFolder = async (id: string, newName: string) => {
+    try {
+      await folderApi.rename(id, newName);
+      toast.success("Folder renamed successfully");
+      loadFolderData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to rename folder");
+    }
+  };
+
+  const handleDeleteFolder = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this folder? Its contents will be moved to the parent folder.")) return;
+    try {
+      await folderApi.delete(id, false);
+      toast.success("Folder deleted successfully");
+      loadFolderData();
+    } catch (error: any) {
+      toast.error("Failed to delete folder");
+    }
+  };
+
+  const handleMoveSubmit = async (targetFolderId: string | null) => {
+    if (!showMoveModal) return;
+    try {
+      if (showMoveModal.type === "folder") {
+        await folderApi.move(showMoveModal.id, targetFolderId);
+      } else {
+        await fileApi.moveFile(showMoveModal.id, targetFolderId);
+      }
+      toast.success("Item moved successfully");
+      setShowMoveModal(null);
+      loadFolderData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to move item");
+    }
   };
 
   useEffect(() => {
@@ -252,6 +399,54 @@ const MyFiles: React.FC = () => {
       return () => unsubscribeFromFiles();
     });
   }, []);
+
+  // ✅ Backend Search Integration
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults(null);
+        setIsSearching(false);
+        return;
+      }
+      
+      setIsSearching(true);
+      try {
+        const response = await fileApi.searchFiles(searchQuery);
+        if (response && response.files) {
+          const mappedResults = response.files.map((file: any) => ({
+            id: file._id,
+            name: file.fileName,
+            url: file.fileUrl,
+            type: file.fileType || "application",
+            size: file.fileSize || "0 KB",
+            uploaded: new Date(file.updatedAt || file.createdAt).toLocaleDateString(),
+            isFavorite: file.isFavorite || false,
+            shareCount: file.shareCount || 0,
+            downloadCount: file.downloadCount || 0,
+            viewCount: file.viewCount || 0,
+            shareHistory: file.shareHistory || [],
+            downloadHistory: file.downloadHistory || [],
+            viewHistory: file.viewHistory || [],
+            currentVersion: file.currentVersion,
+            tags: file.tags || [],
+            password: file.password,
+            scanStatus: file.scanStatus || "uploaded",
+            matchType: file.matchType,
+            snippet: file.snippet,
+          }));
+          setSearchResults(mappedResults);
+        }
+      } catch (error) {
+        console.error("Failed to perform search:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timer = setTimeout(performSearch, 400); // 400ms debounce
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // ✅ Track link copy with BACKEND API
   const trackLinkCopy = async (
@@ -446,6 +641,27 @@ const MyFiles: React.FC = () => {
       return;
     }
 
+    if (!isOnline) {
+      toast.info(`Offline: Queuing ${selectedFilesList.length} file(s) for upload when connection is restored.`);
+      
+      const newUploads: QueuedUpload[] = [];
+      for (const file of selectedFilesList) {
+        try {
+          const queued = await enqueueUpload(file);
+          newUploads.push(queued);
+        } catch (e) {
+          console.error("Failed to queue upload offline:", e);
+        }
+      }
+      
+      if (newUploads.length > 0) {
+        setQueuedUploads((prev) => [...prev, ...newUploads]);
+      }
+      
+      e.target.value = "";
+      return;
+    }
+
     setIsUploading(true);
     setIsPaused(false);
     pauseRef.current = false;
@@ -460,6 +676,15 @@ const MyFiles: React.FC = () => {
           sessionId: resumeSessionId || undefined,
           signal: abortControllerRef.current.signal,
           shouldPause: () => pauseRef.current,
+          onDuplicateDetected: async () => {
+            return new Promise((resolve) => {
+              const useExisting = window.confirm(
+                `The file "${file.name}" already exists in your library.\n\n` +
+                `Would you like to instantly link to the existing file instead of re-uploading? (Saves time and storage)`
+              );
+              resolve(useExisting ? "link" : "upload");
+            });
+          },
           onProgress: (state) => {
             const overallProgress =
               ((index + state.progressPercent / 100) / selectedFilesList.length) * 100;
@@ -468,33 +693,6 @@ const MyFiles: React.FC = () => {
           },
         });
 
-<<<<<<< HEAD
-        // In real app, replace with actual upload API
-        // const res = await axios.post("/upload", formData);
-        const mockUrl = URL.createObjectURL(file); // Simulated URL
-
-        clearInterval(progressInterval);
-
-        const newFile: TrackedFile = {
-          id: Date.now().toString() + index,
-          name: file.name,
-          url: mockUrl,
-          type: file.type.split("/")[0],
-          size: formatFileSize(file.size),
-          uploaded: new Date().toLocaleDateString(),
-          shareCount: 0,
-          downloadCount: 0,
-          viewCount: 0,
-          shareHistory: [],
-          downloadHistory: [],
-          viewHistory: [],
-          scanStatus: "uploaded",
-          uploadHistory: [{ timestamp: new Date().toISOString() }],
-        };
-
-        uploadedFiles.push(newFile);
-        setUploadProgress(((index + 1) / selectedFilesList.length) * 100);
-=======
         await fileApi.saveFileInfo({
           fileName: file.name,
           fileUrl: result.fileUrl,
@@ -502,8 +700,8 @@ const MyFiles: React.FC = () => {
           fileSize: formatFileSize(file.size),
           fileSizeBytes: file.size,
           checksum: result.checksum,
+          folderId: currentFolderId,
         });
->>>>>>> upstream/main
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           toast.info("Upload cancelled.");
@@ -704,46 +902,45 @@ const MyFiles: React.FC = () => {
 
     setIsDownloadingZip(true);
     try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-
-      // 1. Fetch all blobs in parallel
-      const blobs = await Promise.all(
-        selectedFiles.map(async (fileId) => {
-          const file = files.find((f) => f.id === fileId);
-          if (!file) throw new Error("File not found");
-
-          // Track download to backend
-          await trackDownload(file.id, file.name, file.url);
-
-          const response = await fetch(file.url);
-          const blob = await response.blob();
-          return { name: file.name, blob };
-        })
-      );
-
-      // 2. Add to zip with de-duplication
-      const nameCounts: { [key: string]: number } = {};
-      blobs.forEach(({ name, blob }) => {
-        let uniqueName = name;
-        if (nameCounts[name] !== undefined) {
-          nameCounts[name]++;
-          const extIndex = name.lastIndexOf(".");
-          const baseName = extIndex !== -1 ? name.slice(0, extIndex) : name;
-          const ext = extIndex !== -1 ? name.slice(extIndex) : "";
-          uniqueName = `${baseName} (${nameCounts[name]})${ext}`;
-        } else {
-          nameCounts[name] = 0;
-        }
-        zip.file(uniqueName, blob);
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_URL}/api/files/bulk-download`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ fileIds: selectedFiles }),
       });
 
-      // 3. Generate and trigger download
-      const content = await zip.generateAsync({ type: "blob" });
-      const downloadUrl = window.URL.createObjectURL(content);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to download selected files.");
+      }
+
+      // Track downloads for all selected files locally
+      selectedFiles.forEach((fileId) => {
+        const file = files.find((f) => f.id === fileId);
+        if (file) {
+          trackDownload(file.id, file.name, file.url);
+        }
+      });
+
+      // Get the filename from the Content-Disposition header if possible
+      const disposition = response.headers.get("Content-Disposition");
+      let filename = `SecureShare_download_${Date.now()}.zip`;
+      if (disposition && disposition.indexOf("attachment") !== -1) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
-      link.download = `SecureShare_download_${Date.now()}.zip`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -811,18 +1008,16 @@ const MyFiles: React.FC = () => {
   };
 
   // ✅ Filter files based on search, type, and activeFilter
-  const filteredFiles = files.filter((file) => {
-    const matchesSearch = file.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+  const baseFiles = searchResults !== null ? searchResults : files;
   
+  const filteredFiles = baseFiles.filter((file) => {
     const matchesType =
       selectedType === "All" || getFileType(file.name) === selectedType;
 
     const matchesActiveFilter =
       activeFilter === "all" || file.type === activeFilter;
   
-    return matchesSearch && matchesType && matchesActiveFilter;
+    return matchesType && matchesActiveFilter;
   });
 
   const searchResultCount = filteredFiles.length;
@@ -937,6 +1132,41 @@ formatFileSize
 
   return (
     <div className="px-4 sm:px-6">
+      {/* Offline Status Indicators */}
+      {!isOnline && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-6 flex items-center justify-between">
+          <div className="flex items-center text-yellow-500">
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+            </svg>
+            <span className="font-medium text-sm">You are currently offline.</span>
+          </div>
+          <span className="text-sm text-yellow-500/80">New uploads will be queued locally.</span>
+        </div>
+      )}
+
+      {queuedUploads.length > 0 && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center text-blue-400">
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span className="font-medium text-sm">
+              {queuedUploads.length} queued upload(s) 
+              {isSyncingOfflineQueue ? " - Syncing..." : isOnline ? " - Ready to sync" : " - Waiting for network"}
+            </span>
+          </div>
+          {isOnline && !isSyncingOfflineQueue && (
+            <button 
+              onClick={syncOfflineQueue}
+              className="text-xs px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors whitespace-nowrap"
+            >
+              Sync Now
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Header with Stats */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -1146,6 +1376,21 @@ formatFileSize
         onChange={handleFileUpload}
       />
 
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
+        {breadcrumbs.map((crumb, idx) => (
+          <React.Fragment key={crumb.id || "root"}>
+            <button
+              onClick={() => setCurrentFolderId(crumb.id)}
+              className="hover:text-[#3498db] transition-colors font-medium flex items-center"
+            >
+              {crumb.id === null ? <Folder className="w-4 h-4 mr-1" /> : crumb.name}
+            </button>
+            {idx < breadcrumbs.length - 1 && <ChevronRight className="w-4 h-4 text-gray-400" />}
+          </React.Fragment>
+        ))}
+      </div>
+
       {/* Toolbar */}
       <div className="mb-6 p-4 bg-white/80 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -1188,6 +1433,15 @@ formatFileSize
 
           {/* Actions */}
           <div className="flex items-center space-x-3">
+            {/* New Folder Button */}
+            <button
+              onClick={() => setShowNewFolderModal(true)}
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center"
+            >
+              <FolderPlus className="w-4 h-4 mr-2" />
+              New Folder
+            </button>
+
             {/* Upload Button */}
             <label className="relative cursor-pointer">
               <input
@@ -1335,19 +1589,48 @@ formatFileSize
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
-        >{filteredFiles.length === 0 && (
+        >{filteredFiles.length === 0 && folders.length === 0 && (
           <div className="text-center py-12">
             <h3 className="text-xl font-semibold text-gray-400">
-              No files found
+              No items found
             </h3>
             <p className="text-gray-500 mt-2">
               Try changing your search or filter.
             </p>
           </div>
         )}
-          {filteredFiles.length > 0 && (
+          {(folders.length > 0 || filteredFiles.length > 0) && (
   viewMode === "grid" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {folders.map((folder) => (
+                <motion.div
+                  key={folder._id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white/50 dark:bg-gray-800/30 transition-all duration-300 hover:scale-[1.02] flex flex-col cursor-pointer"
+                  onClick={() => setCurrentFolderId(folder._id)}
+                >
+                  <div className="h-24 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50">
+                    <Folder className="w-12 h-12 text-[#3498db]" />
+                  </div>
+                  <div className="p-3 bg-white dark:bg-gray-800 flex-1 flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {folder.name}
+                    </p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFolderContextMenu({ id: folder._id, name: folder.name });
+                      }}
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                    >
+                      <MoreVertical className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+
               {filteredFiles.map((file) => (
                 <motion.div
                   key={file.id}
@@ -1465,6 +1748,16 @@ formatFileSize
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          setShowMoveModal({ type: "file", id: file.id, currentParentId: currentFolderId });
+                        }}
+                        className="p-2 bg-blue-500/20 rounded-full text-blue-400 hover:bg-blue-500/30"
+                        title="Move"
+                      >
+                        <FolderOutput className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           handleDelete(file.id);
                         }}
                         className="p-2 bg-red-500/20 rounded-full text-red-400 hover:bg-red-500/30"
@@ -1542,6 +1835,25 @@ formatFileSize
                       <span>{file.uploaded}</span>
                     </div>
 
+                    {/* Search Snippet (if searching) */}
+                    {searchQuery.trim().length > 0 && file.matchType && (
+                      <div className="mb-2 text-xs">
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider mb-1 ${
+                          file.matchType === 'content' ? 'bg-purple-500/20 text-purple-400' :
+                          file.matchType === 'metadata' ? 'bg-green-500/20 text-green-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {file.matchType} match
+                        </span>
+                        {file.snippet && (
+                          <p 
+                            className="text-gray-300 italic line-clamp-2 leading-relaxed mt-1" 
+                            dangerouslySetInnerHTML={{ __html: file.snippet }}
+                          />
+                        )}
+                      </div>
+                    )}
+
                     {/* Mini Stats */}
                     <div className="flex justify-between text-xs">
                       <div
@@ -1605,6 +1917,48 @@ formatFileSize
               </div>
 
               <div className="divide-y divide-gray-700">
+                {folders.map((folder) => (
+                  <div
+                    key={folder._id}
+                    onClick={() => setCurrentFolderId(folder._id)}
+                    className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-gray-800/50 transition-colors cursor-pointer"
+                  >
+                    <div className="col-span-4 flex items-center">
+                      <div className="w-5 h-5 mr-3" /> {/* Spacer for checkbox */}
+                      <div className="flex items-center">
+                        <div className="p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg mr-3">
+                          <Folder className="w-5 h-5 text-[#3498db]" />
+                        </div>
+                        <div>
+                          <div className="text-white font-medium truncate max-w-[200px]">
+                            {folder.name}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-gray-800 text-gray-300">
+                        FOLDER
+                      </span>
+                    </div>
+                    <div className="col-span-4" /> {/* Empty columns for stats */}
+                    <div className="col-span-2">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFolderContextMenu({ id: folder._id, name: folder.name });
+                          }}
+                          className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700"
+                          title="Options"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
                 {filteredFiles.map((file) => (
                   <div
                     key={file.id}
@@ -1660,6 +2014,25 @@ formatFileSize
                           </div>
                           <div className="text-gray-400 text-xs">
                             {file.size}
+
+                            {/* Search Snippet (if searching) */}
+                            {searchQuery.trim().length > 0 && file.matchType && (
+                              <div className="mt-1 flex items-center gap-2">
+                                <span className={`inline-block px-1 py-0.5 rounded text-[9px] uppercase tracking-wider ${
+                                  file.matchType === 'content' ? 'bg-purple-500/20 text-purple-400' :
+                                  file.matchType === 'metadata' ? 'bg-green-500/20 text-green-400' :
+                                  'bg-blue-500/20 text-blue-400'
+                                }`}>
+                                  {file.matchType} match
+                                </span>
+                                {file.snippet && (
+                                  <span 
+                                    className="text-gray-300 italic truncate max-w-[200px] inline-block align-bottom" 
+                                    dangerouslySetInnerHTML={{ __html: file.snippet }}
+                                  />
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1746,6 +2119,13 @@ formatFileSize
                           ) : (
                             <Unlock className="w-4 h-4 text-gray-400 hover:text-white" />
                           )}
+                        </button>
+                        <button
+                          onClick={() => setShowMoveModal({ type: "file", id: file.id, currentParentId: currentFolderId })}
+                          className="p-1.5 hover:bg-blue-500/20 rounded"
+                          title="Move"
+                        >
+                          <FolderOutput className="w-4 h-4 text-blue-400 hover:text-blue-300" />
                         </button>
                         <button
                           onClick={() => handleDelete(file.id)}
@@ -2187,6 +2567,188 @@ formatFileSize
           file={selectedFileForShare}
         />
       )}
+
+      {/* New Folder Modal */}
+      <AnimatePresence>
+        {showNewFolderModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowNewFolderModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-sm w-full shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4 dark:text-white">New Folder</h3>
+              <form onSubmit={handleCreateFolder}>
+                <input
+                  type="text"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Folder name"
+                  autoFocus
+                  className="w-full px-4 py-2 border rounded-lg mb-4 bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:outline-none focus:border-[#3498db]"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewFolderModal(false)}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#3498db] text-white rounded-lg hover:bg-blue-600"
+                    disabled={!newFolderName.trim()}
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Folder Context Menu (Options) Modal */}
+      <AnimatePresence>
+        {folderContextMenu && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setFolderContextMenu(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-sm w-full shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4 dark:text-white truncate">
+                Folder: {folderContextMenu.name}
+              </h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    const newName = window.prompt("Enter new folder name:", folderContextMenu.name);
+                    if (newName && newName !== folderContextMenu.name) {
+                      handleRenameFolder(folderContextMenu.id, newName);
+                    }
+                    setFolderContextMenu(null);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white flex items-center"
+                >
+                  <Edit2 className="w-5 h-5 mr-3 text-gray-500" />
+                  Rename
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMoveModal({ type: "folder", id: folderContextMenu.id, currentParentId: currentFolderId });
+                    setFolderContextMenu(null);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white flex items-center"
+                >
+                  <FolderOutput className="w-5 h-5 mr-3 text-gray-500" />
+                  Move
+                </button>
+                <button
+                  onClick={() => {
+                    handleDeleteFolder(folderContextMenu.id);
+                    setFolderContextMenu(null);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 flex items-center"
+                >
+                  <Trash2 className="w-5 h-5 mr-3" />
+                  Delete
+                </button>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setFolderContextMenu(null)}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Move Item Modal */}
+      <AnimatePresence>
+        {showMoveModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowMoveModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full shadow-xl max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4 dark:text-white">
+                Move {showMoveModal.type === "folder" ? "Folder" : "File"}
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">Select destination folder:</p>
+              
+              <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                <button
+                  onClick={() => handleMoveSubmit(null)}
+                  className={`w-full text-left px-4 py-3 rounded-lg border dark:text-white flex items-center ${
+                    null === showMoveModal.currentParentId ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  }`}
+                  disabled={null === showMoveModal.currentParentId}
+                >
+                  <Folder className="w-5 h-5 mr-3 text-gray-400" />
+                  Root
+                </button>
+                {/* Recursively rendering the tree might be complex, so we show a flat list of all folders for now */}
+                {folderTree.map((f: any) => (
+                  <button
+                    key={f._id}
+                    onClick={() => handleMoveSubmit(f._id)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border dark:text-white flex items-center ${
+                      f._id === showMoveModal.currentParentId ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    }`}
+                    disabled={f._id === showMoveModal.currentParentId || (showMoveModal.type === "folder" && f._id === showMoveModal.id)}
+                  >
+                    <Folder className="w-5 h-5 mr-3 text-[#3498db]" />
+                    <div className="flex flex-col">
+                      <span>{f.name}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                <button
+                  onClick={() => setShowMoveModal(null)}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

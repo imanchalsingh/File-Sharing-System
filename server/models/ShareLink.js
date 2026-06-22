@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const shareLinkSchema = new mongoose.Schema({
   token:          { type: String, required: true, unique: true, index: true },
+  slug:           { type: String, unique: true, sparse: true, trim: true, lowercase: true },
   fileId:         { type: mongoose.Schema.Types.ObjectId, ref: 'File', required: true },
   userId:         { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   expiresAt:      { type: Date, default: null },       // null = never expires
@@ -21,8 +22,7 @@ const shareLinkSchema = new mongoose.Schema({
     },
     ipAddress: String,
     userAgent: String
-  }]
-
+  }],
   dailyBandwidth: { type: Number, default: 0 },
   bandwidthLimit: { type: Number, default: 524288000 }, // 500 MB in bytes
   isSuspended:    { type: Boolean, default: false },

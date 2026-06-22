@@ -1,14 +1,25 @@
 import File from "../models/File.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
-import { enqueueScan } from "../jobs/scanQueue.js";
+import { Readable } from "stream";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const { ZipArchive } = require("archiver");
 
-// ✅ Get user's all files
+
+// ✅ Get user's all files (with optional folder filter)
 export const getUserFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { folderId } = req.query; // 'null' string or objectId
 
-    const files = await File.find({ userId })
+    const query = { userId, isDeleted: false };
+    
+    if (folderId !== undefined) {
+      query.folderId = folderId === "null" || folderId === "" ? null : folderId;
+    }
+
+    const files = await File.find(query)
       .sort({ createdAt: -1 })
       .select("-__v");
 
@@ -55,6 +66,7 @@ export const saveFileInfo = async (req, res, next) => {
       checksum,
       tags,
       password,
+      folderId,
     } = req.body;
 
     if (!fileName || !fileUrl) {
@@ -107,6 +119,14 @@ if (checksum) {
 
       await existingFile.save();
 
+      // Enqueue updated version for malware scanning and document indexing
+      try {
+        await enqueueScan(existingFile._id);
+        await enqueueIndex(existingFile._id);
+      } catch (queueErr) {
+        console.error("Failed to enqueue background jobs for updated version:", queueErr);
+      }
+
       const io = req.app.get("io");
       if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", existingFile);
 
@@ -130,6 +150,7 @@ if (checksum) {
       fileSize: fileSize || "0 KB",
       fileSizeBytes: fileSizeBytes || 0,
       checksum: checksum || null,
+      folderId: folderId || null,
       userId,
       currentVersion: 1,
       tags: Array.isArray(tags) ? tags : [],
@@ -144,11 +165,12 @@ if (checksum) {
     });
 
     await newFile.save();
-    // Enqueue file for malware scanning
+    // Enqueue file for malware scanning and document indexing
     try {
       await enqueueScan(newFile._id);
+      await enqueueIndex(newFile._id);
     } catch (queueErr) {
-      console.error("Failed to enqueue scan job:", queueErr);
+      console.error("Failed to enqueue background jobs:", queueErr);
     }
 
     const io = req.app.get("io");
@@ -186,6 +208,14 @@ export const updateShareCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    try {
+      await dispatchWebhookEvent(file.userId, "file_shared", {
+        fileId: file._id,
+        fileName: file.fileName,
+        shareCount: file.shareCount,
+        source
+      });
+    } catch (e) {}
 
     res.json({
       success: true,
@@ -236,6 +266,13 @@ export const updateDownloadCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    try {
+      await dispatchWebhookEvent(file.userId, "download_completed", {
+        fileId: file._id,
+        fileName: file.fileName,
+        downloadCount: file.downloadCount
+      });
+    } catch (e) {}
 
     res.json({
       success: true,
@@ -267,6 +304,13 @@ export const updateViewCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    try {
+      await dispatchWebhookEvent(file.userId, "link_accessed", {
+        fileId: file._id,
+        fileName: file.fileName,
+        viewCount: file.viewCount
+      });
+    } catch (e) {}
 
     res.json({
       success: true,
@@ -331,6 +375,102 @@ export const bulkDeleteFiles = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+// ✅ Bulk download files as ZIP
+export const bulkDownloadFiles = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { fileIds } = req.body;
+
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+      const error = new Error("No file IDs provided");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (fileIds.length > 50) {
+      const error = new Error("Maximum of 50 files can be downloaded at once");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const files = await File.find({
+      _id: { $in: fileIds },
+      userId,
+    });
+
+    if (files.length === 0) {
+      const error = new Error("No valid files found for download");
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    // Set headers for ZIP download
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="bulk_download_${Date.now()}.zip"`
+    );
+
+    const archive = new ZipArchive({
+      zlib: { level: 5 }, // Moderate compression for speed
+    });
+
+    archive.on("error", function (err) {
+      console.error("Archive error:", err);
+      if (!res.headersSent) {
+        res.status(500).end("Error generating ZIP archive.");
+      } else {
+        res.end();
+      }
+    });
+
+    // Pipe archive data to the response
+    archive.pipe(res);
+
+    const fileNamesSeen = new Set();
+
+    for (const file of files) {
+      if (!file.fileUrl) continue;
+
+      try {
+        const response = await fetch(file.fileUrl);
+        if (!response.ok) {
+          console.warn(`Failed to fetch ${file.fileUrl}: ${response.statusText}`);
+          continue;
+        }
+
+        const nodeStream = Readable.fromWeb(response.body);
+
+        // Handle duplicate file names in the zip
+        let finalName = file.fileName;
+        let counter = 1;
+        while (fileNamesSeen.has(finalName)) {
+          const nameParts = file.fileName.split('.');
+          const ext = nameParts.length > 1 ? `.${nameParts.pop()}` : '';
+          const base = nameParts.join('.');
+          finalName = `${base} (${counter})${ext}`;
+          counter++;
+        }
+        fileNamesSeen.add(finalName);
+
+        archive.append(nodeStream, { name: finalName });
+      } catch (err) {
+        console.error(`Error appending file ${file.fileName}:`, err);
+      }
+    }
+
+    await archive.finalize();
+
+  } catch (error) {
+    if (!res.headersSent) {
+      next(error);
+    } else {
+      console.error("Error during bulk download stream:", error);
+      res.end();
+    }
   }
 };
 
@@ -607,14 +747,9 @@ export const getSharedFileById = async (req, res, next) => {
     }
 
     const isPasswordProtected = !!file.password;
-<<<<<<< HEAD
     const isSafeToShare = file.scanStatus === "safe";
-    
-    // Return metadata, but hide fileUrl if password protected or not safe
-=======
 
-    // Return metadata, but hide fileUrl if password protected
->>>>>>> main
+    // Return metadata, but hide fileUrl if password protected or not safe
     const fileDetails = {
       _id: file._id,
       fileName: file.fileName,
@@ -627,23 +762,11 @@ export const getSharedFileById = async (req, res, next) => {
       scanStatus: file.scanStatus,
       owner: file.userId ? { username: file.userId.username } : null,
       currentVersion: file.currentVersion || 1,
-<<<<<<< HEAD
       // Only include fileUrl and versions if NOT password protected and file is safe
       fileUrl: (isPasswordProtected || !isSafeToShare) ? null : file.fileUrl,
       versions: (isPasswordProtected || !isSafeToShare)
-        ? file.versions.map(v => ({ version: v.version, uploadedAt: v.uploadedAt, fileSize: v.fileSize }))
-        : file.versions
-=======
-      // Only include fileUrl and versions if NOT password protected
-      fileUrl: isPasswordProtected ? null : file.fileUrl,
-      versions: isPasswordProtected
-        ? file.versions.map((v) => ({
-            version: v.version,
-            uploadedAt: v.uploadedAt,
-            fileSize: v.fileSize,
-          }))
+        ? file.versions.map((v) => ({ version: v.version, uploadedAt: v.uploadedAt, fileSize: v.fileSize }))
         : file.versions,
->>>>>>> main
     };
 
     res.json({ success: true, file: fileDetails });
@@ -683,20 +806,59 @@ export const verifySharedFilePassword = async (req, res, next) => {
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid password" });
     }
-<<<<<<< HEAD
-    
     if (file.scanStatus !== "safe") {
       return res.status(403).json({ error: "File is not safe for sharing. Scan status: " + file.scanStatus });
     }
-    
-=======
 
->>>>>>> main
+
     res.json({
       success: true,
       message: "Password verified",
       fileUrl: file.fileUrl,
       versions: file.versions,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ✅ Move a file to another folder
+export const moveFile = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { folderId } = req.body;
+    const userId = req.user.id;
+    const newFolderId = folderId || null;
+
+    const file = await File.findOne({ _id: id, userId });
+    if (!file) {
+      const error = new Error("File not found or unauthorized");
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    if (newFolderId) {
+      // Need to import Folder model for validation
+      // But fileController doesn't import Folder yet. We can avoid importing it
+      // if we trust the API or we can just import mongoose and query the 'folders' collection
+      const folderExists = await mongoose.connection.collection("folders").findOne({ 
+        _id: new mongoose.Types.ObjectId(newFolderId), 
+        userId: new mongoose.Types.ObjectId(userId) 
+      });
+      if (!folderExists) {
+        const error = new Error("Destination folder not found or unauthorized");
+        error.statusCode = 404;
+        return next(error);
+      }
+    }
+
+    file.folderId = newFolderId;
+    await file.save();
+
+    res.status(200).json({
+      success: true,
+      message: "File moved successfully",
+      file,
     });
   } catch (error) {
     next(error);

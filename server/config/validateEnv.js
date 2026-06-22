@@ -1,4 +1,4 @@
-const { z } = require("zod");
+import { z } from "zod";
 
 /**
  * Environment Variable Validation Schema
@@ -87,7 +87,7 @@ const envSchema = z.object({
  * Exits the process with a clear error message if validation fails.
  * Call this at the very top of server.js, before any DB/service initialization.
  */
-function validateEnv() {
+export default function validateEnv() {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
@@ -107,5 +107,3 @@ function validateEnv() {
   console.log("✅ Environment variables validated successfully.");
   return result.data;
 }
-
-module.exports = validateEnv;

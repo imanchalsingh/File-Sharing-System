@@ -116,7 +116,7 @@ export async function uploadFileResumable(
       expectedChecksum: checksum,
       sessionId: existingSessionId,
     });
-    session = resumed.session;
+    session = resumed.session!;
   } else {
     const created = await uploadApi.initUpload({
       fileName: file.name,
@@ -124,7 +124,37 @@ export async function uploadFileResumable(
       mimeType: file.type,
       expectedChecksum: checksum,
     });
-    session = created.session;
+
+    if (created.duplicateExists && created.existingFileUrl) {
+      if (options.onDuplicateDetected) {
+        const choice = await options.onDuplicateDetected();
+        if (choice === "link") {
+          report({
+            status: "completed",
+            uploadedBytes: file.size,
+            progressPercent: 100,
+            currentChunk: totalChunks,
+          });
+          return {
+            fileUrl: created.existingFileUrl,
+            sessionId: "", // No session needed for linked file
+            checksum,
+          };
+        }
+      }
+      
+      // If no callback, or choice was 'upload', force upload
+      const forced = await uploadApi.initUpload({
+        fileName: file.name,
+        fileSizeBytes: file.size,
+        mimeType: file.type,
+        expectedChecksum: checksum,
+        forceUpload: true,
+      });
+      session = forced.session!;
+    } else {
+      session = created.session!;
+    }
   }
 
   if (session.status === "completed" && session.fileUrl) {
