@@ -22,8 +22,7 @@ const shareLinkSchema = new mongoose.Schema({
     },
     ipAddress: String,
     userAgent: String
-  }]
-
+  }],
   dailyBandwidth: { type: Number, default: 0 },
   bandwidthLimit: { type: Number, default: 524288000 }, // 500 MB in bytes
   isSuspended:    { type: Boolean, default: false },

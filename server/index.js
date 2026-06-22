@@ -15,6 +15,10 @@ import fileRoutes from "./routes/files.js";
 import folderRoutes from "./routes/folders.js";
 import shareRoutes from "./routes/shares.js";
 import { startExpirationJob } from "./jobs/expirationJob.js";
+import { startScanWorker } from "./jobs/scanWorker.js";
+import { startIndexWorker } from "./jobs/indexWorker.js";
+import { startWebhookWorker } from "./jobs/webhookWorker.js";
+import webhookRoutes from "./routes/webhooks.js";
 import { startUploadSessionCleanupJob } from "./jobs/uploadSessionCleanup.js";
 import { initQuotaResetJob } from "./jobs/quotaResetJob.js";
 import { connectRedis } from "./config/redis.js";
@@ -44,6 +48,9 @@ connectDB();
 connectRedis();
 // Start background jobs
 startExpirationJob();
+startScanWorker();
+startIndexWorker();
+startWebhookWorker();
 startUploadSessionCleanupJob();
 initQuotaResetJob();
 ensureUploadTempRoot().catch(console.error);
@@ -60,6 +67,7 @@ app.use("/api/track", analyticsRoutes);
 app.use("/api/files", fileRoutes);
 app.use("/api/folders", folderRoutes);
 app.use("/api/shares", shareRoutes);
+app.use("/api/webhooks", webhookRoutes);
 app.use("/", router);
 
 app.get("/", (req, res) => {

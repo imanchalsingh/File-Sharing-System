@@ -119,6 +119,14 @@ if (checksum) {
 
       await existingFile.save();
 
+      // Enqueue updated version for malware scanning and document indexing
+      try {
+        await enqueueScan(existingFile._id);
+        await enqueueIndex(existingFile._id);
+      } catch (queueErr) {
+        console.error("Failed to enqueue background jobs for updated version:", queueErr);
+      }
+
       const io = req.app.get("io");
       if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", existingFile);
 
@@ -157,6 +165,13 @@ if (checksum) {
     });
 
     await newFile.save();
+    // Enqueue file for malware scanning and document indexing
+    try {
+      await enqueueScan(newFile._id);
+      await enqueueIndex(newFile._id);
+    } catch (queueErr) {
+      console.error("Failed to enqueue background jobs:", queueErr);
+    }
 
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILE_UPLOADED", newFile);
@@ -193,6 +208,14 @@ export const updateShareCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    try {
+      await dispatchWebhookEvent(file.userId, "file_shared", {
+        fileId: file._id,
+        fileName: file.fileName,
+        shareCount: file.shareCount,
+        source
+      });
+    } catch (e) {}
 
     res.json({
       success: true,
@@ -243,6 +266,13 @@ export const updateDownloadCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    try {
+      await dispatchWebhookEvent(file.userId, "download_completed", {
+        fileId: file._id,
+        fileName: file.fileName,
+        downloadCount: file.downloadCount
+      });
+    } catch (e) {}
 
     res.json({
       success: true,
@@ -274,6 +304,13 @@ export const updateViewCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    try {
+      await dispatchWebhookEvent(file.userId, "link_accessed", {
+        fileId: file._id,
+        fileName: file.fileName,
+        viewCount: file.viewCount
+      });
+    } catch (e) {}
 
     res.json({
       success: true,
@@ -710,8 +747,9 @@ export const getSharedFileById = async (req, res, next) => {
     }
 
     const isPasswordProtected = !!file.password;
+    const isSafeToShare = file.scanStatus === "safe";
 
-    // Return metadata, but hide fileUrl if password protected
+    // Return metadata, but hide fileUrl if password protected or not safe
     const fileDetails = {
       _id: file._id,
       fileName: file.fileName,
@@ -721,16 +759,13 @@ export const getSharedFileById = async (req, res, next) => {
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
       isPasswordProtected,
+      scanStatus: file.scanStatus,
       owner: file.userId ? { username: file.userId.username } : null,
       currentVersion: file.currentVersion || 1,
-      // Only include fileUrl and versions if NOT password protected
-      fileUrl: isPasswordProtected ? null : file.fileUrl,
-      versions: isPasswordProtected
-        ? file.versions.map((v) => ({
-            version: v.version,
-            uploadedAt: v.uploadedAt,
-            fileSize: v.fileSize,
-          }))
+      // Only include fileUrl and versions if NOT password protected and file is safe
+      fileUrl: (isPasswordProtected || !isSafeToShare) ? null : file.fileUrl,
+      versions: (isPasswordProtected || !isSafeToShare)
+        ? file.versions.map((v) => ({ version: v.version, uploadedAt: v.uploadedAt, fileSize: v.fileSize }))
         : file.versions,
     };
 
@@ -757,6 +792,9 @@ export const verifySharedFilePassword = async (req, res, next) => {
     }
 
     if (!file.password) {
+      if (file.scanStatus !== "safe") {
+        return res.status(403).json({ error: "File is not safe for sharing. Scan status: " + file.scanStatus });
+      }
       return res.json({
         success: true,
         fileUrl: file.fileUrl,
@@ -767,6 +805,9 @@ export const verifySharedFilePassword = async (req, res, next) => {
     const isMatch = await bcrypt.compare(password, file.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid password" });
+    }
+    if (file.scanStatus !== "safe") {
+      return res.status(403).json({ error: "File is not safe for sharing. Scan status: " + file.scanStatus });
     }
 
     res.json({
