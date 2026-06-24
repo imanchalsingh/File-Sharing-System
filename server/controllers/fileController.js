@@ -1,4 +1,5 @@
 import File from "../models/File.js";
+import Folder from "../models/Folder.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { Readable } from "stream";
@@ -393,30 +394,73 @@ export const bulkDeleteFiles = async (req, res, next) => {
   }
 };
 
-// ✅ Bulk download files as ZIP
+// Helper to fetch files recursively from folders
+async function getFolderFiles(folderId, userId, currentPath = "") {
+  let results = [];
+  
+  const files = await File.find({ folderId, userId });
+  for (const f of files) {
+    results.push({
+      file: f,
+      archivePath: currentPath ? `${currentPath}/${f.fileName}` : f.fileName
+    });
+  }
+
+  const subfolders = await Folder.find({ parentId: folderId, userId });
+  for (const sub of subfolders) {
+    const subPath = currentPath ? `${currentPath}/${sub.name}` : sub.name;
+    const subResults = await getFolderFiles(sub._id, userId, subPath);
+    results = results.concat(subResults);
+  }
+
+  return results;
+}
+
+// ✅ Bulk download files and folders as ZIP
 export const bulkDownloadFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { fileIds } = req.body;
+    let { fileIds = [], folderIds = [] } = req.body;
 
-    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
-      const error = new Error("No file IDs provided");
+    if (!Array.isArray(fileIds)) fileIds = [];
+    if (!Array.isArray(folderIds)) folderIds = [];
+
+    if (fileIds.length === 0 && folderIds.length === 0) {
+      const error = new Error("No file or folder IDs provided");
       error.statusCode = 400;
       return next(error);
     }
 
-    if (fileIds.length > 50) {
-      const error = new Error("Maximum of 50 files can be downloaded at once");
+    if (fileIds.length + folderIds.length > 50) {
+      const error = new Error("Maximum of 50 items can be selected at once");
       error.statusCode = 400;
       return next(error);
     }
 
-    const files = await File.find({
-      _id: { $in: fileIds },
-      userId,
-    });
+    // 1. Gather all direct files
+    let allDownloadItems = [];
+    if (fileIds.length > 0) {
+      const directFiles = await File.find({
+        _id: { $in: fileIds },
+        userId,
+      });
+      for (const f of directFiles) {
+        allDownloadItems.push({ file: f, archivePath: f.fileName });
+      }
+    }
 
-    if (files.length === 0) {
+    // 2. Gather all files from selected folders
+    if (folderIds.length > 0) {
+      for (const folderId of folderIds) {
+        const folder = await Folder.findOne({ _id: folderId, userId });
+        if (folder) {
+          const folderFiles = await getFolderFiles(folderId, userId, folder.name);
+          allDownloadItems = allDownloadItems.concat(folderFiles);
+        }
+      }
+    }
+
+    if (allDownloadItems.length === 0) {
       const error = new Error("No valid files found for download");
       error.statusCode = 404;
       return next(error);
@@ -445,9 +489,10 @@ export const bulkDownloadFiles = async (req, res, next) => {
     // Pipe archive data to the response
     archive.pipe(res);
 
-    const fileNamesSeen = new Set();
+    const archivePathsSeen = new Set();
 
-    for (const file of files) {
+    for (const item of allDownloadItems) {
+      const { file, archivePath } = item;
       if (!file.fileUrl) continue;
 
       try {
@@ -459,19 +504,23 @@ export const bulkDownloadFiles = async (req, res, next) => {
 
         const nodeStream = Readable.fromWeb(response.body);
 
-        // Handle duplicate file names in the zip
-        let finalName = file.fileName;
+        // Handle duplicate file names in the zip at the exact same path
+        let finalPath = archivePath;
         let counter = 1;
-        while (fileNamesSeen.has(finalName)) {
-          const nameParts = file.fileName.split('.');
+        while (archivePathsSeen.has(finalPath)) {
+          const pathParts = archivePath.split('/');
+          const name = pathParts.pop();
+          const nameParts = name.split('.');
           const ext = nameParts.length > 1 ? `.${nameParts.pop()}` : '';
           const base = nameParts.join('.');
-          finalName = `${base} (${counter})${ext}`;
+          const newName = `${base} (${counter})${ext}`;
+          
+          finalPath = pathParts.length > 0 ? `${pathParts.join('/')}/${newName}` : newName;
           counter++;
         }
-        fileNamesSeen.add(finalName);
+        archivePathsSeen.add(finalPath);
 
-        archive.append(nodeStream, { name: finalName });
+        archive.append(nodeStream, { name: finalPath });
       } catch (err) {
         console.error(`Error appending file ${file.fileName}:`, err);
       }
