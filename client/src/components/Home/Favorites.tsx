@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Pagination } from "../common/Pagination";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 
 interface TrackedFile {
   id: string;

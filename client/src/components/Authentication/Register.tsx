@@ -16,7 +16,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 
 const Register: React.FC = () => {
   const navigate = useNavigate();

@@ -17,7 +17,7 @@ import {
   Moon,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 
 const SharePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

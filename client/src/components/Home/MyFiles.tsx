@@ -44,7 +44,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 import ShareModal from "./ShareModal";
 import { Pagination } from "../common/Pagination";
 import { enqueueUpload, getQueuedUploads, removeQueuedUpload, updateQueuedUpload } from "../../services/offlineQueue";
