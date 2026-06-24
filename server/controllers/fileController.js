@@ -11,7 +11,7 @@ const { ZipArchive } = require("archiver");
 export const getUserFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { folderId } = req.query; // 'null' string or objectId
+    const { folderId, page = 1, limit = 50 } = req.query; // 'null' string or objectId
 
     const query = { userId, isDeleted: false };
     
@@ -19,14 +19,29 @@ export const getUserFiles = async (req, res, next) => {
       query.folderId = folderId === "null" || folderId === "" ? null : folderId;
     }
 
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
     const files = await File.find(query)
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
       .select("-__v");
+      
+    const totalFiles = await File.countDocuments(query);
+    const totalPages = Math.ceil(totalFiles / parseInt(limit));
 
     res.json({
       success: true,
       files,
       count: files.length,
+      pagination: {
+        total: totalFiles,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1,
+      }
     });
   } catch (error) {
     next(error);
@@ -631,15 +646,31 @@ export const toggleFavorite = async (req, res, next) => {
 export const getFavoriteFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const files = await File.find({ userId, isFavorite: true })
+    const query = { userId, isFavorite: true };
+    const files = await File.find(query)
       .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
       .select("-__v");
+      
+    const totalFiles = await File.countDocuments(query);
+    const totalPages = Math.ceil(totalFiles / parseInt(limit));
 
     res.json({
       success: true,
       files,
       count: files.length,
+      pagination: {
+        total: totalFiles,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1,
+      }
     });
   } catch (error) {
     next(error);
@@ -858,6 +889,46 @@ export const moveFile = async (req, res, next) => {
       success: true,
       message: "File moved successfully",
       file,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ✅ Search files
+export const searchFiles = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { q = "", page = 1, limit = 50 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const query = {
+      userId,
+      isDeleted: false,
+      fileName: { $regex: q, $options: "i" }
+    };
+
+    const files = await File.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .select("-__v");
+
+    const totalFiles = await File.countDocuments(query);
+    const totalPages = Math.ceil(totalFiles / parseInt(limit));
+
+    res.json({
+      success: true,
+      files,
+      count: files.length,
+      pagination: {
+        total: totalFiles,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1
+      }
     });
   } catch (error) {
     next(error);
