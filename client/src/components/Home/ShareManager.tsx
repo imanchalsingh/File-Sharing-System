@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,14 @@ const ShareManager: React.FC = () => {
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const [extendDate, setExtendDate] = useState("");
   const [fileDropdownOpen, setFileDropdownOpen] = useState(false);
+
+  // Global Keyboard Shortcuts
+  useKeyboardShortcuts({
+    Escape: () => {
+      setFileDropdownOpen(false);
+      setExtendingId(null);
+    }
+  });
 
   // ─── Data Loading ──────────────────────────────────────────────────────────
 

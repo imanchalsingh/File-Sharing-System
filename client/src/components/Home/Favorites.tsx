@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 
 interface TrackedFile {
   id: string;
@@ -77,6 +78,12 @@ const Favorites: React.FC = () => {
       setRefreshing(false);
     }
   }, []);
+
+  useKeyboardShortcuts({
+    Escape: () => {
+      setActiveImage(null);
+    }
+  });
 
   useEffect(() => {
     loadFavorites();

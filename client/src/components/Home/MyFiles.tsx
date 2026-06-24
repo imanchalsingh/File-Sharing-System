@@ -10,6 +10,7 @@ import {
   removeStoredSession,
   type StoredUploadSession,
 } from "../../utils/uploadSessionStorage";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
   Upload,
   Trash2,
@@ -42,6 +43,7 @@ import {
   Pause,
   Play,
   AlertCircle,
+  MoreVertical,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -171,6 +173,26 @@ const MyFiles: React.FC = () => {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // Global Keyboard Shortcuts
+  useKeyboardShortcuts({
+    Escape: () => {
+      setShowNewFolderModal(false);
+      setShowMoveModal(null);
+      setFolderContextMenu(null);
+      setActiveImage(null);
+      setShowFileStats(null);
+      setShowVersionHistory(null);
+      setShowPasswordModal(null);
+      setShareModalOpen(false);
+      if (isSearching) setIsSearching(false);
+    },
+    Delete: () => {
+      if (selectedFiles.length > 0) {
+        handleDeleteSelected();
+      }
+    }
+  });
 
   // Sync Offline Queue
   useEffect(() => {
