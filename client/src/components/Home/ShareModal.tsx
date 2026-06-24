@@ -151,6 +151,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
   );
   const [maxAccess, setMaxAccess] = useState<string>("");
   const [slug, setSlug] = useState<string>("");
+  const [recipientEmail, setRecipientEmail] = useState<string>("");
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [existingShares, setExistingShares] = useState<ShareLink[]>([]);
@@ -177,6 +178,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
       setCreatedLink(null);
       setCopied(null);
       setSlug("");
+      setRecipientEmail("");
       setMaxAccess("");
     }
   }, [isOpen, fetchShares]);
@@ -197,6 +199,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
         expiresAt,
         maxAccessCount: maxAccess ? parseInt(maxAccess, 10) : null,
         slug: slug.trim() || undefined,
+        recipientEmail: recipientEmail.trim() || undefined,
       });
 
       const token = data.share?.slug || data.share?.token || data.token;
@@ -397,6 +400,26 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
                 {slug && slug.length < 3 && (
                   <p className="mt-1 text-xs text-yellow-500">Must be at least 3 characters long.</p>
                 )}
+              </div>
+
+              {/* ── Recipient Email (Optional) ── */}
+              <div>
+                <label
+                  htmlFor="share-recipient-email"
+                  className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                >
+                  <Share2 className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+                  Email Recipient{" "}
+                  <span className="font-normal text-gray-400">(optional)</span>
+                </label>
+                <input
+                  id="share-recipient-email"
+                  type="email"
+                  placeholder="colleague@example.com"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/30 outline-none transition-all"
+                />
               </div>
 
               {/* ── Max Access Count ── */}
