@@ -11,6 +11,7 @@ import {
   X,
   Check,
   Share2,
+  Lock,
 } from "lucide-react";
 import { shareApi } from "../../services/api";
 
@@ -151,6 +152,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
   );
   const [maxAccess, setMaxAccess] = useState<string>("");
   const [slug, setSlug] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [existingShares, setExistingShares] = useState<ShareLink[]>([]);
@@ -178,6 +180,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
       setCopied(null);
       setSlug("");
       setMaxAccess("");
+      setPassword("");
     }
   }, [isOpen, fetchShares]);
 
@@ -197,6 +200,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
         expiresAt,
         maxAccessCount: maxAccess ? parseInt(maxAccess, 10) : null,
         slug: slug.trim() || undefined,
+        password: password || undefined,
       });
 
       const token = data.share?.slug || data.share?.token || data.token;
@@ -416,6 +420,26 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
                   placeholder="Unlimited"
                   value={maxAccess}
                   onChange={(e) => setMaxAccess(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/30 outline-none transition-all"
+                />
+              </div>
+
+              {/* ── Password Protection ── */}
+              <div>
+                <label
+                  htmlFor="share-password"
+                  className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                >
+                  <Lock className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+                  Password Protection{" "}
+                  <span className="font-normal text-gray-400">(optional)</span>
+                </label>
+                <input
+                  id="share-password"
+                  type="password"
+                  placeholder="Enter a secure password..."
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:border-[#3498db] focus:ring-1 focus:ring-[#3498db]/30 outline-none transition-all"
                 />
               </div>

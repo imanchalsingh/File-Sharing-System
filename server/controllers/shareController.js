@@ -1,5 +1,6 @@
 import ShareLink from '../models/ShareLink.js';
 import File from '../models/File.js';
+import bcrypt from 'bcryptjs';
 import {
   createNotification,
   getUserNotifications as fetchUserNotifications,
@@ -11,7 +12,7 @@ import {
 // POST /api/shares - Create a new share link
 export const createShareLink = async (req, res, next) => {
   try {
-    const { fileId, expiresAt, maxAccessCount, slug } = req.body;
+    const { fileId, expiresAt, maxAccessCount, slug, password } = req.body;
     const userId = req.user.id;
 
     if (!fileId) {
@@ -45,6 +46,12 @@ export const createShareLink = async (req, res, next) => {
     const { nanoid } = await import('nanoid');
     const token = nanoid(21);
 
+    let hashedPassword = null;
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
+
     const shareLink = new ShareLink({
       token,
       slug: finalSlug,
@@ -52,6 +59,7 @@ export const createShareLink = async (req, res, next) => {
       userId,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
       maxAccessCount: maxAccessCount || null,
+      password: hashedPassword,
     });
 
     await shareLink.save();
@@ -269,8 +277,8 @@ export const accessSharedFile = async (req, res, next) => {
     const { token } = req.params;
 
     const share = await ShareLink.findOne({ $or: [{ token }, { slug: token }] }).populate('fileId', 'fileName fileUrl fileType fileSize fileSizeBytes');
-    if (!share) {
-      return res.status(404).json({ success: false, error: 'not_found', message: 'Share link not found' });
+    if (!share || !share.fileId) {
+      return res.status(404).json({ success: false, error: 'not_found', message: 'Share link or file not found' });
     }
 
     // Check if revoked
@@ -310,6 +318,21 @@ export const accessSharedFile = async (req, res, next) => {
       });
     }
 
+    // Check if password protected
+    if (share.password) {
+      return res.json({
+        success: true,
+        isPasswordProtected: true,
+        share: {
+          _id: share._id,
+          expiresAt: share.expiresAt,
+          accessCount: share.accessCount,
+          downloadCount: share.downloadCount || 0,
+          createdAt: share.createdAt,
+        },
+      });
+    }
+
     // Increment accessCount only (not downloadCount)
     // Check quota / suspension
     if (share.isSuspended) {
@@ -334,6 +357,75 @@ export const accessSharedFile = async (req, res, next) => {
     }
 
     // Increment access count and bandwidth
+    share.accessCount += 1;
+    share.dailyBandwidth += fileSizeBytes;
+    await share.save();
+
+    res.json({
+      success: true,
+      file: {
+        _id: share.fileId?._id,
+        fileName: share.fileId?.fileName,
+        fileUrl: share.fileId?.fileUrl,
+        fileType: share.fileId?.fileType,
+        fileSize: share.fileId?.fileSize,
+      },
+      share: {
+        _id: share._id,
+        expiresAt: share.expiresAt,
+        accessCount: share.accessCount,
+        downloadCount: share.downloadCount || 0,
+        createdAt: share.createdAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/shares/access/:token/verify-password - Verify password for protected link
+export const verifyShareLinkPassword = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Password is required' });
+    }
+
+    const share = await ShareLink.findOne({ $or: [{ token }, { slug: token }] }).populate('fileId', 'fileName fileUrl fileType fileSize fileSizeBytes');
+    if (!share || !share.fileId) {
+      return res.status(404).json({ success: false, error: 'not_found', message: 'Share link or file not found' });
+    }
+
+    if (share.status === 'revoked') {
+      return res.status(403).json({ success: false, error: 'revoked', message: 'This share link has been revoked' });
+    }
+
+    if (share.status === 'expired' || (share.expiresAt && share.expiresAt <= new Date()) || (share.maxAccessCount && share.accessCount >= share.maxAccessCount)) {
+      return res.status(410).json({ success: false, error: 'expired', message: 'This share link has expired or reached its limit' });
+    }
+
+    if (!share.password) {
+      return res.status(400).json({ success: false, message: 'This link is not password protected' });
+    }
+
+    const isMatch = await bcrypt.compare(password, share.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Incorrect password' });
+    }
+
+    if (share.isSuspended) {
+      return res.status(429).json({ success: false, error: 'quota_exceeded', message: 'This share link has been temporarily suspended due to bandwidth limits.' });
+    }
+
+    const fileSizeBytes = share.fileId?.fileSizeBytes || 0;
+    if (share.dailyBandwidth + fileSizeBytes > share.bandwidthLimit) {
+      share.isSuspended = true;
+      await share.save();
+      return res.status(429).json({ success: false, error: 'quota_exceeded', message: 'This share link has exceeded its daily bandwidth quota.' });
+    }
+
     share.accessCount += 1;
     share.dailyBandwidth += fileSizeBytes;
     await share.save();

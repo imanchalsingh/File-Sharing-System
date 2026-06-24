@@ -176,6 +176,7 @@ export const shareApi = {
     expiresAt?: string | null;
     maxAccessCount?: number | null;
     slug?: string;
+    password?: string;
   }) => {
     const response = await api.post('/api/shares', data);
     return response.data;
@@ -213,6 +214,11 @@ export const shareApi = {
 
   accessSharedFile: async (token: string) => {
     const response = await api.get(`/api/shares/access/${token}`);
+    return response.data;
+  },
+
+  verifyShareLinkPassword: async (token: string, password: string) => {
+    const response = await api.post(`/api/shares/access/${token}/verify-password`, { password });
     return response.data;
   },
 };
