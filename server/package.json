@@ -34,6 +34,7 @@
     "path": "^0.12.7",
     "pdf-parse": "^2.4.5",
     "qrcode": "^1.5.4",
+    "rate-limit-redis": "^5.0.0",
     "redis": "^5.12.1",
     "socket.io": "^4.8.3",
     "speakeasy": "^2.0.0",
