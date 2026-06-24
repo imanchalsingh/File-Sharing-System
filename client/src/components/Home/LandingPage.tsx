@@ -13,6 +13,7 @@ import {
   Moon,
   X,
   File,
+  Menu,
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 
@@ -32,18 +33,6 @@ const formatSize = (bytes: number): string => {
 };
 
 const LandingPage: React.FC = () => {
-  // Yeh function component ke andar add karo (toggleTheme ke neeche)
-  const handleNavClick = (
-    e: React.MouseEvent<HTMLAnchorElement>,
-    id: string,
-  ) => {
-    e.preventDefault();
-    const section = document.getElementById(id);
-    if (section) {
-      section.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   const navigate = useNavigate();
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeFeature, setActiveFeature] = useState(0);
@@ -52,8 +41,20 @@ const LandingPage: React.FC = () => {
   const [theme, setTheme] = useState(
     document.documentElement.classList.contains("dark") ? "dark" : "light",
   );
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Close mobile menu on resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -72,6 +73,26 @@ const LandingPage: React.FC = () => {
       document.documentElement.classList.add("dark");
       localStorage.setItem("theme", "dark");
       setTheme("dark");
+    }
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleNavClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    id: string,
+  ) => {
+    e.preventDefault();
+    closeMobileMenu();
+    const section = document.getElementById(id);
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -218,66 +239,145 @@ const LandingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
-      {/* Navigation */}
-      <nav className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Cloud className="w-10 h-10 text-[#3498db]" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-[#3498db] to-[#2ecc71] bg-clip-text text-transparent">
-              SecureShare
-            </span>
-          </div> 
-          <div className="hidden md:flex space-x-8">
-            <a
-              href="#features"
-              onClick={(e) => handleNavClick(e, "features")}
-              className="hover:text-[#3498db] transition-colors font-medium"
-            >
-              Features
-            </a>
-            <a
-              href="#pricing"
-              onClick={(e) => handleNavClick(e, "pricing")}
-              className="hover:text-[#3498db] transition-colors font-medium"
-            >
-              Pricing
-            </a>
-            <a
-              href="#about"
-              onClick={(e) => handleNavClick(e, "about")}
-              className="hover:text-[#3498db] transition-colors font-medium"
-            >
-              About
-            </a>
-            <a
-              href="#contact"
-              onClick={(e) => handleNavClick(e, "contact")}
-              className="hover:text-[#3498db] transition-colors font-medium"
-            >
-              Contact
-            </a>
+      {/* Navigation - FIXED: md se lg breakpoint par change kiya */}
+      <nav className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <Cloud className="w-8 h-8 sm:w-10 sm:h-10 text-[#3498db]" />
+              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#3498db] to-[#2ecc71] bg-clip-text text-transparent">
+                SecureShare
+              </span>
+            </div>
+
+            {/* Desktop Navigation Links - lg breakpoint (1024px) */}
+            <div className="hidden lg:flex items-center space-x-6 xl:space-x-8">
+              <a
+                href="#features"
+                onClick={(e) => handleNavClick(e, "features")}
+                className="text-gray-600 dark:text-gray-300 hover:text-[#3498db] dark:hover:text-[#3498db] transition-colors font-medium text-sm xl:text-base"
+              >
+                Features
+              </a>
+              <a
+                href="#pricing"
+                onClick={(e) => handleNavClick(e, "pricing")}
+                className="text-gray-600 dark:text-gray-300 hover:text-[#3498db] dark:hover:text-[#3498db] transition-colors font-medium text-sm xl:text-base"
+              >
+                Pricing
+              </a>
+              <a
+                href="#about"
+                onClick={(e) => handleNavClick(e, "about")}
+                className="text-gray-600 dark:text-gray-300 hover:text-[#3498db] dark:hover:text-[#3498db] transition-colors font-medium text-sm xl:text-base"
+              >
+                About
+              </a>
+              <a
+                href="#contact"
+                onClick={(e) => handleNavClick(e, "contact")}
+                className="text-gray-600 dark:text-gray-300 hover:text-[#3498db] dark:hover:text-[#3498db] transition-colors font-medium text-sm xl:text-base"
+              >
+                Contact
+              </a>
+            </div>
+
+            {/* Right side buttons */}
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="p-1.5 sm:p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
+              >
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
+              {/* Desktop Buttons - Hidden on tablet and mobile */}
+              <div className="hidden lg:flex items-center space-x-2 xl:space-x-3">
+                <button
+                  onClick={() => navigate("/login")}
+                  className="px-3 xl:px-4 py-1.5 xl:py-2 text-[#3498db] hover:text-[#2980b9] transition-colors font-semibold text-sm xl:text-base"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => navigate("/login")}
+                  className="px-4 xl:px-6 py-1.5 xl:py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity text-white text-sm xl:text-base whitespace-nowrap"
+                >
+                  Get Started
+                </button>
+              </div>
+
+              {/* Mobile Menu Button - Shows below 1024px */}
+              <button
+                onClick={toggleMobileMenu}
+                className="lg:hidden p-1.5 sm:p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors"
+                aria-label="Toggle menu"
+                aria-expanded={isMobileMenuOpen}
+              >
+                {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+            </div>
           </div>
 
-
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate("/login")}
-              className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors font-semibold"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => navigate("/login")}
-              className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity text-white"
-            >
-              Get Started
-            </button>
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors ml-4"
-            >
-              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
+          {/* Mobile Navigation Menu */}
+          <div
+            className={`
+              lg:hidden transition-all duration-300 ease-in-out overflow-hidden
+              ${isMobileMenuOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}
+            `}
+          >
+            <div className="pt-3 pb-2 space-y-1 border-t border-gray-200 dark:border-gray-700 mt-3">
+              <a
+                href="#features"
+                onClick={(e) => handleNavClick(e, "features")}
+                className="block px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+              >
+                Features
+              </a>
+              <a
+                href="#pricing"
+                onClick={(e) => handleNavClick(e, "pricing")}
+                className="block px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+              >
+                Pricing
+              </a>
+              <a
+                href="#about"
+                onClick={(e) => handleNavClick(e, "about")}
+                className="block px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+              >
+                About
+              </a>
+              <a
+                href="#contact"
+                onClick={(e) => handleNavClick(e, "contact")}
+                className="block px-3 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
+              >
+                Contact
+              </a>
+              <div className="flex flex-col space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
+                <button
+                  onClick={() => {
+                    closeMobileMenu();
+                    navigate("/login");
+                  }}
+                  className="px-3 py-2.5 text-center text-[#3498db] hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors font-semibold"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    closeMobileMenu();
+                    navigate("/login");
+                  }}
+                  className="px-3 py-2.5 text-center bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity text-white"
+                >
+                  Get Started
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </nav>
@@ -445,6 +545,7 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
       </section>
+
       {/* Features Section */}
       <section id="features" className="container mx-auto px-6 py-20">
         <h2 className="text-4xl font-bold text-center mb-16">
@@ -486,6 +587,7 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
       </section>
+
       {/* Pricing Section */}
       <section id="pricing" className="container mx-auto px-6 py-20">
         <h2 className="text-4xl font-bold text-center mb-4">
@@ -551,18 +653,16 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
       </section>
+
       {/* About Section */}
       <section id="about" className="container mx-auto px-6 py-20">
-        {/* Section Header */}
         <div className="text-center mb-16">
           <Cloud className="w-20 h-20 mx-auto mb-6 text-[#3498db] animate-pulse" />
-
           <h2 className="text-5xl font-bold mb-6">
             <span className="bg-gradient-to-r from-[#3498db] via-[#9b59b6] to-[#2ecc71] bg-clip-text text-transparent">
               About SecureShare
             </span>
           </h2>
-
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-4xl mx-auto leading-relaxed">
             SecureShare is a modern file-sharing platform built for individuals,
             teams, and organizations that demand speed, reliability, and
@@ -571,10 +671,8 @@ const LandingPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Mission */}
         <div className="bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-3xl p-10 border border-gray-200 dark:border-gray-700 shadow-xl hover:shadow-2xl transition-all duration-300 mb-12">
           <h3 className="text-3xl font-bold text-center mb-4">Our Mission</h3>
-
           <p className="text-lg text-center text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             To make secure file sharing simple, accessible, and trustworthy by
             combining powerful collaboration tools with privacy-first
@@ -582,7 +680,6 @@ const LandingPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Core Features */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {[
             {
@@ -626,9 +723,7 @@ const LandingPage: React.FC = () => {
               >
                 {feature.icon}
               </div>
-
               <h4 className="text-xl font-bold mb-2">{feature.title}</h4>
-
               <p className="text-gray-600 dark:text-gray-400">
                 {feature.description}
               </p>
@@ -636,14 +731,12 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
 
-        {/* Security & Benefits */}
         <div className="grid lg:grid-cols-2 gap-8 mb-12">
           <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-lg hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
             <div className="flex items-center mb-6">
               <Lock className="w-7 h-7 mr-3 text-[#3498db]" />
               <h3 className="text-2xl font-bold">Security Highlights</h3>
             </div>
-
             <ul className="space-y-4">
               {[
                 "End-to-end encryption",
@@ -666,7 +759,6 @@ const LandingPage: React.FC = () => {
               <Users className="w-7 h-7 mr-3 text-[#9b59b6]" />
               <h3 className="text-2xl font-bold">Why Choose SecureShare?</h3>
             </div>
-
             <ul className="space-y-4">
               {[
                 "Simple and intuitive experience",
@@ -685,7 +777,6 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Trust Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
           {[
             { value: "500K+", label: "Active Users", color: "#3498db" },
@@ -703,7 +794,6 @@ const LandingPage: React.FC = () => {
               >
                 {stat.value}
               </div>
-
               <div className="text-gray-600 dark:text-gray-400">
                 {stat.label}
               </div>
@@ -711,13 +801,10 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
 
-        {/* Additional Information Cards */}
         <div className="grid md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-[#3498db]/10 to-[#3498db]/5 rounded-2xl p-6 border border-[#3498db]/20 hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
             <Shield className="w-8 h-8 mb-4 text-[#3498db]" />
-
             <h4 className="text-xl font-bold mb-3">Privacy First</h4>
-
             <p className="text-gray-600 dark:text-gray-400">
               Your data remains protected through strong encryption and
               privacy-focused infrastructure.
@@ -726,9 +813,7 @@ const LandingPage: React.FC = () => {
 
           <div className="bg-gradient-to-br from-[#2ecc71]/10 to-[#2ecc71]/5 rounded-2xl p-6 border border-[#2ecc71]/20 hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
             <Users className="w-8 h-8 mb-4 text-[#2ecc71]" />
-
             <h4 className="text-xl font-bold mb-3">Built For Teams</h4>
-
             <p className="text-gray-600 dark:text-gray-400">
               Empower collaboration with secure sharing, permissions, and
               centralized file management.
@@ -737,9 +822,7 @@ const LandingPage: React.FC = () => {
 
           <div className="bg-gradient-to-br from-[#9b59b6]/10 to-[#9b59b6]/5 rounded-2xl p-6 border border-[#9b59b6]/20 hover:-translate-y-2 hover:shadow-xl transition-all duration-300">
             <Globe className="w-8 h-8 mb-4 text-[#9b59b6]" />
-
             <h4 className="text-xl font-bold mb-3">Global Availability</h4>
-
             <p className="text-gray-600 dark:text-gray-400">
               Access files securely from anywhere in the world with reliable
               infrastructure and high availability.
@@ -747,6 +830,7 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
+
       {/* Contact Section */}
       <section id="contact" className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
@@ -772,11 +856,11 @@ const LandingPage: React.FC = () => {
           </p>
         </div>
       </section>
+
       {/* Footer */}
       <footer className="border-t border-gray-200 dark:border-gray-800 bg-gradient-to-b from-transparent to-gray-100 dark:to-gray-950 mt-20">
         <div className="container mx-auto px-6 py-16">
           <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-10">
-            {/* Brand Section */}
             <div className="lg:col-span-2">
               <div className="flex items-center space-x-3 mb-4">
                 <Cloud className="w-10 h-10 text-[#3498db]" />
@@ -784,24 +868,20 @@ const LandingPage: React.FC = () => {
                   SecureShare
                 </span>
               </div>
-
               <p className="text-gray-600 dark:text-gray-400 leading-relaxed max-w-md mb-6">
                 SecureShare provides fast, reliable, and secure file sharing for
                 individuals, teams, and businesses. Built with privacy-first
                 principles and enterprise-grade protection.
               </p>
-
               <div className="flex gap-4">
                 <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <div className="font-bold text-[#3498db]">500K+</div>
                   <div className="text-xs text-gray-500">Users</div>
                 </div>
-
                 <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <div className="font-bold text-[#2ecc71]">10M+</div>
                   <div className="text-xs text-gray-500">Files Shared</div>
                 </div>
-
                 <div className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <div className="font-bold text-[#9b59b6]">99.9%</div>
                   <div className="text-xs text-gray-500">Uptime</div>
@@ -809,12 +889,10 @@ const LandingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Product */}
             <div>
               <h4 className="font-semibold text-lg mb-4 text-[#3498db]">
                 Product
               </h4>
-
               <ul className="space-y-3">
                 {["Features", "Pricing", "Security", "API"].map((item) => (
                   <li key={item}>
@@ -829,12 +907,10 @@ const LandingPage: React.FC = () => {
               </ul>
             </div>
 
-            {/* Company */}
             <div>
               <h4 className="font-semibold text-lg mb-4 text-[#2ecc71]">
                 Company
               </h4>
-
               <ul className="space-y-3">
                 {["About", "Blog", "Careers", "Contact"].map((item) => (
                   <li key={item}>
@@ -849,12 +925,10 @@ const LandingPage: React.FC = () => {
               </ul>
             </div>
 
-            {/* Resources */}
             <div>
               <h4 className="font-semibold text-lg mb-4 text-[#9b59b6]">
                 Resources
               </h4>
-
               <ul className="space-y-3">
                 {[
                   { label: "Privacy Policy", to: "/privacy" },
@@ -871,8 +945,8 @@ const LandingPage: React.FC = () => {
                         {item.label}
                       </Link>
                     ) : (
-                      
-                        <a href={item.to}
+                      <a
+                        href={item.to}
                         className="text-gray-600 dark:text-gray-400 hover:text-[#9b59b6] transition-colors duration-200"
                       >
                         {item.label}
@@ -884,27 +958,22 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Divider */}
           <div className="border-t border-gray-200 dark:border-gray-800 my-10"></div>
 
-          {/* Bottom Footer */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-gray-500 dark:text-gray-500 text-sm text-center md:text-left">
               © 2024 SecureShare. All rights reserved. Secure file sharing made
               simple and secure.
             </p>
-
             <div className="flex items-center gap-6 text-sm">
               <span className="flex items-center gap-2 text-[#2ecc71]">
                 <Shield className="w-4 h-4" />
                 Enterprise Security
               </span>
-
               <span className="flex items-center gap-2 text-[#3498db]">
                 <Lock className="w-4 h-4" />
                 256-bit Encryption
               </span>
-
               <span className="flex items-center gap-2 text-[#9b59b6]">
                 <Globe className="w-4 h-4" />
                 Global Access
