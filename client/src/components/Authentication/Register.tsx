@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
-import api from "../../services/api"; 
+import api from "../../services/api";
+import toast from "react-hot-toast";
 import {
   Shield,
   Zap,
@@ -32,7 +33,7 @@ const Register: React.FC = () => {
 
   const [theme, setTheme] = useState(
     document.documentElement.classList.contains("dark")
-      ? "dark":"light",
+      ? "dark" : "light",
   );
 
   const toggleTheme = () => {
@@ -64,7 +65,7 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-     
+
       const res = await api.post("/register", {
         username,
         email,
@@ -72,16 +73,19 @@ const Register: React.FC = () => {
       });
 
       if (res.data.success) {
-        alert("Registration successful! Welcome to SecureShare!");
-        navigate("/home");
+        toast.success("Registration successful! Welcome to SecureShare!");
+
+        setTimeout(() => {
+          navigate("/home");
+        }, 1200);
       }
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         console.error("Registration error:", error.response);
         setErrorMsg(
           error.response?.data?.error ||
-            error.response?.data?.message ||
-            "Registration failed. Please check your details."
+          error.response?.data?.message ||
+          "Registration failed. Please check your details."
         );
       } else {
         setErrorMsg("Registration failed. Please try again.");
@@ -141,13 +145,13 @@ const Register: React.FC = () => {
               Sign In
             </button>
             <button
-            onClick={toggleTheme}
-            className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
             hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
             hover:text-black dark:hover:text-white transition-colors ml-4"
-          >
-            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+            >
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
           </div>
         </header>
 
@@ -263,16 +267,14 @@ const Register: React.FC = () => {
 
                   <ul className="mt-3 space-y-1">
                     <li
-                      className={`flex items-center text-sm ${
-                        password.length >= 6
+                      className={`flex items-center text-sm ${password.length >= 6
                           ? "text-[#2ecc71]"
                           : "text-gray-500"
-                      }`}
+                        }`}
                     >
                       <Check
-                        className={`w-4 h-4 mr-2 ${
-                          password.length >= 6 ? "opacity-100" : "opacity-0"
-                        }`}
+                        className={`w-4 h-4 mr-2 ${password.length >= 6 ? "opacity-100" : "opacity-0"
+                          }`}
                       />
                       At least 6 characters
                     </li>
