@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 // import axios from "axios";
 import api from "../../services/api";
+import toast from "react-hot-toast";
 import {
   Cloud,
   Shield,
@@ -62,10 +63,14 @@ const Login: React.FC = () => {
       );
 
       if (response.data.success) {
-        alert("Login successful! Welcome back.");
-        navigate("/home");
+        toast.success("Login successful! Welcome back!");
+
+        setTimeout(() => {
+          navigate("/home");
+        }, 1200);
       }
     } catch (error: unknown) {
+      toast.error("Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -114,13 +119,13 @@ const Login: React.FC = () => {
               Create Account
             </button>
             <button
-                        onClick={toggleTheme}
-                        className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
                         hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
                         hover:text-black dark:hover:text-white transition-colors ml-4"
-                      >
-                        {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-                      </button>
+            >
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
           </div>
         </header>
 
