@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
@@ -16,7 +15,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 
 const Register: React.FC = () => {
   const navigate = useNavigate();

@@ -46,8 +46,9 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 import ShareModal from "./ShareModal";
+import { Pagination } from "../common/Pagination";
 import { enqueueUpload, getQueuedUploads, removeQueuedUpload, updateQueuedUpload } from "../../services/offlineQueue";
 import type { QueuedUpload } from "../../services/offlineQueue";
 
@@ -137,6 +138,12 @@ const MyFiles: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [queuedUploads, setQueuedUploads] = useState<QueuedUpload[]>([]);
   const [isSyncingOfflineQueue, setIsSyncingOfflineQueue] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalFiles, setTotalFiles] = useState(0);
+  const limit = 50;
 
   // ✅ Load resumable upload sessions from localStorage
   useEffect(() => {
@@ -275,7 +282,7 @@ const MyFiles: React.FC = () => {
     try {
       const [treeData, contentsData] = await Promise.all([
         folderApi.getTree().catch(() => ({ folders: [] })),
-        folderApi.getContents(currentFolderId).catch((err) => {
+        folderApi.getContents(currentFolderId, currentPage, limit).catch((err) => {
           if (err.response?.status === 404 && currentFolderId !== null) {
             toast.error("Folder not found. Redirecting to root.");
             setCurrentFolderId(null);
@@ -314,6 +321,13 @@ const MyFiles: React.FC = () => {
         }));
         setFiles(backendFiles);
       }
+      
+      if (contentsData.pagination) {
+        setTotalPages(contentsData.pagination.totalPages);
+        setTotalFiles(contentsData.pagination.total);
+      } else {
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error("Error loading folder contents:", error);
     } finally {
@@ -323,11 +337,11 @@ const MyFiles: React.FC = () => {
 
   useEffect(() => {
     loadFolderData();
-  }, [currentFolderId]);
+  }, [currentFolderId, currentPage]);
 
   const refreshFiles = async () => {
     try {
-      const contentsData = await folderApi.getContents(currentFolderId);
+      const contentsData = await folderApi.getContents(currentFolderId, currentPage, limit);
       if (contentsData.subfolders) {
         setFolders(contentsData.subfolders);
       }
@@ -352,6 +366,11 @@ const MyFiles: React.FC = () => {
           scanStatus: file.scanStatus || "uploaded",
         }));
         setFiles(backendFiles);
+      }
+      
+      if (contentsData.pagination) {
+        setTotalPages(contentsData.pagination.totalPages);
+        setTotalFiles(contentsData.pagination.total);
       }
     } catch (error) {
       console.error("Error refreshing files:", error);
@@ -433,7 +452,7 @@ const MyFiles: React.FC = () => {
       
       setIsSearching(true);
       try {
-        const response = await fileApi.searchFiles(searchQuery);
+        const response = await fileApi.searchFiles(searchQuery, currentPage, limit);
         if (response && response.files) {
           const mappedResults = response.files.map((file: any) => ({
             id: file._id,
@@ -457,6 +476,12 @@ const MyFiles: React.FC = () => {
             snippet: file.snippet,
           }));
           setSearchResults(mappedResults);
+          if (response.pagination) {
+            setTotalPages(response.pagination.totalPages);
+            setTotalFiles(response.pagination.total);
+          } else {
+            setTotalPages(1);
+          }
         }
       } catch (error) {
         console.error("Failed to perform search:", error);
@@ -468,7 +493,12 @@ const MyFiles: React.FC = () => {
 
     const timer = setTimeout(performSearch, 400); // 400ms debounce
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, currentPage]);
+
+  // Reset page on context change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [currentFolderId, searchQuery]);
 
   // ✅ Track link copy with BACKEND API
   const trackLinkCopy = async (
@@ -2173,6 +2203,18 @@ formatFileSize
         
         </motion.div>
       </AnimatePresence>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-6">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalFiles}
+            onPageChange={(page) => setCurrentPage(page)}
+          />
+        </div>
+      )}
 
       {/* Empty State */}
       {filteredFiles.length === 0 && !loading && (

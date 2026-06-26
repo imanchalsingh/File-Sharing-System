@@ -16,7 +16,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "react-toastify";
+import { Pagination } from "../common/Pagination";
+import { notify as toast } from "@/services/toastService";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 
 interface TrackedFile {
@@ -46,6 +47,15 @@ const Favorites: React.FC = () => {
   const [selectedType, setSelectedType] = useState("All");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalFiles, setTotalFiles] = useState(0);
+  const limit = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedType]);
+
   const mapFile = (file: any): TrackedFile => ({
     id: file._id,
     name: file.fileName,
@@ -66,9 +76,15 @@ const Favorites: React.FC = () => {
     if (showRefreshing) setRefreshing(true);
     else setLoading(true);
     try {
-      const data = await fileApi.getFavorites();
+      const data = await fileApi.getFavorites(currentPage, limit);
       if (data.files) {
         setFavorites(data.files.map(mapFile));
+      }
+      if (data.pagination) {
+        setTotalPages(data.pagination.totalPages);
+        setTotalFiles(data.pagination.total);
+      } else {
+        setTotalPages(1);
       }
     } catch (err) {
       console.error("Failed to load favorites:", err);
@@ -77,7 +93,7 @@ const Favorites: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [currentPage]);
 
   useKeyboardShortcuts({
     Escape: () => {
@@ -591,6 +607,18 @@ const Favorites: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Pagination ─────────────────────────────────────────────────── */}
+      {totalPages > 1 && (
+        <div className="mt-6">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalFiles}
+            onPageChange={(page) => setCurrentPage(page)}
+          />
+        </div>
+      )}
 
       {/* ── Image Preview Modal ──────────────────────────────────────────── */}
       <AnimatePresence>

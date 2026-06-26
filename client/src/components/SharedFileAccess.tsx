@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { notify as toast } from "@/services/toastService";
 
 interface SharedFileData {
   _id?: string;

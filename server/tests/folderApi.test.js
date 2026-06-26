@@ -15,7 +15,7 @@ app.use(express.json());
 
 // Mock authenticateUser
 app.use((req, res, next) => {
-  req.user = { id: "user123" };
+  req.user = { id: "507f1f77bcf86cd799439011" };
   next();
 });
 
@@ -49,25 +49,27 @@ Folder.findOne = async (query) => {
   } };
 };
 
-Folder.find = async (query) => {
+Folder.find = (query) => {
   let result = foldersDb.filter(f => String(f.userId) === String(query.userId));
   if (query.parentId !== undefined) {
     result = result.filter(f => String(f.parentId) === String(query.parentId));
   }
   return {
-    sort: () => result
+    sort: () => Promise.resolve(result)
   };
 };
 
 Folder.prototype.save = async function() {
   const doc = this.toObject ? this.toObject() : this;
-  if (!this._id) {
+  if (!doc._id) {
     this._id = "folder" + nextFolderId++;
     doc._id = this._id;
-    foldersDb.push(doc);
+  }
+  const idx = foldersDb.findIndex(f => String(f._id) === String(doc._id));
+  if (idx !== -1) {
+    foldersDb[idx] = doc;
   } else {
-    const idx = foldersDb.findIndex(f => String(f._id) === String(this._id));
-    if (idx !== -1) foldersDb[idx] = doc;
+    foldersDb.push(doc);
   }
   return this;
 };
@@ -82,14 +84,24 @@ Folder.deleteOne = async (query) => {
   foldersDb = foldersDb.filter(f => f._id !== query._id);
 };
 
-File.find = async (query) => {
+File.find = (query) => {
+  let result = filesDb.filter(f => String(f.userId) === String(query.userId) && f.isDeleted === false);
+  if (query.folderId !== undefined) {
+    result = result.filter(f => String(f.folderId) === String(query.folderId));
+  }
+  return {
+    sort: function() { return this; },
+    skip: function() { return this; },
+    limit: function() { return Promise.resolve(result); }
+  };
+};
+
+File.countDocuments = async (query) => {
   let result = filesDb.filter(f => f.userId === query.userId && f.isDeleted === false);
   if (query.folderId !== undefined) {
     result = result.filter(f => f.folderId === query.folderId);
   }
-  return {
-    sort: () => result
-  };
+  return result.length;
 };
 
 File.updateMany = async (query, update) => {
@@ -119,6 +131,7 @@ async function runTests() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "Docs" })
       });
+      const data1 = await res1.json();
       if (res1.status === 201) {
         passed++;
         console.log("✅ Create root folder");
@@ -128,7 +141,7 @@ async function runTests() {
         console.log(`❌ Create root folder failed: ${res1.status}`);
       }
 
-      const rootFolderId = "folder1";
+      const rootFolderId = data1.folder ? data1.folder._id : foldersDb[0]?._id || "folder1";
 
       // Test 2: Create Subfolder
       const res2 = await fetch(`${BASE}`, {
@@ -136,6 +149,7 @@ async function runTests() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: "Work", parentId: rootFolderId })
       });
+      const data2 = await res2.json();
       if (res2.status === 201) {
         passed++;
         console.log("✅ Create subfolder");
@@ -143,6 +157,8 @@ async function runTests() {
         failed++;
         console.log(`❌ Create subfolder failed: ${res2.status}`);
       }
+
+      const subFolderId = data2.folder ? data2.folder._id : "folder2";
 
       // Test 3: Get folder tree
       const res3 = await fetch(`${BASE}/tree`);
@@ -152,11 +168,11 @@ async function runTests() {
         console.log("✅ Get folder tree");
       } else {
         failed++;
-        console.log(`❌ Get folder tree failed`);
+        console.log(`❌ Get folder tree failed: ${res3.status}`, data3);
       }
 
       // Add a mock file
-      filesDb.push({ _id: "file1", fileName: "test.txt", folderId: rootFolderId, userId: "user123", isDeleted: false });
+      filesDb.push({ _id: "file1", fileName: "test.txt", folderId: rootFolderId, userId: "507f1f77bcf86cd799439011", isDeleted: false });
 
       // Test 4: Get folder contents
       const res4 = await fetch(`${BASE}/${rootFolderId}/contents`);
@@ -166,7 +182,7 @@ async function runTests() {
         console.log("✅ Get folder contents");
       } else {
         failed++;
-        console.log(`❌ Get folder contents failed`);
+        console.log(`❌ Get folder contents failed: ${res4.status}`, data4);
       }
 
       // Test 5: Rename folder
@@ -185,11 +201,11 @@ async function runTests() {
       }
 
       // Test 6: Move folder (circular reference)
-      // moving 'rootFolderId' into its subfolder 'folder2'
+      // moving 'rootFolderId' into its subfolder
       const res6 = await fetch(`${BASE}/${rootFolderId}/move`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parentId: "folder2" })
+        body: JSON.stringify({ parentId: subFolderId })
       });
       if (res6.status === 400) {
         passed++;
@@ -200,13 +216,13 @@ async function runTests() {
       }
 
       // Test 7: Delete folder (safe)
-      const res7 = await fetch(`${BASE}/${rootFolderId}`);
+      const res7 = await fetch(`${BASE}/${rootFolderId}`, { method: "DELETE" });
       if (res7.status === 200) {
         passed++;
         console.log("✅ Safe delete folder (moves contents to root)");
       } else {
         failed++;
-        console.log(`❌ Safe delete failed`);
+        console.log(`❌ Safe delete failed: ${res7.status}`);
       }
       
     } catch (err) {
