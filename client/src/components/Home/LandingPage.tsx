@@ -15,7 +15,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const LandingPage: React.FC = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeFeature, setActiveFeature] = useState(0);
 
@@ -27,8 +27,8 @@ const LandingPage: React.FC = () => {
   }, []);
 
   const [theme, setTheme] = useState(
-    document.documentElement.classList.contains("dark") 
-    ? "dark" : "light"
+    document.documentElement.classList.contains("dark")
+      ? "dark" : "light"
   );
 
   const toggleTheme = () => {
@@ -158,20 +158,26 @@ const LandingPage: React.FC = () => {
             </a>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors">
+            <button
+              onClick={() => navigate("/login")}
+              className="px-4 py-2 text-[#3498db] hover:text-[#2980b9] transition-colors"
+            >
               Sign In
             </button>
-            <button className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity">
+            <button
+              onClick={() => navigate("/register")}
+              className="px-6 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-lg font-semibold hover:opacity-90 transition-opacity"
+            >
               Get Started
             </button>
             <button
-                        onClick={toggleTheme}
-                        className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
                         hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
                         hover:text-black dark:hover:text-white transition-colors ml-4"
-                      >
-                        {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-                      </button>
+            >
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
           </div>
         </div>
       </nav>
@@ -217,7 +223,7 @@ const LandingPage: React.FC = () => {
             </p>
           </div>
 
-          <button onClick={()=>{
+          <button onClick={() => {
             navigate('/login')
           }} className="mt-8 px-8 py-3 bg-gradient-to-r from-[#3498db] to-[#2980b9] rounded-lg font-semibold text-lg hover:opacity-90 transition-opacity w-full">
             <Upload className="inline mr-2 w-5 h-5" />
@@ -251,9 +257,8 @@ const LandingPage: React.FC = () => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className={`p-8 rounded-2xl transition-all duration-300 hover:scale-105 cursor-pointer ${
-                activeFeature === index ? "border-2 bg-opacity-20" : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
-              }`}
+              className={`p-8 rounded-2xl transition-all duration-300 hover:scale-105 cursor-pointer ${activeFeature === index ? "border-2 bg-opacity-20" : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                }`}
               style={{
                 borderColor: activeFeature === index ? feature.color : undefined,
                 backgroundColor:
@@ -347,9 +352,8 @@ const LandingPage: React.FC = () => {
           {plans.map((plan, index) => (
             <div
               key={index}
-              className={`rounded-2xl p-8 relative hover:scale-105 ${
-                plan.popular ? "border-2" : "border border-gray-200 dark:border-gray-700"
-              }`}
+              className={`rounded-2xl p-8 relative hover:scale-105 ${plan.popular ? "border-2" : "border border-gray-200 dark:border-gray-700"
+                }`}
               style={{
                 borderColor: plan.popular ? plan.accent : "",
                 backgroundColor: theme === "dark" ? "#1f2937" : "white",
@@ -380,9 +384,8 @@ const LandingPage: React.FC = () => {
               </ul>
 
               <button
-                className={`w-full py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 ${
-                  plan.popular ? "text-white" : ""
-                }`}
+                className={`w-full py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 ${plan.popular ? "text-white" : ""
+                  }`}
                 style={{
                   backgroundColor: plan.popular ? plan.accent : theme === "dark" ? "#4a5568" : "#e2e8f0",
                   color: plan.popular ? "#1a202c" : theme === "dark" ? "white" : "black",
@@ -396,7 +399,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* About Section */}
-      <section id = "about" className="container mx-auto px-6 py-20">
+      <section id="about" className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center">
           <Lock className="w-20 h-20 mx-auto mb-8 text-[#3498db]" />
           <h2 className="text-4xl font-bold mb-6">Enterprise-Grade Security</h2>
@@ -424,7 +427,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Contact Section */}
-      <section id= "contact"className="container mx-auto px-6 py-20">
+      <section id="contact" className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-r from-white to-gray-100 
         dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700">
           <h2 className="text-4xl font-bold mb-6">Ready to Share Securely?</h2>
