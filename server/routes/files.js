@@ -30,7 +30,10 @@ import {
   getSharedFileById,
   verifySharedFilePassword,
   moveFile,
+  searchFiles,
 } from "../controllers/fileController.js";
+
+
 
 const router = express.Router();
 
