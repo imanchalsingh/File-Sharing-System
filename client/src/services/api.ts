@@ -59,13 +59,15 @@ export const analyticsApi = {
 // ==================== FILE APIs ====================
 
 export const fileApi = {
-  getMyFiles: async () => {
-    const response = await api.get("/api/files/my-files");
+  getMyFiles: async (page: number = 1, limit: number = 50, folderId?: string | null) => {
+    let url = `/api/files/my-files?page=${page}&limit=${limit}`;
+    if (folderId !== undefined) url += `&folderId=${folderId}`;
+    const response = await api.get(url);
     return response.data;
   },
 
-  searchFiles: async (query: string) => {
-    const response = await api.get(`/api/files/search?q=${encodeURIComponent(query)}`);
+  searchFiles: async (query: string, page: number = 1, limit: number = 50) => {
+    const response = await api.get(`/api/files/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
     return response.data;
   },
 
@@ -107,8 +109,8 @@ export const fileApi = {
     return response.data;
   },
 
-  getFavorites: async () => {
-    const response = await api.get("/api/files/favorites");
+  getFavorites: async (page: number = 1, limit: number = 50) => {
+    const response = await api.get(`/api/files/favorites?page=${page}&limit=${limit}`);
     return response.data;
   },
 
@@ -146,9 +148,9 @@ export const folderApi = {
     return response.data;
   },
 
-  getContents: async (folderId: string | null = null) => {
+  getContents: async (folderId: string | null = null, page: number = 1, limit: number = 50) => {
     const id = folderId || "root";
-    const response = await api.get(`/api/folders/${id}/contents`);
+    const response = await api.get(`/api/folders/${id}/contents?page=${page}&limit=${limit}`);
     return response.data;
   },
 

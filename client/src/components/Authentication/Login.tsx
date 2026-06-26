@@ -15,7 +15,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 
 const featureCards = [
   { title: "Secure", description: "Military grade encryption", color: "#e74c3c", icon: <Shield /> },
@@ -109,7 +109,7 @@ const Login: React.FC = () => {
           localStorage.setItem("authToken", response.data.authToken);
         }
         toast.success("Login successful!");
-        navigate("/home");
+        window.location.href = "/home";  // ✅ CHANGE KARO
       } else {
         setErrorMsg(response.data.error || "Invalid email or password");
       }
@@ -143,7 +143,7 @@ const Login: React.FC = () => {
           localStorage.setItem("authToken", response.data.authToken);
         }
         toast.success("Login successful!");
-        navigate("/home");
+        window.location.href = "/home";  // ✅ CHANGE KARO
       }
     } catch (error: any) {
       setErrorMsg(error.response?.data?.error || "Invalid verification code");
