@@ -90,6 +90,7 @@ const MyFiles: React.FC = () => {
   const [folderContextMenu, setFolderContextMenu] = useState<{ id: string, name: string } | null>(null);
   
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [selectedFolders, setSelectedFolders] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<TrackedFile[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -867,6 +868,15 @@ const MyFiles: React.FC = () => {
     );
   };
 
+  // ✅ Toggle folder selection
+  const toggleFolderSelection = (id: string) => {
+    setSelectedFolders((prev) =>
+      prev.includes(id)
+        ? prev.filter((folderId) => folderId !== id)
+        : [...prev, id],
+    );
+  };
+
   // ✅ Share file with tracking
   const handleShare = async (
     fileId: string,
@@ -919,9 +929,9 @@ const MyFiles: React.FC = () => {
 
   // ✅ Download selected files as a ZIP archive
   const handleDownloadSelected = async () => {
-    if (selectedFiles.length === 0) return;
+    if (selectedFiles.length === 0 && selectedFolders.length === 0) return;
 
-    if (selectedFiles.length === 1) {
+    if (selectedFiles.length === 1 && selectedFolders.length === 0) {
       const fileId = selectedFiles[0];
       const file = files.find((f) => f.id === fileId);
       if (file) {
@@ -939,12 +949,12 @@ const MyFiles: React.FC = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ fileIds: selectedFiles }),
+        body: JSON.stringify({ fileIds: selectedFiles, folderIds: selectedFolders }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to download selected files.");
+        throw new Error(errorData.error || "Failed to download selected items.");
       }
 
       // Track downloads for all selected files locally
@@ -1638,9 +1648,32 @@ formatFileSize
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.2 }}
-                  className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white/50 dark:bg-gray-800/30 transition-all duration-300 hover:scale-[1.02] flex flex-col cursor-pointer"
+                  className={`relative group rounded-xl overflow-hidden border ${
+                    selectedFolders.includes(folder._id)
+                      ? "border-[#3498db] ring-2 ring-[#3498db]/50"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                  } bg-white/50 dark:bg-gray-800/30 transition-all duration-300 hover:scale-[1.02] flex flex-col cursor-pointer`}
                   onClick={() => setCurrentFolderId(folder._id)}
                 >
+                  <div
+                    className="absolute top-2 left-2 z-10 p-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFolderSelection(folder._id);
+                    }}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                        selectedFolders.includes(folder._id)
+                          ? "bg-[#3498db] border-[#3498db]"
+                          : "border-gray-400 bg-white/50 backdrop-blur-sm opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
+                      {selectedFolders.includes(folder._id) && (
+                        <Check className="w-3.5 h-3.5 text-white" />
+                      )}
+                    </div>
+                  </div>
                   <div className="h-24 flex items-center justify-center bg-gray-100 dark:bg-gray-800/50">
                     <Folder className="w-12 h-12 text-[#3498db]" />
                   </div>
@@ -1653,7 +1686,7 @@ formatFileSize
                         e.stopPropagation();
                         setFolderContextMenu({ id: folder._id, name: folder.name });
                       }}
-                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <MoreVertical className="w-4 h-4 text-gray-500" />
                     </button>
@@ -1954,7 +1987,25 @@ formatFileSize
                     className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-gray-800/50 transition-colors cursor-pointer"
                   >
                     <div className="col-span-4 flex items-center">
-                      <div className="w-5 h-5 mr-3" /> {/* Spacer for checkbox */}
+                      <div
+                        className="p-2 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFolderSelection(folder._id);
+                        }}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                            selectedFolders.includes(folder._id)
+                              ? "bg-[#3498db] border-[#3498db]"
+                              : "border-gray-500 bg-gray-800"
+                          }`}
+                        >
+                          {selectedFolders.includes(folder._id) && (
+                            <Check className="w-3.5 h-3.5 text-white" />
+                          )}
+                        </div>
+                      </div>
                       <div className="flex items-center">
                         <div className="p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg mr-3">
                           <Folder className="w-5 h-5 text-[#3498db]" />
