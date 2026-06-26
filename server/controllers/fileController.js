@@ -810,6 +810,7 @@ export const verifySharedFilePassword = async (req, res, next) => {
       return res.status(403).json({ error: "File is not safe for sharing. Scan status: " + file.scanStatus });
     }
 
+
     res.json({
       success: true,
       message: "Password verified",
