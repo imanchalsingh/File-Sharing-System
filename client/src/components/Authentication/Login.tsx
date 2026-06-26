@@ -15,7 +15,7 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 
 const featureCards = [
   { title: "Secure", description: "Military grade encryption", color: "#e74c3c", icon: <Shield /> },

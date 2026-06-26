@@ -20,10 +20,11 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 
 const App: React.FC = () => {
   return (
-    <>
+    <ErrorBoundary>
       <Routes>
         {/* Landing Page - Home */}
         <Route path="/" element={<LandingPage />} />
@@ -64,9 +65,9 @@ const App: React.FC = () => {
         {/* Redirect unknown paths to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <ToastContainer position="top-right" autoClose={3000} />
+      <ToastContainer />
       <ScrollToTopButton />
-    </>
+    </ErrorBoundary>
   );
 };
 

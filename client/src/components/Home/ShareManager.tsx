@@ -18,7 +18,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,19 +92,29 @@ const ShareManager: React.FC = () => {
   const [extendDate, setExtendDate] = useState("");
   const [fileDropdownOpen, setFileDropdownOpen] = useState(false);
 
+  // Pagination for the file dropdown
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 50;
+
   // ─── Data Loading ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     const loadFiles = async () => {
-      setLoadingFiles(true);
+      if (files.length === 0) setLoadingFiles(true);
       try {
-        const data = await fileApi.getMyFiles();
+        const data = await fileApi.getMyFiles(currentPage, limit);
         if (data.files) {
           const mapped = data.files.map((f: any) => ({
             id: f._id,
             name: f.fileName,
           }));
           setFiles(mapped);
+        }
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages);
+        } else {
+          setTotalPages(1);
         }
       } catch (err) {
         console.error("Failed to load files:", err);
@@ -114,7 +124,7 @@ const ShareManager: React.FC = () => {
       }
     };
     loadFiles();
-  }, []);
+  }, [currentPage]);
 
   const loadShares = useCallback(async (fileId: string) => {
     if (!fileId) return;
@@ -470,6 +480,25 @@ const ShareManager: React.FC = () => {
                         <span className="truncate">{file.name}</span>
                       </button>
                     ))
+                  )}
+                  {totalPages > 1 && (
+                    <div className="flex justify-between items-center px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80 sticky bottom-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.max(1, p - 1)); }}
+                        disabled={currentPage === 1}
+                        className="text-xs font-medium text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:text-[#3498db] dark:hover:text-[#3498db] transition-colors p-1"
+                      >
+                        Prev
+                      </button>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Page {currentPage} of {totalPages}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.min(totalPages, p + 1)); }}
+                        disabled={currentPage === totalPages}
+                        className="text-xs font-medium text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:text-[#3498db] dark:hover:text-[#3498db] transition-colors p-1"
+                      >
+                        Next
+                      </button>
+                    </div>
                   )}
                 </motion.div>
               )}
