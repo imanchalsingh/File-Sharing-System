@@ -71,6 +71,19 @@ export const createShareLink = async (req, res, next) => {
 
     const shareUrl = `${process.env.SHARE_BASE_URL || 'http://localhost:5173/s'}/${shareLink.slug || token}`;
 
+    const { recipientEmail } = req.body;
+    if (recipientEmail) {
+      await createNotification({
+        userId,
+        type: 'FILE_SHARED',
+        shareId: shareLink._id,
+        fileId,
+        message: `${req.user.name || 'A user'} shared a file with you: ${file.fileName}`,
+        shareLink: shareUrl,
+        recipientEmail: recipientEmail.trim(),
+      });
+    }
+
     res.status(201).json({
       success: true,
       share: {
