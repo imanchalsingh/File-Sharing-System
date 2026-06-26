@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Settings as SettingsIcon, Shield, Copy, Check, RefreshCw } from "lucide-react";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 import api from "../../services/api";
 
 const Settings: React.FC = () => {

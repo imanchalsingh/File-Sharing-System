@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../services/api";
-import { toast } from "react-toastify";
+import { notify as toast } from "@/services/toastService";
 import { Globe, Plus, Trash2, Edit2, CheckCircle, XCircle, Activity, Key, Link as LinkIcon, AlertCircle } from "lucide-react";
 
 interface Webhook {
