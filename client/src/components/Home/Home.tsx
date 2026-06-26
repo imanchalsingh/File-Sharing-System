@@ -21,6 +21,7 @@ import HomeContent from "./HomeContent";
 import NotificationBell from "./NotificationBell";
 import api from "../../services/api";
 import { initiateSocketConnection, disconnectSocket } from "../../services/socket";
+import SessionTimeout from "../SessionTimeout";
 
 
 const Home: React.FC = () => {
@@ -166,6 +167,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="h-screen bg-gradient-to-br from-gray-100 to-white dark:from-gray-900 dark:to-gray-800 flex overflow-hidden">
+      <SessionTimeout onLogout={handleLogout} timeoutMinutes={30} warningMinutes={1} />
       {/* Desktop Sidebar */}
       <div
         className={`
