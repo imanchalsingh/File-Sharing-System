@@ -53,7 +53,7 @@ router.post("/upload/chunk", ...chunkUploadMiddleware, uploadChunk);
 router.delete("/upload/:sessionId", cancelUpload);
 
 // Search files
-router.get("/search", searchFiles);
+// router.get("/search", searchFiles);
 
 // Get all user files
 router.get("/my-files", getUserFiles);
