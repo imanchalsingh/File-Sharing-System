@@ -67,6 +67,7 @@ export const getFolderTree = async (req, res, next) => {
 export const getFolderContents = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { page = 1, limit = 50 } = req.query;
     const userId = req.user.id;
     const folderId = id === "root" ? null : id;
 
@@ -80,13 +81,31 @@ export const getFolderContents = async (req, res, next) => {
     }
 
     const subfolders = await Folder.find({ parentId: folderId, userId }).sort({ name: 1 });
-    const files = await File.find({ folderId: folderId, userId, isDeleted: false }).sort({ createdAt: -1 });
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const query = { folderId: folderId, userId, isDeleted: false };
+    
+    const files = await File.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+      
+    const totalFiles = await File.countDocuments(query);
+    const totalPages = Math.ceil(totalFiles / parseInt(limit));
 
     res.status(200).json({
       success: true,
       folderId,
       subfolders,
       files,
+      pagination: {
+        total: totalFiles,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1,
+      }
     });
   } catch (error) {
     next(error);

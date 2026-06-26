@@ -1,17 +1,31 @@
 import File from "../models/File.js";
+import Folder from "../models/Folder.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
+import redisClient, { redisAvailable } from "../config/redis.js";
 import { Readable } from "stream";
+import { enqueueScan } from "../jobs/scanQueue.js";
+import { enqueueIndex } from "../jobs/indexQueue.js";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { ZipArchive } = require("archiver");
 
+// Invalidate dashboard stats cache
+const invalidateDashboardStats = async (userId) => {
+  if (redisAvailable) {
+    try {
+      await redisClient.del(`dashboard:stats:${userId}`);
+    } catch (err) {
+      console.error("Redis cache invalidation failed:", err);
+    }
+  }
+};
 
 // ✅ Get user's all files (with optional folder filter)
 export const getUserFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { folderId } = req.query; // 'null' string or objectId
+    const { folderId, page = 1, limit = 50 } = req.query; // 'null' string or objectId
 
     const query = { userId, isDeleted: false };
     
@@ -19,14 +33,29 @@ export const getUserFiles = async (req, res, next) => {
       query.folderId = folderId === "null" || folderId === "" ? null : folderId;
     }
 
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
     const files = await File.find(query)
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
       .select("-__v");
+      
+    const totalFiles = await File.countDocuments(query);
+    const totalPages = Math.ceil(totalFiles / parseInt(limit));
 
     res.json({
       success: true,
       files,
       count: files.length,
+      pagination: {
+        total: totalFiles,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1,
+      }
     });
   } catch (error) {
     next(error);
@@ -130,6 +159,8 @@ if (checksum) {
       const io = req.app.get("io");
       if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", existingFile);
 
+      await invalidateDashboardStats(userId);
+
       return res.status(200).json({
         success: true,
         message: "File updated successfully as a new version",
@@ -176,6 +207,8 @@ if (checksum) {
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILE_UPLOADED", newFile);
 
+    await invalidateDashboardStats(userId);
+
     res.status(201).json({
       success: true,
       message: "File info saved successfully",
@@ -208,6 +241,7 @@ export const updateShareCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    await invalidateDashboardStats(file.userId);
     try {
       await dispatchWebhookEvent(file.userId, "file_shared", {
         fileId: file._id,
@@ -266,6 +300,7 @@ export const updateDownloadCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    await invalidateDashboardStats(file.userId);
     try {
       await dispatchWebhookEvent(file.userId, "download_completed", {
         fileId: file._id,
@@ -304,6 +339,7 @@ export const updateViewCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    await invalidateDashboardStats(file.userId);
     try {
       await dispatchWebhookEvent(file.userId, "link_accessed", {
         fileId: file._id,
@@ -339,6 +375,8 @@ export const deleteFile = async (req, res, next) => {
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILE_DELETED", id);
 
+    await invalidateDashboardStats(userId);
+
     res.json({
       success: true,
       message: "File deleted successfully",
@@ -368,6 +406,8 @@ export const bulkDeleteFiles = async (req, res, next) => {
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILES_BULK_DELETED", fileIds);
 
+    await invalidateDashboardStats(userId);
+
     res.json({
       success: true,
       message: `${result.deletedCount} files deleted successfully`,
@@ -378,30 +418,73 @@ export const bulkDeleteFiles = async (req, res, next) => {
   }
 };
 
-// ✅ Bulk download files as ZIP
+// Helper to fetch files recursively from folders
+async function getFolderFiles(folderId, userId, currentPath = "") {
+  let results = [];
+  
+  const files = await File.find({ folderId, userId });
+  for (const f of files) {
+    results.push({
+      file: f,
+      archivePath: currentPath ? `${currentPath}/${f.fileName}` : f.fileName
+    });
+  }
+
+  const subfolders = await Folder.find({ parentId: folderId, userId });
+  for (const sub of subfolders) {
+    const subPath = currentPath ? `${currentPath}/${sub.name}` : sub.name;
+    const subResults = await getFolderFiles(sub._id, userId, subPath);
+    results = results.concat(subResults);
+  }
+
+  return results;
+}
+
+// ✅ Bulk download files and folders as ZIP
 export const bulkDownloadFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { fileIds } = req.body;
+    let { fileIds = [], folderIds = [] } = req.body;
 
-    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
-      const error = new Error("No file IDs provided");
+    if (!Array.isArray(fileIds)) fileIds = [];
+    if (!Array.isArray(folderIds)) folderIds = [];
+
+    if (fileIds.length === 0 && folderIds.length === 0) {
+      const error = new Error("No file or folder IDs provided");
       error.statusCode = 400;
       return next(error);
     }
 
-    if (fileIds.length > 50) {
-      const error = new Error("Maximum of 50 files can be downloaded at once");
+    if (fileIds.length + folderIds.length > 50) {
+      const error = new Error("Maximum of 50 items can be selected at once");
       error.statusCode = 400;
       return next(error);
     }
 
-    const files = await File.find({
-      _id: { $in: fileIds },
-      userId,
-    });
+    // 1. Gather all direct files
+    let allDownloadItems = [];
+    if (fileIds.length > 0) {
+      const directFiles = await File.find({
+        _id: { $in: fileIds },
+        userId,
+      });
+      for (const f of directFiles) {
+        allDownloadItems.push({ file: f, archivePath: f.fileName });
+      }
+    }
 
-    if (files.length === 0) {
+    // 2. Gather all files from selected folders
+    if (folderIds.length > 0) {
+      for (const folderId of folderIds) {
+        const folder = await Folder.findOne({ _id: folderId, userId });
+        if (folder) {
+          const folderFiles = await getFolderFiles(folderId, userId, folder.name);
+          allDownloadItems = allDownloadItems.concat(folderFiles);
+        }
+      }
+    }
+
+    if (allDownloadItems.length === 0) {
       const error = new Error("No valid files found for download");
       error.statusCode = 404;
       return next(error);
@@ -430,9 +513,10 @@ export const bulkDownloadFiles = async (req, res, next) => {
     // Pipe archive data to the response
     archive.pipe(res);
 
-    const fileNamesSeen = new Set();
+    const archivePathsSeen = new Set();
 
-    for (const file of files) {
+    for (const item of allDownloadItems) {
+      const { file, archivePath } = item;
       if (!file.fileUrl) continue;
 
       try {
@@ -444,19 +528,23 @@ export const bulkDownloadFiles = async (req, res, next) => {
 
         const nodeStream = Readable.fromWeb(response.body);
 
-        // Handle duplicate file names in the zip
-        let finalName = file.fileName;
+        // Handle duplicate file names in the zip at the exact same path
+        let finalPath = archivePath;
         let counter = 1;
-        while (fileNamesSeen.has(finalName)) {
-          const nameParts = file.fileName.split('.');
+        while (archivePathsSeen.has(finalPath)) {
+          const pathParts = archivePath.split('/');
+          const name = pathParts.pop();
+          const nameParts = name.split('.');
           const ext = nameParts.length > 1 ? `.${nameParts.pop()}` : '';
           const base = nameParts.join('.');
-          finalName = `${base} (${counter})${ext}`;
+          const newName = `${base} (${counter})${ext}`;
+          
+          finalPath = pathParts.length > 0 ? `${pathParts.join('/')}/${newName}` : newName;
           counter++;
         }
-        fileNamesSeen.add(finalName);
+        archivePathsSeen.add(finalPath);
 
-        archive.append(nodeStream, { name: finalName });
+        archive.append(nodeStream, { name: finalPath });
       } catch (err) {
         console.error(`Error appending file ${file.fileName}:`, err);
       }
@@ -478,29 +566,57 @@ export const bulkDownloadFiles = async (req, res, next) => {
 export const getFileStats = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const cacheKey = `dashboard:stats:${userId}`;
+
+    if (redisAvailable) {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+          return res.json({
+            success: true,
+            stats: JSON.parse(cached),
+            cached: true
+          });
+        }
+      } catch (err) {
+        console.error("Redis fetch failed, falling back to DB:", err.message);
+      }
+    }
 
     const totalFiles = await File.countDocuments({ userId });
-    const totalShares = await File.aggregate([
+    const aggregations = await File.aggregate([
       { $match: { userId } },
-      { $group: { _id: null, total: { $sum: "$shareCount" } } },
+      { 
+        $group: { 
+          _id: null, 
+          totalShares: { $sum: "$shareCount" },
+          totalDownloads: { $sum: "$downloadCount" },
+          totalViews: { $sum: "$viewCount" },
+          totalStorageUsed: { $sum: "$fileSizeBytes" }
+        } 
+      }
     ]);
-    const totalDownloads = await File.aggregate([
-      { $match: { userId } },
-      { $group: { _id: null, total: { $sum: "$downloadCount" } } },
-    ]);
-    const totalViews = await File.aggregate([
-      { $match: { userId } },
-      { $group: { _id: null, total: { $sum: "$viewCount" } } },
-    ]);
+
+    const stats = {
+      totalFiles,
+      totalShares: aggregations[0]?.totalShares || 0,
+      totalDownloads: aggregations[0]?.totalDownloads || 0,
+      totalViews: aggregations[0]?.totalViews || 0,
+      totalStorageUsed: aggregations[0]?.totalStorageUsed || 0,
+    };
+
+    if (redisAvailable) {
+      try {
+        await redisClient.setEx(cacheKey, 300, JSON.stringify(stats));
+      } catch (err) {
+        console.error("Redis cache write failed:", err.message);
+      }
+    }
 
     res.json({
       success: true,
-      stats: {
-        totalFiles,
-        totalShares: totalShares[0]?.total || 0,
-        totalDownloads: totalDownloads[0]?.total || 0,
-        totalViews: totalViews[0]?.total || 0,
-      },
+      stats,
+      cached: false
     });
   } catch (error) {
     next(error);
@@ -631,15 +747,31 @@ export const toggleFavorite = async (req, res, next) => {
 export const getFavoriteFiles = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const files = await File.find({ userId, isFavorite: true })
+    const query = { userId, isFavorite: true };
+    const files = await File.find(query)
       .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
       .select("-__v");
+      
+    const totalFiles = await File.countDocuments(query);
+    const totalPages = Math.ceil(totalFiles / parseInt(limit));
 
     res.json({
       success: true,
       files,
       count: files.length,
+      pagination: {
+        total: totalFiles,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1,
+      }
     });
   } catch (error) {
     next(error);
@@ -810,6 +942,7 @@ export const verifySharedFilePassword = async (req, res, next) => {
       return res.status(403).json({ error: "File is not safe for sharing. Scan status: " + file.scanStatus });
     }
 
+
     res.json({
       success: true,
       message: "Password verified",
@@ -858,6 +991,46 @@ export const moveFile = async (req, res, next) => {
       success: true,
       message: "File moved successfully",
       file,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ✅ Search files
+export const searchFiles = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { q = "", page = 1, limit = 50 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const query = {
+      userId,
+      isDeleted: false,
+      fileName: { $regex: q, $options: "i" }
+    };
+
+    const files = await File.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .select("-__v");
+
+    const totalFiles = await File.countDocuments(query);
+    const totalPages = Math.ceil(totalFiles / parseInt(limit));
+
+    res.json({
+      success: true,
+      files,
+      count: files.length,
+      pagination: {
+        total: totalFiles,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1
+      }
     });
   } catch (error) {
     next(error);

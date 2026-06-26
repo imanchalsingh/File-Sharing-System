@@ -10,10 +10,12 @@ import {
   File,
   ExternalLink,
   Home,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { notify as toast } from "@/services/toastService";
 
 interface SharedFileData {
   _id?: string;
@@ -25,6 +27,7 @@ interface SharedFileData {
   expiresAt: string | null;
   accessCount: number;
   downloadCount?: number;
+  isPasswordProtected?: boolean;
 }
 
 interface ErrorState {
@@ -68,6 +71,9 @@ const SharedFileAccess: React.FC = () => {
   const [error, setError] = useState<ErrorState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPasswordProtected, setIsPasswordProtected] = useState(false);
+  const [password, setPassword] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
   const viewTrackedRef = useRef(false);
 
   useEffect(() => {
@@ -80,33 +86,50 @@ const SharedFileAccess: React.FC = () => {
 
       try {
         const res = await shareApi.accessSharedFile(token);
-        if (res.success && res.file) {
-          const mappedData: SharedFileData = {
-            _id: res.file._id,
-            fileName: res.file.fileName,
-            fileType: res.file.fileType,
-            fileSize: res.file.fileSize,
-            fileUrl: res.file.fileUrl,
-            createdAt: res.share?.createdAt,
-            expiresAt: res.share?.expiresAt,
-            accessCount: res.share?.accessCount,
-            downloadCount: res.share?.downloadCount || 0,
-          };
-          setFileData(mappedData);
+        if (res.success) {
+          if (res.isPasswordProtected) {
+            setIsPasswordProtected(true);
+            setFileData({
+              fileName: "Password Protected File",
+              fileType: "unknown",
+              fileSize: 0,
+              fileUrl: "",
+              createdAt: res.share?.createdAt,
+              expiresAt: res.share?.expiresAt,
+              accessCount: res.share?.accessCount || 0,
+              downloadCount: res.share?.downloadCount || 0,
+              isPasswordProtected: true
+            });
+          } else if (res.file) {
+            const mappedData: SharedFileData = {
+              _id: res.file._id,
+              fileName: res.file.fileName,
+              fileType: res.file.fileType,
+              fileSize: res.file.fileSize,
+              fileUrl: res.file.fileUrl,
+              createdAt: res.share?.createdAt,
+              expiresAt: res.share?.expiresAt,
+              accessCount: res.share?.accessCount,
+              downloadCount: res.share?.downloadCount || 0,
+            };
+            setFileData(mappedData);
 
-          // Track view safely
-          if (!viewTrackedRef.current) {
-            try {
-              await analyticsApi.trackAction("view", {
-                fileId: res.file._id,
-                fileName: res.file.fileName,
-                fileUrl: res.file.fileUrl,
-                source: "shared_link"
-              });
-              viewTrackedRef.current = true;
-            } catch (err) {
-              console.error("View tracking error:", err);
+            // Track view safely
+            if (!viewTrackedRef.current) {
+              try {
+                await analyticsApi.trackAction("view", {
+                  fileId: res.file._id,
+                  fileName: res.file.fileName,
+                  fileUrl: res.file.fileUrl,
+                  source: "shared_link"
+                });
+                viewTrackedRef.current = true;
+              } catch (err) {
+                console.error("View tracking error:", err);
+              }
             }
+          } else {
+            setError({ status: 500, message: 'Invalid response structure' });
           }
         } else {
           setError({ status: 500, message: 'Invalid response structure' });
@@ -275,6 +298,34 @@ const SharedFileAccess: React.FC = () => {
     );
   }
 
+  const handleVerifyPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !password) return;
+    setIsVerifying(true);
+    try {
+      const res = await shareApi.verifyShareLinkPassword(token, password);
+      if (res.success && res.file) {
+        setIsPasswordProtected(false);
+        setFileData({
+          _id: res.file._id,
+          fileName: res.file.fileName,
+          fileType: res.file.fileType,
+          fileSize: res.file.fileSize,
+          fileUrl: res.file.fileUrl,
+          createdAt: res.share?.createdAt,
+          expiresAt: res.share?.expiresAt,
+          accessCount: res.share?.accessCount,
+          downloadCount: res.share?.downloadCount || 0,
+        });
+        toast.success("File unlocked!");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Incorrect password");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const handleDownload = async () => {
     if (!token || !fileData) return;
     setIsDownloading(true);
@@ -323,8 +374,50 @@ const SharedFileAccess: React.FC = () => {
     }
   };
 
-  // Valid File State
   if (!fileData) return null;
+
+  if (isPasswordProtected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+        <motion.div
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          className="w-full max-w-md bg-white/10 dark:bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-gray-700 overflow-hidden"
+        >
+          <div className="h-1.5 bg-gradient-to-r from-yellow-500 to-orange-500" />
+          <div className="p-8">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-yellow-500" />
+            </div>
+            <h1 className="text-xl font-bold text-white text-center mb-1">
+              Password Protected Share
+            </h1>
+            <p className="text-gray-400 text-sm text-center mb-6">
+              Enter the password to access this file
+            </p>
+            <form onSubmit={handleVerifyPassword} className="space-y-4">
+              <input
+                type="password"
+                placeholder="Enter password..."
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white focus:ring-2 focus:ring-yellow-500 outline-none"
+                required
+              />
+              <button
+                type="submit"
+                disabled={isVerifying}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold hover:opacity-90 disabled:opacity-50"
+              >
+                {isVerifying ? "Verifying..." : <><Unlock className="w-4 h-4" /> Unlock File</>}
+              </button>
+            </form>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
