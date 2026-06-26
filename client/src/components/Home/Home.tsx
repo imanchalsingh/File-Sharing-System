@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   LogOut,
@@ -12,11 +11,18 @@ import {
   User,
   Sun,
   Moon,
+  Star,
+  Share2,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
+import NotificationBell from "./NotificationBell";
 import api from "../../services/api";
-
+import {
+  initiateSocketConnection,
+  disconnectSocket,
+} from "../../services/socket";
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -32,6 +38,19 @@ const Home: React.FC = () => {
   const [theme, setTheme] = useState<string>(() =>
     localStorage.getItem("theme") === "dark" ? "dark" : "light",
   );
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
+  // Global Keyboard Shortcuts (Help Menu)
+  useKeyboardShortcuts({
+    "?": (e) => {
+      // Allow Shift+/ to trigger ?
+      setShowShortcutsHelp((prev) => !prev);
+    },
+    Escape: () => {
+      if (showShortcutsHelp) setShowShortcutsHelp(false);
+      if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+    }
+  });
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -44,7 +63,6 @@ const Home: React.FC = () => {
     localStorage.setItem("theme", next);
   };
 
- 
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -57,12 +75,17 @@ const Home: React.FC = () => {
             storage: response.data.storageUsed || 3.2,
             storageLimit: response.data.storageLimit || 10,
           });
+          initiateSocketConnection(response.data.user.id);
         }
       } catch (error) {
         console.error("Failed to fetch user:", error);
       }
     };
     fetchUser();
+
+    return () => {
+      disconnectSocket();
+    };
   }, []);
 
   useEffect(() => {
@@ -110,15 +133,36 @@ const Home: React.FC = () => {
       path: "/home/myfiles",
     },
     {
+      icon: <Star className="w-5 h-5" />,
+      label: "Favorites",
+      path: "/home/favorites",
+    },
+    {
       icon: <BarChart3 className="w-5 h-5" />,
       label: "Analytics",
       path: "/home/analytics",
+    },
+    {
+      icon: <Share2 className="w-5 h-5" />,
+      label: "Shares",
+      path: "/home/shares",
+    },
+    {
+      icon: <Globe className="w-5 h-5" />,
+      label: "Webhooks",
+      path: "/home/webhooks",
+    },
+    {
+      icon: <SettingsIcon className="w-5 h-5" />,
+      label: "Settings",
+      path: "/home/settings",
     },
   ];
 
   const handleLogout = async () => {
     try {
       await api.post("/logout");
+      disconnectSocket();
       navigate("/login");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -134,7 +178,59 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-100 to-white dark:from-gray-900 dark:to-gray-800 flex overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-gray-100 to-white dark:from-gray-900 dark:to-gray-800 flex overflow-hidden relative">
+      <SessionTimeout onLogout={handleLogout} timeoutMinutes={30} warningMinutes={1} />
+      
+      {/* Keyboard Shortcuts Help Modal */}
+      <AnimatePresence>
+        {showShortcutsHelp && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowShortcutsHelp(false)}
+          >
+            <motion.div
+              className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Command className="w-5 h-5 text-[#3498db]" />
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Keyboard Shortcuts
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowShortcutsHelp(false)}
+                  className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">Show this help</span>
+                  <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono text-gray-800 dark:text-gray-200 shadow-sm">?</kbd>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">Delete selected files</span>
+                  <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono text-gray-800 dark:text-gray-200 shadow-sm">Delete</kbd>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">Close modals/menus</span>
+                  <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono text-gray-800 dark:text-gray-200 shadow-sm">Esc</kbd>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Desktop Sidebar */}
       <div
         className={`
@@ -146,36 +242,39 @@ const Home: React.FC = () => {
         `}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between">
-        {isOpen && (
-          <div className="flex items-center space-x-2">
-            <Cloud className="w-8 h-8 text-[#3498db]" />
-            <span className="text-xl font-bold text-gray-900 dark:text-white">
-              SecureShare
-            </span>
-          </div>
-        )}
+        <div
+          className={`flex items-center ${isOpen ? "justify-between" : "justify-center"} h-16 px-4 border-b border-gray-200 dark:border-gray-700`}
+        >
+          {isOpen && (
+            <div className="flex items-center space-x-2">
+              <Cloud className="w-8 h-8 text-[#3498db]" />
+              <span className="text-xl font-bold text-gray-900 dark:text-white">
+                SecureShare
+              </span>
+            </div>
+          )}
 
-        <div className={`flex items-center ${isOpen ? "gap-2" : "gap-1"}`}>
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
-            hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
-            hover:text-black dark:hover:text-white transition-colors"
-          >
-            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+          <div className={`flex items-center ${isOpen ? "gap-1.5" : "gap-0"}`}>
+            <NotificationBell />
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
+      hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
+      hover:text-black dark:hover:text-white transition-colors flex items-center justify-center w-9 h-9"
+            >
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-          
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
-            hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
-            hover:text-black dark:hover:text-white transition-colors"
-          >
-            {isOpen ? <X size={20} /> : <Menu size={20} />}
+
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50
+      hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
+      hover:text-black dark:hover:text-white transition-colors flex items-center justify-center w-9 h-9"
+            >
+              {isOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
-        </div>  
+        </div>
 
         {/* Desktop Navigation */}
         <div className="flex-1 overflow-y-auto p-4">
@@ -203,7 +302,6 @@ const Home: React.FC = () => {
                     <span className="ml-3 font-medium">{item.label}</span>
                   )}
                 </button>
-                
               );
             })}
           </nav>
@@ -256,13 +354,16 @@ const Home: React.FC = () => {
                 </span>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="p-2 text-gray-400 hover:text-red-400 transition-colors"
-              title="Logout"
-            >
-              <LogOut size={20} />
-            </button>
+            <div className="flex items-center space-x-2">
+              <NotificationBell />
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                title="Logout"
+              >
+                <LogOut size={20} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -325,17 +426,23 @@ const Home: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Storage Progress */}
               <div className="mt-4">
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-700 dark:text-gray-300">Storage</span>
-                  <span className="text-gray-400">{user.storage} GB / {user.storageLimit} GB</span>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    Storage
+                  </span>
+                  <span className="text-gray-400">
+                    {user.storage} GB / {user.storageLimit} GB
+                  </span>
                 </div>
                 <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-[#3498db] to-[#2ecc71] rounded-full transition-all duration-500"
-                    style={{ width: `${(user.storage / user.storageLimit) * 100}%` }}
+                    style={{
+                      width: `${(user.storage / user.storageLimit) * 100}%`,
+                    }}
                   ></div>
                 </div>
               </div>
@@ -362,10 +469,20 @@ const Home: React.FC = () => {
                         }
                       `}
                     >
-                      <div className={isActive ? "text-white" : "text-gray-600 dark:text-gray-400"}>
-                        {React.cloneElement(item.icon, { className: "w-6 h-6" })}
+                      <div
+                        className={
+                          isActive
+                            ? "text-white"
+                            : "text-gray-600 dark:text-gray-400"
+                        }
+                      >
+                        {React.cloneElement(item.icon, {
+                          className: "w-6 h-6",
+                        })}
                       </div>
-                      <span className="ml-4 font-medium text-base">{item.label}</span>
+                      <span className="ml-4 font-medium text-base">
+                        {item.label}
+                      </span>
                       {isActive && (
                         <span className="ml-auto text-white">
                           <div className="w-2 h-2 bg-white rounded-full"></div>
@@ -394,8 +511,12 @@ const Home: React.FC = () => {
             {/* Mobile Footer */}
             <div className="p-5 border-t border-gray-200 dark:border-gray-700">
               <div className="text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-500">© 2026 SecureShare</p>
-                <p className="text-xs text-gray-500 dark:text-gray-600 mt-1">All files encrypted</p>
+                <p className="text-sm text-gray-600 dark:text-gray-500">
+                  © 2026 SecureShare
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-600 mt-1">
+                  All files encrypted
+                </p>
               </div>
             </div>
           </div>
@@ -403,7 +524,9 @@ const Home: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <div className={`flex-1 overflow-hidden flex flex-col ${isMobile ? 'pt-16' : ''}`}>
+      <div
+        className={`flex-1 overflow-hidden flex flex-col ${isMobile ? "pt-16" : ""}`}
+      >
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 text-gray-900 dark:text-white">
           {location.pathname === "/home" ? <HomeContent /> : <Outlet />}

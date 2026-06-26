@@ -1,12 +1,12 @@
 frontend:
   - changed-files:
       - any-glob-to-any-file:
-          - 'collegems-client/**/*'
+          - 'client/**/*'
 
 backend:
   - changed-files:
       - any-glob-to-any-file:
-          - 'collegems-server/**/*'
+          - 'server/**/*'
 
 documentation:
   - changed-files:
@@ -15,10 +15,10 @@ documentation:
 
 bug:
   - head-branch:
-      - 'fix/**'
-      - 'bug/**'
+      - '^fix/.*'
+      - '^bug/.*'
 
 enhancement:
   - head-branch:
-      - 'feature/**'
-      - 'enhancement/**'
+      - '^feature/.*'
+      - '^enhancement/.*'
