@@ -9,6 +9,7 @@ const shareLinkSchema = new mongoose.Schema({
   status:         { type: String, enum: ['active', 'expired', 'revoked'], default: 'active' },
   accessCount:    { type: Number, default: 0 },
   maxAccessCount: { type: Number, default: null },     // optional download limit
+  password:       { type: String, default: null },     // optional hashed password
   notifiedAt24h:  { type: Boolean, default: false },
   notifiedAt1h:   { type: Boolean, default: false },
   downloadCount: {

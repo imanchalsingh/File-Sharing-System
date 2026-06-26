@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Settings as SettingsIcon, Shield, Copy, Check, RefreshCw } from "lucide-react";
-import { notify as toast } from "@/services/toastService";
-import api from "../../services/api";
+import { toast } from "react-toastify";
+import api, { authApi } from "../../services/api";
+import { User, Lock, Mail } from "lucide-react";
 
 const Settings: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -13,6 +14,15 @@ const Settings: React.FC = () => {
   const [password, setPassword] = useState("");
   const [copied, setCopied] = useState(false);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  
+  // Profile state
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  
+  // Password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     // Check current 2FA status
@@ -20,7 +30,8 @@ const Settings: React.FC = () => {
       try {
         const response = await api.get("/auth");
         if (response.data.user) {
-          // If the backend returns twoFactorEnabled status, use it
+          setUsername(response.data.user.username || "");
+          setEmail(response.data.user.email || "");
           // Assuming we might need to modify the getUser controller if it doesn't return this,
           // but we can also just try to enable it and see if it works.
           // For now, let's assume it's part of the user object or we can just show the setup.
@@ -96,6 +107,42 @@ const Settings: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const response = await authApi.updateProfile({ username, email });
+      if (response.success) {
+        toast.success("Profile updated successfully");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to update profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      return toast.error("New passwords do not match");
+    }
+    setLoading(true);
+    try {
+      const response = await authApi.updatePassword({ currentPassword, newPassword });
+      if (response.success) {
+        toast.success("Password updated successfully");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to update password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <div>
@@ -106,6 +153,121 @@ const Settings: React.FC = () => {
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           Manage your security preferences and account settings.
         </p>
+      </div>
+
+      {/* Profile Settings */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center mb-6">
+          <User className="w-6 h-6 mr-2 text-[#3498db]" />
+          Profile Information
+        </h2>
+        
+        <form onSubmit={handleUpdateProfile} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Display Name
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <User className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="pl-10 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] outline-none"
+                required
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Email Address
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] outline-none"
+                required
+              />
+            </div>
+          </div>
+          
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-6 py-2 bg-[#3498db] text-white rounded-lg hover:bg-[#2980b9] transition-colors font-medium flex items-center"
+          >
+            {loading ? <RefreshCw className="w-5 h-5 animate-spin mr-2" /> : null}
+            Save Changes
+          </button>
+        </form>
+      </div>
+
+      {/* Password Update */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center mb-6">
+          <Lock className="w-6 h-6 mr-2 text-[#e74c3c]" />
+          Change Password
+        </h2>
+        
+        <form onSubmit={handleUpdatePassword} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Current Password
+            </label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] outline-none"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              New Password
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] outline-none"
+              required
+              minLength={6}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Confirm New Password
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#3498db] outline-none"
+              required
+              minLength={6}
+            />
+          </div>
+          
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-6 py-2 bg-[#e74c3c] text-white rounded-lg hover:bg-[#c0392b] transition-colors font-medium flex items-center"
+          >
+            {loading ? <RefreshCw className="w-5 h-5 animate-spin mr-2" /> : null}
+            Update Password
+          </button>
+        </form>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">

@@ -11,6 +11,19 @@ export const fetchDownloadAnalytics = async () => {
   const response = await api.get("/api/shares/analytics/downloads");
   return response.data;
 };
+
+// ==================== AUTH APIs ====================
+export const authApi = {
+  updateProfile: async (data: { username: string; email: string }) => {
+    const response = await api.put("/profile", data);
+    return response.data;
+  },
+  updatePassword: async (data: { currentPassword: string; newPassword: string }) => {
+    const response = await api.put("/password", data);
+    return response.data;
+  },
+};
+
 // ==================== ANALYTICS APIs ====================
 
 export const analyticsApi = {
@@ -165,6 +178,7 @@ export const shareApi = {
     expiresAt?: string | null;
     maxAccessCount?: number | null;
     slug?: string;
+    password?: string;
   }) => {
     const response = await api.post('/api/shares', data);
     return response.data;
@@ -202,6 +216,11 @@ export const shareApi = {
 
   accessSharedFile: async (token: string) => {
     const response = await api.get(`/api/shares/access/${token}`);
+    return response.data;
+  },
+
+  verifyShareLinkPassword: async (token: string, password: string) => {
+    const response = await api.post(`/api/shares/access/${token}/verify-password`, { password });
     return response.data;
   },
 };
