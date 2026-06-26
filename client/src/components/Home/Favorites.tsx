@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Pagination } from "../common/Pagination";
 import { notify as toast } from "@/services/toastService";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 
 interface TrackedFile {
   id: string;
@@ -93,6 +94,12 @@ const Favorites: React.FC = () => {
       setRefreshing(false);
     }
   }, [currentPage]);
+
+  useKeyboardShortcuts({
+    Escape: () => {
+      setActiveImage(null);
+    }
+  });
 
   useEffect(() => {
     loadFavorites();

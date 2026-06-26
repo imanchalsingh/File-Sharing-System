@@ -78,6 +78,7 @@ export const fileApi = {
     fileSize?: string;
     fileSizeBytes?: number;
     checksum?: string;
+    folderId?: string | null;
   }) => {
     const response = await api.post("/api/files/save-info", data);
     return response.data;

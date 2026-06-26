@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { notify as toast } from "@/services/toastService";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,10 +93,18 @@ const ShareManager: React.FC = () => {
   const [extendDate, setExtendDate] = useState("");
   const [fileDropdownOpen, setFileDropdownOpen] = useState(false);
 
-  // Pagination for the file dropdown
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const limit = 50;
+// Pagination for the file dropdown
+const [currentPage, setCurrentPage] = useState(1);
+const [totalPages, setTotalPages] = useState(1);
+const limit = 50;
+
+// Global Keyboard Shortcuts
+useKeyboardShortcuts({
+  Escape: () => {
+    setFileDropdownOpen(false);
+    setExtendingId(null);
+  },
+});
 
   // ─── Data Loading ──────────────────────────────────────────────────────────
 

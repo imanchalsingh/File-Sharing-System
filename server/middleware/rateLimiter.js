@@ -52,3 +52,15 @@ export const passwordAttemptLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Stricter Rate Limiter for Password Attempts
+export const passwordAttemptLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 password attempts per 15 minutes
+  message: {
+    success: false,
+    message: "Too many password attempts. Please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

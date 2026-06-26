@@ -152,7 +152,8 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
   );
   const [maxAccess, setMaxAccess] = useState<string>("");
   const [slug, setSlug] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
+const [password, setPassword] = useState<string>("");
+const [recipientEmail, setRecipientEmail] = useState<string>("");
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [existingShares, setExistingShares] = useState<ShareLink[]>([]);
@@ -201,7 +202,8 @@ const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, file }) => {
         expiresAt,
         maxAccessCount: maxAccess ? parseInt(maxAccess, 10) : null,
         slug: slug.trim() || undefined,
-        password: password || undefined,
+password: password || undefined,
+recipientEmail: recipientEmail.trim() || undefined,
       });
 
       const token = data.share?.slug || data.share?.token || data.token;
