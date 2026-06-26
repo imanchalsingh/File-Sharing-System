@@ -1,4 +1,4 @@
-import { z } from "zod";
+import dotenv from "dotenv";
 
 /**
  * Environment Variable Validation Schema
@@ -106,14 +106,21 @@ export default function validateEnv() {
     result.error.issues.forEach((err) => {
       console.error(`   • ${err.path.join(".")}: ${err.message}`);
     });
-
-    console.error(
-      "\n👉 Please check your .env file against .env.example and fix the above.\n"
-    );
-
+    console.log("\n👉 Please check your .env file and add the missing variables.\n");
     process.exit(1);
   }
+  
+  // Optional: Check JWT secret length
+  if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
+    console.warn("\n⚠️ Warning: JWT_SECRET should be at least 32 characters long for security.");
+  }
+  
+  if (process.env.JWT_TOKEN && process.env.JWT_TOKEN.length < 32) {
+    console.warn("⚠️ Warning: JWT_TOKEN should be at least 32 characters long for security.");
+  }
+  
+  console.log("✅ All required environment variables are present");
+  return true;
+};
 
-  console.log("✅ Environment variables validated successfully.");
-  return result.data;
-}
+export default validateEnv;

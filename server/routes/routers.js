@@ -3,6 +3,8 @@ import {
   registerUser,
   loginUser,
   getUser,
+  updateProfile,
+  updatePassword,
 } from "../controllers/userController.js";
 import { validation } from "../middleware/validation.js";
 import { loginValidation } from "../middleware/loginValidation.js";
@@ -24,6 +26,12 @@ router.post("/logout", authenticateUser, logoutUser);
 
 // Get current user
 router.get("/auth", authenticateUser, getUser);
+
+// Update Profile
+router.put("/profile", authenticateUser, updateProfile);
+
+// Update Password
+router.put("/password", authenticateUser, updatePassword);
 
 // 2FA Routes
 router.post("/2fa/generate", authenticateUser, generate2FA);

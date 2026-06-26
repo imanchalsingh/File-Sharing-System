@@ -38,6 +38,19 @@ const Home: React.FC = () => {
   const [theme, setTheme] = useState<string>(() =>
     localStorage.getItem("theme") === "dark" ? "dark" : "light",
   );
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
+  // Global Keyboard Shortcuts (Help Menu)
+  useKeyboardShortcuts({
+    "?": (e) => {
+      // Allow Shift+/ to trigger ?
+      setShowShortcutsHelp((prev) => !prev);
+    },
+    Escape: () => {
+      if (showShortcutsHelp) setShowShortcutsHelp(false);
+      if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+    }
+  });
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -165,7 +178,59 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-100 to-white dark:from-gray-900 dark:to-gray-800 flex overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-gray-100 to-white dark:from-gray-900 dark:to-gray-800 flex overflow-hidden relative">
+      <SessionTimeout onLogout={handleLogout} timeoutMinutes={30} warningMinutes={1} />
+      
+      {/* Keyboard Shortcuts Help Modal */}
+      <AnimatePresence>
+        {showShortcutsHelp && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowShortcutsHelp(false)}
+          >
+            <motion.div
+              className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Command className="w-5 h-5 text-[#3498db]" />
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Keyboard Shortcuts
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowShortcutsHelp(false)}
+                  className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">Show this help</span>
+                  <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono text-gray-800 dark:text-gray-200 shadow-sm">?</kbd>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">Delete selected files</span>
+                  <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono text-gray-800 dark:text-gray-200 shadow-sm">Delete</kbd>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">Close modals/menus</span>
+                  <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono text-gray-800 dark:text-gray-200 shadow-sm">Esc</kbd>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Desktop Sidebar */}
       <div
         className={`

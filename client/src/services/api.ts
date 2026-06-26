@@ -11,6 +11,19 @@ export const fetchDownloadAnalytics = async () => {
   const response = await api.get("/api/shares/analytics/downloads");
   return response.data;
 };
+
+// ==================== AUTH APIs ====================
+export const authApi = {
+  updateProfile: async (data: { username: string; email: string }) => {
+    const response = await api.put("/profile", data);
+    return response.data;
+  },
+  updatePassword: async (data: { currentPassword: string; newPassword: string }) => {
+    const response = await api.put("/password", data);
+    return response.data;
+  },
+};
+
 // ==================== ANALYTICS APIs ====================
 
 export const analyticsApi = {
@@ -46,13 +59,15 @@ export const analyticsApi = {
 // ==================== FILE APIs ====================
 
 export const fileApi = {
-  getMyFiles: async () => {
-    const response = await api.get("/api/files/my-files");
+  getMyFiles: async (page: number = 1, limit: number = 50, folderId?: string | null) => {
+    let url = `/api/files/my-files?page=${page}&limit=${limit}`;
+    if (folderId !== undefined) url += `&folderId=${folderId}`;
+    const response = await api.get(url);
     return response.data;
   },
 
-  searchFiles: async (query: string) => {
-    const response = await api.get(`/api/files/search?q=${encodeURIComponent(query)}`);
+  searchFiles: async (query: string, page: number = 1, limit: number = 50) => {
+    const response = await api.get(`/api/files/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
     return response.data;
   },
 
@@ -63,6 +78,7 @@ export const fileApi = {
     fileSize?: string;
     fileSizeBytes?: number;
     checksum?: string;
+    folderId?: string | null;
   }) => {
     const response = await api.post("/api/files/save-info", data);
     return response.data;
@@ -94,8 +110,8 @@ export const fileApi = {
     return response.data;
   },
 
-  getFavorites: async () => {
-    const response = await api.get("/api/files/favorites");
+  getFavorites: async (page: number = 1, limit: number = 50) => {
+    const response = await api.get(`/api/files/favorites?page=${page}&limit=${limit}`);
     return response.data;
   },
 
@@ -133,9 +149,9 @@ export const folderApi = {
     return response.data;
   },
 
-  getContents: async (folderId: string | null = null) => {
+  getContents: async (folderId: string | null = null, page: number = 1, limit: number = 50) => {
     const id = folderId || "root";
-    const response = await api.get(`/api/folders/${id}/contents`);
+    const response = await api.get(`/api/folders/${id}/contents?page=${page}&limit=${limit}`);
     return response.data;
   },
 
@@ -163,6 +179,7 @@ export const shareApi = {
     expiresAt?: string | null;
     maxAccessCount?: number | null;
     slug?: string;
+    password?: string;
   }) => {
     const response = await api.post('/api/shares', data);
     return response.data;
@@ -200,6 +217,11 @@ export const shareApi = {
 
   accessSharedFile: async (token: string) => {
     const response = await api.get(`/api/shares/access/${token}`);
+    return response.data;
+  },
+
+  verifyShareLinkPassword: async (token: string, password: string) => {
+    const response = await api.post(`/api/shares/access/${token}/verify-password`, { password });
     return response.data;
   },
 };
