@@ -11,6 +11,19 @@ export const fetchDownloadAnalytics = async () => {
   const response = await api.get("/api/shares/analytics/downloads");
   return response.data;
 };
+
+// ==================== AUTH APIs ====================
+export const authApi = {
+  updateProfile: async (data: { username: string; email: string }) => {
+    const response = await api.put("/profile", data);
+    return response.data;
+  },
+  updatePassword: async (data: { currentPassword: string; newPassword: string }) => {
+    const response = await api.put("/password", data);
+    return response.data;
+  },
+};
+
 // ==================== ANALYTICS APIs ====================
 
 export const analyticsApi = {

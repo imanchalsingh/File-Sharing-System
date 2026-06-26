@@ -269,3 +269,105 @@ export const getUser = async (req, res, next) => {
     next(error);
   }
 };
+
+// UPDATE PROFILE
+export const updateProfile = async (req, res, next) => {
+  try {
+    const { username, email } = req.body;
+    
+    if (!username || !email) {
+      return res.status(400).json({ error: "Username and email are required" });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if new email or username is already taken by another user
+    const existingUser = await User.findOne({
+      $or: [{ email: normalizedEmail }, { username: username.trim() }],
+      _id: { $ne: req.user.id }
+    });
+
+    if (existingUser) {
+      if (existingUser.email === normalizedEmail) {
+        return res.status(400).json({ error: "Email already in use" });
+      }
+      if (existingUser.username === username.trim()) {
+        return res.status(400).json({ error: "Username already taken" });
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { 
+        username: username.trim(),
+        email: normalizedEmail
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Invalidate profile cache if Redis is available
+    if (redisAvailable) {
+      try {
+        await redisClient.del(`user:profile:${req.user.id}`);
+        await redisClient.del(`user:${normalizedEmail}`);
+      } catch (redisError) {
+        console.error("Redis cache invalidation failed:", redisError.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        id: updatedUser._id || updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        createdAt: updatedUser.createdAt,
+        updatedAt: updatedUser.updatedAt,
+      }
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({ error: `${field} already exists` });
+    }
+    next(error);
+  }
+};
+
+// UPDATE PASSWORD
+export const updatePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Current password and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "New password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Incorrect current password" });
+    }
+
+    const salt = await bcrypt.genSalt(12);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.json({ success: true, message: "Password updated successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
