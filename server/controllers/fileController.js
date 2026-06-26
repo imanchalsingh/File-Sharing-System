@@ -1,11 +1,24 @@
 import File from "../models/File.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
+import redisClient, { redisAvailable } from "../config/redis.js";
 import { Readable } from "stream";
+import { enqueueScan } from "../jobs/scanQueue.js";
+import { enqueueIndex } from "../jobs/indexQueue.js";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { ZipArchive } = require("archiver");
 
+// Invalidate dashboard stats cache
+const invalidateDashboardStats = async (userId) => {
+  if (redisAvailable) {
+    try {
+      await redisClient.del(`dashboard:stats:${userId}`);
+    } catch (err) {
+      console.error("Redis cache invalidation failed:", err);
+    }
+  }
+};
 
 // ✅ Get user's all files (with optional folder filter)
 export const getUserFiles = async (req, res, next) => {
@@ -145,6 +158,8 @@ if (checksum) {
       const io = req.app.get("io");
       if (io) io.to(`user_${userId}`).emit("FILE_UPDATED", existingFile);
 
+      await invalidateDashboardStats(userId);
+
       return res.status(200).json({
         success: true,
         message: "File updated successfully as a new version",
@@ -191,6 +206,8 @@ if (checksum) {
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILE_UPLOADED", newFile);
 
+    await invalidateDashboardStats(userId);
+
     res.status(201).json({
       success: true,
       message: "File info saved successfully",
@@ -223,6 +240,7 @@ export const updateShareCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    await invalidateDashboardStats(file.userId);
     try {
       await dispatchWebhookEvent(file.userId, "file_shared", {
         fileId: file._id,
@@ -281,6 +299,7 @@ export const updateDownloadCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    await invalidateDashboardStats(file.userId);
     try {
       await dispatchWebhookEvent(file.userId, "download_completed", {
         fileId: file._id,
@@ -319,6 +338,7 @@ export const updateViewCount = async (req, res, next) => {
     file.lastAccessed = new Date();
 
     await file.save();
+    await invalidateDashboardStats(file.userId);
     try {
       await dispatchWebhookEvent(file.userId, "link_accessed", {
         fileId: file._id,
@@ -354,6 +374,8 @@ export const deleteFile = async (req, res, next) => {
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILE_DELETED", id);
 
+    await invalidateDashboardStats(userId);
+
     res.json({
       success: true,
       message: "File deleted successfully",
@@ -382,6 +404,8 @@ export const bulkDeleteFiles = async (req, res, next) => {
 
     const io = req.app.get("io");
     if (io) io.to(`user_${userId}`).emit("FILES_BULK_DELETED", fileIds);
+
+    await invalidateDashboardStats(userId);
 
     res.json({
       success: true,
@@ -493,29 +517,57 @@ export const bulkDownloadFiles = async (req, res, next) => {
 export const getFileStats = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const cacheKey = `dashboard:stats:${userId}`;
+
+    if (redisAvailable) {
+      try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+          return res.json({
+            success: true,
+            stats: JSON.parse(cached),
+            cached: true
+          });
+        }
+      } catch (err) {
+        console.error("Redis fetch failed, falling back to DB:", err.message);
+      }
+    }
 
     const totalFiles = await File.countDocuments({ userId });
-    const totalShares = await File.aggregate([
+    const aggregations = await File.aggregate([
       { $match: { userId } },
-      { $group: { _id: null, total: { $sum: "$shareCount" } } },
+      { 
+        $group: { 
+          _id: null, 
+          totalShares: { $sum: "$shareCount" },
+          totalDownloads: { $sum: "$downloadCount" },
+          totalViews: { $sum: "$viewCount" },
+          totalStorageUsed: { $sum: "$fileSizeBytes" }
+        } 
+      }
     ]);
-    const totalDownloads = await File.aggregate([
-      { $match: { userId } },
-      { $group: { _id: null, total: { $sum: "$downloadCount" } } },
-    ]);
-    const totalViews = await File.aggregate([
-      { $match: { userId } },
-      { $group: { _id: null, total: { $sum: "$viewCount" } } },
-    ]);
+
+    const stats = {
+      totalFiles,
+      totalShares: aggregations[0]?.totalShares || 0,
+      totalDownloads: aggregations[0]?.totalDownloads || 0,
+      totalViews: aggregations[0]?.totalViews || 0,
+      totalStorageUsed: aggregations[0]?.totalStorageUsed || 0,
+    };
+
+    if (redisAvailable) {
+      try {
+        await redisClient.setEx(cacheKey, 300, JSON.stringify(stats));
+      } catch (err) {
+        console.error("Redis cache write failed:", err.message);
+      }
+    }
 
     res.json({
       success: true,
-      stats: {
-        totalFiles,
-        totalShares: totalShares[0]?.total || 0,
-        totalDownloads: totalDownloads[0]?.total || 0,
-        totalViews: totalViews[0]?.total || 0,
-      },
+      stats,
+      cached: false
     });
   } catch (error) {
     next(error);
