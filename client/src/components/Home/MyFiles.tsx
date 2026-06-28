@@ -1505,7 +1505,8 @@ formatFileSize
             </button>
 
             {/* Upload Button */}
-            <label className="relative cursor-pointer">
+            {/* Upload Button */}
+            <label className={`relative ${isUploading ? "cursor-not-allowed" : "cursor-pointer"}`}>
               <input
                 type="file"
                 multiple
@@ -1513,10 +1514,14 @@ formatFileSize
                 onChange={handleFileUpload}
                 disabled={isUploading}
               />
-              <div className="px-4 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] 
-              text-white font-medium rounded-lg hover:opacity-90 transition-opacity 
-              flex items-center disabled:opacity-50">
-                <Upload className="w-4 h-4 mr-2" />
+              <div className={`px-4 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] 
+              text-white font-medium rounded-lg transition-opacity 
+              flex items-center ${isUploading ? "opacity-60 pointer-events-none" : "hover:opacity-90"}`}>
+                {isUploading ? (
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
                 {isUploading ? "Uploading..." : "Upload Files"}
               </div>
             </label>
