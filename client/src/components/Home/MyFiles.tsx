@@ -15,6 +15,8 @@ import {
   Upload,
   Trash2,
   Share2,
+  Check,
+  Link,
   Download,
   Copy,
   Search,
@@ -126,6 +128,7 @@ const MyFiles: React.FC = () => {
 
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [copiedFileId, setCopiedFileId] = useState<string | null>(null);
   const [selectedFileForShare, setSelectedFileForShare] = useState<{
     _id: string;
     fileName: string;
@@ -914,6 +917,15 @@ const MyFiles: React.FC = () => {
 
     // Show success message
     toast.success("Share link copied to clipboard!");
+  };
+
+  // ✅ Copy link directly without opening modal
+  const handleCopyLink = async (fileId: string, fileName: string) => {
+    const shareLink = `${window.location.origin}/share/${fileId}`;
+    await navigator.clipboard.writeText(shareLink);
+    await trackLinkCopy(fileId, fileName, shareLink);
+    setCopiedFileId(fileId);
+    setTimeout(() => setCopiedFileId(null), 2000);
   };
 
   // ✅ Download file with tracking
@@ -1830,6 +1842,26 @@ formatFileSize
                       >
                         <Share2 className="w-4 h-4" />
                       </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (file.scanStatus !== "safe") {
+                            toast.error(`Cannot copy link. Status: ${file.scanStatus}`);
+                            return;
+                          }
+                          handleCopyLink(file.id, file.name);
+                        }}
+                        className={`p-2 rounded-full text-white ${file.scanStatus === 'safe' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-500 cursor-not-allowed'}`}
+                        title={file.scanStatus === 'safe' ? "Copy Link" : "Scan in progress or failed"}
+                      >
+                        {copiedFileId === file.id ? (
+                          <Check className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <Link className="w-4 h-4" />
+                        )}
+                      </button>
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2195,6 +2227,25 @@ formatFileSize
                         >
                           <Share2 className={`w-4 h-4 ${file.scanStatus === 'safe' ? 'text-gray-400 hover:text-white' : 'text-gray-600'}`} />
                         </button>
+
+                        <button
+                          onClick={() => {
+                            if (file.scanStatus !== "safe") {
+                              toast.error(`Cannot copy link. Status: ${file.scanStatus}`);
+                              return;
+                            }
+                            handleCopyLink(file.id, file.name);
+                          }}
+                          className="p-1.5 hover:bg-gray-700 rounded"
+                          title="Copy Link"
+                        >
+                          {copiedFileId === file.id ? (
+                            <Check className="w-4 h-4 text-green-400" />
+                          ) : (
+                            <Link className="w-4 h-4 text-gray-400 hover:text-white" />
+                          )}
+                        </button>
+                        
                         <button
                           onClick={() => setShowFileStats(file.id)}
                           className="p-1.5 hover:bg-gray-700 rounded"
