@@ -1993,8 +1993,9 @@ formatFileSize
             /* List View - keeping existing list view code */
             <div className="bg-gray-800/30 rounded-xl border border-gray-700 overflow-hidden">
               <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-700 text-gray-400 text-sm font-medium">
-                <div className="col-span-4">Name</div>
+                <div className="col-span-3">Name</div>
                 <div className="col-span-2">Type</div>
+                <div className="col-span-1">Size</div>
                 <div className="col-span-1">Copies</div>
                 <div className="col-span-1">Downloads</div>
                 <div className="col-span-2">Uploaded</div>
@@ -2069,7 +2070,7 @@ formatFileSize
                       selectedFiles.includes(file.id) ? "bg-[#3498db]/10" : ""
                     }`}
                   >
-                    <div className="col-span-4 flex items-center">
+                    <div className="col-span-3 flex items-center">
                       <button
                         onClick={() => toggleFileSelection(file.id)}
                         className="mr-3"
@@ -2150,6 +2151,9 @@ formatFileSize
                       >
                         {file.type.toUpperCase()}
                       </span>
+                    </div>
+                    <div className="col-span-1 text-gray-400 text-sm">
+                      {file.size}
                     </div>
                     <div className="col-span-1 text-center">
                       <div className="text-white font-bold">
