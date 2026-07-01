@@ -176,6 +176,18 @@ const fileSchema = new mongoose.Schema(
       default: 'PENDING',
       index: true,
     },
+    isEncrypted: {
+      type: Boolean,
+      default: false,
+    },
+    wrappedKey: {
+      type: String,
+      default: null,
+    },
+    keySalt: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

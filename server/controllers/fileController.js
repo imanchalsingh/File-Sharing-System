@@ -96,6 +96,9 @@ export const saveFileInfo = async (req, res, next) => {
       tags,
       password,
       folderId,
+      isEncrypted,
+      wrappedKey,
+      keySalt,
     } = req.body;
 
     if (!fileName || !fileUrl) {
@@ -150,6 +153,9 @@ if (checksum) {
       pendingFile.folderId = folderId || pendingFile.folderId;
       pendingFile.tags = Array.isArray(tags) ? tags : [];
       pendingFile.password = hashedPassword;
+      if (isEncrypted !== undefined) pendingFile.isEncrypted = !!isEncrypted;
+      if (wrappedKey !== undefined) pendingFile.wrappedKey = wrappedKey;
+      if (keySalt !== undefined) pendingFile.keySalt = keySalt;
 
       await pendingFile.save();
 
@@ -234,6 +240,9 @@ if (checksum) {
       currentVersion: 1,
       tags: Array.isArray(tags) ? tags : [],
       password: hashedPassword,
+      isEncrypted: !!isEncrypted,
+      wrappedKey: wrappedKey || null,
+      keySalt: keySalt || null,
       shareCount: 0,
       downloadCount: 0,
       viewCount: 0,

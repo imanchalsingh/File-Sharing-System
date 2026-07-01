@@ -107,7 +107,17 @@ async function loadUploadSessionForChunk(req, res, next) {
 
 export const initUpload = async (req, res, next) => {
   try {
-    const { fileName, fileSizeBytes, mimeType, expectedChecksum, sessionId, forceUpload } = req.body;
+    const {
+      fileName,
+      fileSizeBytes,
+      mimeType,
+      expectedChecksum,
+      sessionId,
+      forceUpload,
+      isEncrypted,
+      wrappedKey,
+      keySalt,
+    } = req.body;
     const userId = req.user.id;
 
     if (!fileName || !fileSizeBytes) {
@@ -175,6 +185,9 @@ export const initUpload = async (req, res, next) => {
       userId,
       status: "PENDING",
       folderId: req.body.folderId || null,
+      isEncrypted: !!isEncrypted,
+      wrappedKey: wrappedKey || null,
+      keySalt: keySalt || null,
     });
     await pendingFile.save();
 
@@ -266,17 +279,28 @@ export const uploadChunk = async (req, res) => {
     } else {
       chunkSize = await writeChunk(session.tempDir, chunkIndex, req.file.path);
 
+      // Check if this session is encrypted E2EE
+      let isEncrypted = false;
+      if (session.fileId) {
+        const associatedFile = await File.findById(session.fileId).select("isEncrypted");
+        if (associatedFile) {
+          isEncrypted = associatedFile.isEncrypted;
+        }
+      }
+
+      const baseChunkSize = isEncrypted ? (session.chunkSizeBytes + 28) : session.chunkSizeBytes;
+
       const expectedStart = chunkIndex * session.chunkSizeBytes;
       const expectedEnd = Math.min(
         expectedStart + session.chunkSizeBytes,
-        session.fileSizeBytes,
+        isEncrypted ? (session.fileSizeBytes - (session.totalChunks * 28)) : session.fileSizeBytes,
       );
-      const expectedSize = expectedEnd - expectedStart;
+      const expectedSize = (expectedEnd - expectedStart) + (isEncrypted ? 28 : 0);
 
-      if (chunkIndex < session.totalChunks - 1 && chunkSize !== session.chunkSizeBytes) {
+      if (chunkIndex < session.totalChunks - 1 && chunkSize !== baseChunkSize) {
         await fs.unlink(getChunkPath(session.tempDir, chunkIndex)).catch(() => {});
         return res.status(400).json({
-          error: `Invalid chunk size. Expected ${session.chunkSizeBytes} bytes`,
+          error: `Invalid chunk size. Expected ${baseChunkSize} bytes`,
         });
       }
 
@@ -293,8 +317,11 @@ export const uploadChunk = async (req, res) => {
         session.fileSizeBytes,
         session.receivedChunks.reduce((total, index) => {
           const start = index * session.chunkSizeBytes;
-          const end = Math.min(start + session.chunkSizeBytes, session.fileSizeBytes);
-          return total + (end - start);
+          const end = Math.min(
+            start + session.chunkSizeBytes,
+            isEncrypted ? (session.fileSizeBytes - (session.totalChunks * 28)) : session.fileSizeBytes,
+          );
+          return total + (end - start) + (isEncrypted ? 28 : 0);
         }, 0),
       );
       session.status = "uploading";

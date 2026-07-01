@@ -15,6 +15,7 @@ import {
   Cloud,
   Sun,
   Moon,
+  Shield,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { notify as toast } from "@/services/toastService";
@@ -35,6 +36,11 @@ const SharePage: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null); // tracks current download file version/id
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // E2EE decryption state
+  const [decryptionPassword, setDecryptionPassword] = useState("");
+  const [unwrappedDek, setUnwrappedDek] = useState<CryptoKey | null>(null);
+  const [isDecryptingKey, setIsDecryptingKey] = useState(false);
 
   // View tracking lock (ensure we only track view once per load/unlock)
   const viewTrackedRef = useRef(false);
@@ -107,7 +113,7 @@ const SharePage: React.FC = () => {
     }
   };
 
-  // 3. Verify password handler
+  // 3. Verify password handler (for server-side link password)
   const handleVerifyPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !password) return;
@@ -134,8 +140,8 @@ const SharePage: React.FC = () => {
     }
   };
 
-  // 4. Download file handler
-  const handleDownload = async (url: string, fileName: string, versionNum?: number) => {
+  // 4. Download file handler with E2EE local chunk decryption capability
+  const handleDownload = async (url: string, fileName: string, versionNum?: number, dekOverride?: CryptoKey) => {
     if (!id) return;
     const downloadKey = versionNum ? `v${versionNum}` : "current";
     setIsDownloading(downloadKey);
@@ -161,7 +167,45 @@ const SharePage: React.FC = () => {
 
       // Download file blob
       const response = await fetch(url);
-      const blob = await response.blob();
+      
+      let blob: Blob;
+      const activeDek = dekOverride || unwrappedDek;
+
+      if (fileDetails?.isEncrypted && activeDek) {
+        toast.info("Decrypting file chunks locally...");
+        const encryptedBuffer = await response.arrayBuffer();
+
+        const originalChunkSize = 5 * 1024 * 1024; // 5MB
+        const encryptedChunkSize = originalChunkSize + 28;
+        const totalEncryptedBytes = encryptedBuffer.byteLength;
+        
+        const decryptedChunks: Uint8Array[] = [];
+        let offset = 0;
+        let chunkIndex = 0;
+
+        while (offset < totalEncryptedBytes) {
+          const end = Math.min(offset + encryptedChunkSize, totalEncryptedBytes);
+          const encryptedChunkCombined = new Uint8Array(encryptedBuffer.slice(offset, end));
+
+          const iv = encryptedChunkCombined.slice(0, 12);
+          const ciphertext = encryptedChunkCombined.slice(12);
+
+          const decryptedBuffer = await window.crypto.subtle.decrypt(
+            { name: "AES-GCM", iv },
+            activeDek,
+            ciphertext
+          );
+
+          decryptedChunks.push(new Uint8Array(decryptedBuffer));
+          offset += encryptedChunkSize;
+          chunkIndex++;
+        }
+
+        blob = new Blob(decryptedChunks, { type: fileDetails.fileType || "application/octet-stream" });
+      } else {
+        blob = await response.blob();
+      }
+
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
@@ -171,12 +215,79 @@ const SharePage: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
       
-      toast.success("Download started!");
-    } catch (err) {
-      console.error("Download failed:", err);
-      toast.error("Download failed. Please try again.");
+      toast.success("Download completed and decrypted successfully!");
+    } catch (err: any) {
+      console.error("Download or decryption failed:", err);
+      toast.error("Download/decryption failed: " + (err.message || "Please check your decryption password."));
     } finally {
       setIsDownloading(null);
+    }
+  };
+
+  // 5. E2EE Local Decryption Handler (KEK derivation & DEK unwrapping)
+  const handleDecryptAndDownload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fileUrl || !fileDetails || !fileDetails.wrappedKey || !fileDetails.keySalt) {
+      toast.error("File details or encrypted keys are missing.");
+      return;
+    }
+
+    setIsDecryptingKey(true);
+    try {
+      const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
+        const binaryString = window.atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+      };
+
+      const wrappedKeyCombined = new Uint8Array(base64ToArrayBuffer(fileDetails.wrappedKey));
+      const wrapIv = wrappedKeyCombined.slice(0, 12);
+      const wrappedDekCiphertext = wrappedKeyCombined.slice(12);
+
+      const keySaltBytes = new Uint8Array(base64ToArrayBuffer(fileDetails.keySalt));
+      const passwordBytes = new TextEncoder().encode(decryptionPassword);
+      const baseKey = await window.crypto.subtle.importKey("raw", passwordBytes, "PBKDF2", false, ["deriveKey"]);
+      const kek = await window.crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: keySaltBytes,
+          iterations: 100000,
+          hash: "SHA-256"
+        },
+        baseKey,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+
+      const rawDekBuffer = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: wrapIv },
+        kek,
+        wrappedDekCiphertext
+      );
+      
+      const dek = await window.crypto.subtle.importKey(
+        "raw",
+        rawDekBuffer,
+        "AES-GCM",
+        true,
+        ["decrypt"]
+      );
+
+      setUnwrappedDek(dek);
+      toast.success("Decryption key unlocked! 🔑");
+      
+      // Immediately start downloading & decrypting file
+      await handleDownload(fileUrl, fileDetails.fileName, undefined, dek);
+    } catch (err: any) {
+      console.error("E2EE local decryption key derive failed:", err);
+      toast.error("Incorrect decryption password. Please check and try again.");
+    } finally {
+      setIsDecryptingKey(false);
     }
   };
 
@@ -254,7 +365,7 @@ const SharePage: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl p-8"
+              className="bg-white dark:bg-gray-950 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl p-8"
             >
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
@@ -344,26 +455,82 @@ const SharePage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Primary Download Button */}
+                {/* Primary Download Button or E2EE Passphrase Form */}
                 {fileUrl && (
-                  <button
-                    onClick={() => handleDownload(fileUrl, fileDetails.fileName)}
-                    disabled={isDownloading !== null}
-                    className="w-full py-4 px-6 bg-gradient-to-r from-[#3498db] to-[#2ecc71] hover:opacity-95 text-white font-semibold rounded-2xl transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center space-x-3 mb-6"
-                  >
-                    {isDownloading === "current" ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  fileDetails.isEncrypted ? (
+                    unwrappedDek ? (
+                      <button
+                        onClick={() => handleDownload(fileUrl, fileDetails.fileName)}
+                        className="w-full py-4 px-6 bg-gradient-to-r from-[#3498db] to-[#2ecc71] hover:opacity-95 text-white font-semibold rounded-2xl transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center space-x-3 mb-6"
+                        disabled={isDownloading !== null}
+                      >
+                        {isDownloading === "current" ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        ) : (
+                          <>
+                            <Download className="w-5 h-5" />
+                            <span>Download Decrypted File</span>
+                          </>
+                        )}
+                      </button>
                     ) : (
-                      <>
-                        <Download className="w-5 h-5" />
-                        <span>Download Active File</span>
-                      </>
-                    )}
-                  </button>
+                      <form onSubmit={handleDecryptAndDownload} className="space-y-4 border border-gray-100 dark:border-gray-800 p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/50 mb-6">
+                        <div className="flex items-center space-x-2 text-yellow-600 dark:text-yellow-400 text-sm font-semibold mb-2">
+                          <Shield className="w-4 h-4 text-yellow-500 animate-pulse" />
+                          <span>End-to-End Encrypted File</span>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                          This file was encrypted in the client browser prior to upload. Enter the decryption password to decrypt it locally.
+                        </p>
+                        <div>
+                          <input
+                            type="password"
+                            placeholder="Enter decryption password"
+                            value={decryptionPassword}
+                            onChange={(e) => setDecryptionPassword(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-800 
+                            rounded-xl text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 
+                            focus:ring-[#3498db] focus:border-transparent transition-all font-mono"
+                            required
+                            disabled={isDecryptingKey}
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={isDecryptingKey}
+                          className="w-full py-2.5 px-6 bg-gradient-to-r from-[#3498db] to-[#2ecc71] hover:opacity-95 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-500/10 flex items-center justify-center space-x-2 text-sm"
+                        >
+                          {isDecryptingKey ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          ) : (
+                            <>
+                              <Unlock className="w-4 h-4" />
+                              <span>Decrypt & Download</span>
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    )
+                  ) : (
+                    <button
+                      onClick={() => handleDownload(fileUrl, fileDetails.fileName)}
+                      className="w-full py-4 px-6 bg-gradient-to-r from-[#3498db] to-[#2ecc71] hover:opacity-95 text-white font-semibold rounded-2xl transition-all shadow-xl shadow-blue-500/20 flex items-center justify-center space-x-3 mb-6"
+                      disabled={isDownloading !== null}
+                    >
+                      {isDownloading === "current" ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      ) : (
+                        <>
+                          <Download className="w-5 h-5" />
+                          <span>Download Active File</span>
+                        </>
+                      )}
+                    </button>
+                  )
                 )}
 
                 {/* Versions History Dropdown */}
-                {versions && versions.length > 0 && (
+                {versions && versions.length > 0 && (!fileDetails.isEncrypted || unwrappedDek) && (
                   <div className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-6">
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                       <span>Previous Versions</span>

@@ -18,6 +18,7 @@ import {
   Download,
   Copy,
   Search,
+  Check,
   Filter,
   FileText,
   Image as ImageIcon,
@@ -44,6 +45,7 @@ import {
   Play,
   AlertCircle,
   MoreVertical,
+  Shield,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { notify as toast } from "@/services/toastService";
@@ -123,6 +125,12 @@ const MyFiles: React.FC = () => {
   const [showPasswordModal, setShowPasswordModal] = useState<string | null>(null);
   const [passwordValue, setPasswordValue] = useState("");
   const [isPasswordModalLoading, setIsPasswordModalLoading] = useState(false);
+
+  // E2EE upload protection state
+  const [showE2eeUploadModal, setShowE2eeUploadModal] = useState(false);
+  const [e2eePassword, setE2eePassword] = useState("");
+  const [isE2eeEnabled, setIsE2eeEnabled] = useState(false);
+  const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
 
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -686,7 +694,6 @@ const MyFiles: React.FC = () => {
 
     const selectedFilesList = Array.from(e.target.files);
     const resumeSessionId = resumeSessionIdRef.current;
-    resumeSessionIdRef.current = null;
 
     if (resumeSessionId && selectedFilesList.length !== 1) {
       toast.error("Select the original file to resume an interrupted upload.");
@@ -715,6 +722,14 @@ const MyFiles: React.FC = () => {
       return;
     }
 
+    setFilesToUpload(selectedFilesList);
+    setIsE2eeEnabled(false);
+    setE2eePassword("");
+    setShowE2eeUploadModal(true);
+    e.target.value = "";
+  };
+
+  const executeUploadFlow = async (files: File[], isE2ee: boolean, passwordVal: string) => {
     setIsUploading(true);
     setIsPaused(false);
     pauseRef.current = false;
@@ -722,13 +737,17 @@ const MyFiles: React.FC = () => {
     setUploadProgressDetail(null);
     abortControllerRef.current = new AbortController();
 
-    for (const [index, file] of selectedFilesList.entries()) {
+    const resumeSessionId = resumeSessionIdRef.current;
+    resumeSessionIdRef.current = null;
+
+    for (const [index, file] of files.entries()) {
       try {
         const result = await uploadFileResumable({
           file,
           sessionId: resumeSessionId || undefined,
           signal: abortControllerRef.current.signal,
           shouldPause: () => pauseRef.current,
+          encryptionPassword: isE2ee ? passwordVal : undefined,
           onDuplicateDetected: async () => {
             return new Promise((resolve) => {
               const useExisting = window.confirm(
@@ -740,7 +759,7 @@ const MyFiles: React.FC = () => {
           },
           onProgress: (state) => {
             const overallProgress =
-              ((index + state.progressPercent / 100) / selectedFilesList.length) * 100;
+              ((index + state.progressPercent / 100) / files.length) * 100;
             setUploadProgress(overallProgress);
             setUploadProgressDetail(state);
           },
@@ -754,14 +773,17 @@ const MyFiles: React.FC = () => {
           fileSizeBytes: file.size,
           checksum: result.checksum,
           folderId: currentFolderId,
+          isEncrypted: isE2ee,
+          wrappedKey: result.wrappedKey,
+          keySalt: result.keySalt,
         });
-      } catch (err) {
+      } catch (err: any) {
         if (err instanceof DOMException && err.name === "AbortError") {
           toast.info("Upload cancelled.");
           break;
         }
         console.error("Upload failed for", file.name, err);
-        toast.error(`Failed to upload ${file.name}`);
+        toast.error(`Failed to upload ${file.name}: ${err.message || ""}`);
       }
     }
 
@@ -776,7 +798,6 @@ const MyFiles: React.FC = () => {
     abortControllerRef.current = null;
     setUploadProgress(100);
     setTimeout(() => setUploadProgress(0), 1000);
-    e.target.value = "";
   };
 
   const handlePauseUpload = () => {
@@ -2670,6 +2691,116 @@ formatFileSize
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Client-Side E2EE Upload Modal */}
+      <AnimatePresence>
+        {showE2eeUploadModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowE2eeUploadModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-200 dark:border-gray-700 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <Shield className="w-6 h-6 text-[#3498db] animate-pulse" />
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    Secure Share (E2EE)
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowE2eeUploadModal(false)}
+                  className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Configure security settings for your selected file(s). You can optionally encrypt files in your browser before they are uploaded.
+                </p>
+
+                <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700/50">
+                  <input
+                    type="checkbox"
+                    id="enable-e2ee"
+                    checked={isE2eeEnabled}
+                    onChange={(e) => setIsE2eeEnabled(e.target.checked)}
+                    className="w-4 h-4 text-[#3498db] border-gray-300 rounded focus:ring-[#3498db]"
+                  />
+                  <label htmlFor="enable-e2ee" className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer select-none">
+                    Enable Client-Side End-to-End Encryption
+                  </label>
+                </div>
+
+                {isE2eeEnabled && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3"
+                  >
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Encryption Password
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Enter encryption passphrase"
+                        value={e2eePassword}
+                        onChange={(e) => setE2eePassword(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 
+                        rounded-xl text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 
+                        focus:ring-[#3498db] focus:border-transparent transition-all"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start space-x-2 text-xs text-amber-600 dark:text-amber-400">
+                      <span className="font-bold text-sm shrink-0">⚠️</span>
+                      <div>
+                        <strong>Zero-Knowledge Warning:</strong> This password encrypts your file. If you lose or forget it, no one (including SecureShare) can recover or decrypt your file.
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                <div className="flex space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowE2eeUploadModal(false)}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isE2eeEnabled && e2eePassword.length < 6}
+                    onClick={() => {
+                      setShowE2eeUploadModal(false);
+                      executeUploadFlow(filesToUpload, isE2eeEnabled, e2eePassword);
+                    }}
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#3498db] to-[#2ecc71] text-white rounded-xl font-semibold hover:opacity-95 transition-opacity disabled:opacity-50"
+                  >
+                    Start Upload
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Share Link Modal */}
       {/* Share Modal */}
       {shareModalOpen && selectedFileForShare && (
