@@ -105,7 +105,7 @@ async function loadUploadSessionForChunk(req, res, next) {
   }
 }
 
-export const initUpload = async (req, res) => {
+export const initUpload = async (req, res, next) => {
   try {
     const { fileName, fileSizeBytes, mimeType, expectedChecksum, sessionId, forceUpload } = req.body;
     const userId = req.user.id;
@@ -165,6 +165,19 @@ export const initUpload = async (req, res) => {
     const totalChunks = calculateTotalChunks(Number(fileSizeBytes));
     const expiresAt = new Date(Date.now() + UPLOAD_SESSION_TTL_HOURS * 60 * 60 * 1000);
 
+    // Create the File record in PENDING state
+    const pendingFile = new File({
+      fileName,
+      fileUrl: `${req.protocol || "http"}://${(typeof req.get === "function" ? req.get("host") : null) || "localhost"}/pending/${uploadId}`,
+      fileType: mimeType ? (mimeType.split("/")[0] || "application") : "application",
+      fileSize: "0 KB",
+      fileSizeBytes: Number(fileSizeBytes),
+      userId,
+      status: "PENDING",
+      folderId: req.body.folderId || null,
+    });
+    await pendingFile.save();
+
     const session = await UploadSession.create({
       userId,
       uploadId,
@@ -177,6 +190,7 @@ export const initUpload = async (req, res) => {
       tempDir,
       expiresAt,
       status: "uploading",
+      fileId: pendingFile._id,
     });
 
     res.status(201).json({
@@ -188,7 +202,7 @@ export const initUpload = async (req, res) => {
   }
 };
 
-export const getUploadStatus = async (req, res) => {
+export const getUploadStatus = async (req, res, next) => {
   try {
     const session = await UploadSession.findOne({
       _id: req.params.sessionId,
@@ -216,7 +230,7 @@ export const getUploadStatus = async (req, res) => {
   }
 };
 
-export const getResumableUploads = async (req, res) => {
+export const getResumableUploads = async (req, res, next) => {
   try {
     const sessions = await UploadSession.find({
       userId: req.user.id,

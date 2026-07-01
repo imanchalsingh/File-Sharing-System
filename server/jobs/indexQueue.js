@@ -11,6 +11,10 @@ const connection = {
 export const indexQueue = new Queue("document-indexing", { connection });
 
 export const enqueueIndex = async (fileId) => {
+  if (process.env.ENABLE_DOCUMENT_INDEXING === "false") {
+    console.log("Document indexing is disabled. Skipping for file:", fileId);
+    return;
+  }
   console.log(`[Queue] Enqueuing document indexing job for file: ${fileId}`);
   await indexQueue.add("index-file", { fileId }, {
     attempts: 3,
