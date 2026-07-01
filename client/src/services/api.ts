@@ -79,6 +79,9 @@ export const fileApi = {
     fileSizeBytes?: number;
     checksum?: string;
     folderId?: string | null;
+    isEncrypted?: boolean;
+    wrappedKey?: string;
+    keySalt?: string;
   }) => {
     const response = await api.post("/api/files/save-info", data);
     return response.data;
@@ -262,6 +265,9 @@ export const uploadApi = {
     expectedChecksum?: string;
     sessionId?: string;
     forceUpload?: boolean;
+    isEncrypted?: boolean;
+    wrappedKey?: string;
+    keySalt?: string;
   }) => {
     const response = await api.post("/api/files/upload/init", data);
     return response.data as {

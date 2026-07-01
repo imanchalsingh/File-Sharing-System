@@ -1,3 +1,6 @@
+process.env.ENABLE_DOCUMENT_INDEXING = "false";
+process.env.ENABLE_MALWARE_SCANNING = "false";
+
 import { saveFileInfo, getFileVersions, restoreFileVersion, updateFilePassword, getSharedFileById, verifySharedFilePassword } from './controllers/fileController.js';
 import File from './models/File.js';
 import mongoose from 'mongoose';

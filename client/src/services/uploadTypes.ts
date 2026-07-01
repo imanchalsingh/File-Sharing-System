@@ -39,6 +39,7 @@ export interface ResumableUploadOptions {
   shouldPause?: () => boolean;
   signal?: AbortSignal;
   onDuplicateDetected?: () => Promise<'link' | 'upload'>;
+  encryptionPassword?: string;
 }
 
 export function calculateTotalChunks(fileSizeBytes: number, chunkSize: number) {
