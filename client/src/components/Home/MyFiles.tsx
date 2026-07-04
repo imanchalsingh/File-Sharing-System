@@ -126,6 +126,8 @@ const MyFiles: React.FC = () => {
 
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState<string>("");
   const [selectedFileForShare, setSelectedFileForShare] = useState<{
     _id: string;
     fileName: string;
@@ -817,7 +819,13 @@ const MyFiles: React.FC = () => {
   // ✅ Delete file
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this file?")) return;
+    const file = files.find((f) => f.id === id);
+    setDeleteConfirmName(file?.name || "this file");
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async (id: string) => {
+    setDeleteConfirmId(null);
 
     try {
       const token = localStorage.getItem("authToken");
@@ -2564,6 +2572,57 @@ formatFileSize
         )}
       </AnimatePresence>
 
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setDeleteConfirmId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-200 dark:border-gray-700 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 bg-red-500/20 rounded-full">
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Delete File
+                </h3>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300 mb-2">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-white">"{deleteConfirmName}"</span>?
+              </p>
+              <p className="text-red-400 text-sm mb-6">
+                This action cannot be undone. All existing share links will be permanently invalidated.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => confirmDelete(deleteConfirmId)}
+                  className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       {/* Password Protection Modal */}
       <AnimatePresence>
         {showPasswordModal && (
