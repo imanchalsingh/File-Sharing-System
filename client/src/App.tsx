@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./components/Home/Home";
 import Register from "./components/Authentication/Register";
@@ -21,10 +21,52 @@ import "react-toastify/dist/ReactToastify.css";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import ErrorBoundary from "./components/common/ErrorBoundary";
+//import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+
+const routeTitles: Record<string, string> = {
+  "/": "ShareVault — Secure File Sharing",
+  "/login": "Login — ShareVault",
+  "/register": "Register — ShareVault",
+  "/home": "Dashboard — ShareVault",
+  "/home/myfiles": "My Files — ShareVault",
+  "/home/analytics": "Analytics — ShareVault",
+  "/home/favorites": "Favorites — ShareVault",
+  "/home/shares": "Shares — ShareVault",
+  "/home/webhooks": "Webhooks — ShareVault",
+  "/home/settings": "Settings — ShareVault",
+  "/privacy": "Privacy Policy — ShareVault",
+  "/terms": "Terms of Service — ShareVault",
+  "/expired": "Link Expired — ShareVault",
+};
+
+const DynamicTitle: React.FC = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = location.pathname;
+
+    if (path.startsWith("/share/")) {
+      document.title = "Shared File — ShareVault";
+      return;
+    }
+
+    if (path.startsWith("/s/")) {
+      document.title = "Accessing File — ShareVault";
+      return;
+    }
+
+    const title = routeTitles[path] || "ShareVault — Secure File Sharing";
+    document.title = title;
+  }, [location.pathname]);
+
+  return null;
+};
 
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
+      <DynamicTitle />
       <Routes>
         {/* Landing Page - Home */}
         <Route path="/" element={<LandingPage />} />
