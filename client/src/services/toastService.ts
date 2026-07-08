@@ -1,4 +1,6 @@
-import { toast, ToastOptions } from "react-toastify";
+import { toast } from "react-toastify";
+// Using 'import type' fixes the compilation crash on newer library versions
+import type { ToastOptions } from "react-toastify";
 
 const defaultOptions: ToastOptions = {
   position: "top-right",

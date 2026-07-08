@@ -272,18 +272,22 @@ const Login: React.FC = () => {
                           setEmail(account.email);
                           setPassword(account.password);
                         }}
-                        className="p-3 bg-gray-900/50 border border-gray-700 rounded-lg text-left hover:border-gray-600 transition-colors group"
+                        
+                        className="p-3 bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg text-left hover:border-gray-400 dark:hover:border-gray-600 transition-colors group"
                       >
                         <div className="flex justify-between items-center">
                           <div>
-                            <div className="text-white font-medium">
+                            
+                            <div className="text-gray-900 dark:text-white font-medium">
                               {account.role}
                             </div>
-                            <div className="text-gray-400 text-sm">
+                            
+                            <div className="text-gray-600 dark:text-gray-400 text-sm">
                               {account.email}
                             </div>
                           </div>
-                          <div className="px-3 py-1 bg-gray-800 rounded text-xs text-gray-400 group-hover:text-[#3498db] transition-colors">
+                          
+                          <div className="px-3 py-1 bg-gray-200 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400 group-hover:text-[#3498db] transition-colors">
                             Use
                           </div>
                         </div>
