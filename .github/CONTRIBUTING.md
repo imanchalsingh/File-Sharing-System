@@ -184,7 +184,7 @@ Skills reduce the feedback loop: you get project-specific guidance inline instea
 
 1. Push your branch to your fork.
 2. Open a Pull Request.
-3. Reference the related issue number.
+3. Reference the related issue number in the PR description using keywords like `Closes #123` or `Fixes #123`. This is **required** and checked by an automated workflow.
 4. Include screenshots for UI-related changes.
 5. Provide a clear description of the changes made.
 
