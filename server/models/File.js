@@ -170,6 +170,24 @@ const fileSchema = new mongoose.Schema(
       enum: ['pending', 'processing', 'completed', 'failed', 'skipped'],
       default: 'pending',
     },
+    status: {
+      type: String,
+      enum: ['PENDING', 'COMPLETED'],
+      default: 'PENDING',
+      index: true,
+    },
+    isEncrypted: {
+      type: Boolean,
+      default: false,
+    },
+    wrappedKey: {
+      type: String,
+      default: null,
+    },
+    keySalt: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

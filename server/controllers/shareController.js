@@ -60,6 +60,9 @@ export const createShareLink = async (req, res, next) => {
       expiresAt: expiresAt ? new Date(expiresAt) : null,
       maxAccessCount: maxAccessCount || null,
       password: hashedPassword,
+      isEncrypted: file.isEncrypted || false,
+      wrappedKey: file.wrappedKey || null,
+      keySalt: file.keySalt || null,
     });
 
     await shareLink.save();
@@ -336,6 +339,8 @@ export const accessSharedFile = async (req, res, next) => {
       return res.json({
         success: true,
         isPasswordProtected: true,
+        isEncrypted: share.isEncrypted || false,
+        keySalt: share.keySalt || null,
         share: {
           _id: share._id,
           expiresAt: share.expiresAt,
@@ -382,6 +387,9 @@ export const accessSharedFile = async (req, res, next) => {
         fileUrl: share.fileId?.fileUrl,
         fileType: share.fileId?.fileType,
         fileSize: share.fileId?.fileSize,
+        isEncrypted: share.isEncrypted || false,
+        wrappedKey: share.wrappedKey || null,
+        keySalt: share.keySalt || null,
       },
       share: {
         _id: share._id,
@@ -451,6 +459,9 @@ export const verifyShareLinkPassword = async (req, res, next) => {
         fileUrl: share.fileId?.fileUrl,
         fileType: share.fileId?.fileType,
         fileSize: share.fileId?.fileSize,
+        isEncrypted: share.isEncrypted || false,
+        wrappedKey: share.wrappedKey || null,
+        keySalt: share.keySalt || null,
       },
       share: {
         _id: share._id,

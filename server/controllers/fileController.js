@@ -27,7 +27,7 @@ export const getUserFiles = async (req, res, next) => {
     const userId = req.user.id;
     const { folderId, page = 1, limit = 50 } = req.query; // 'null' string or objectId
 
-    const query = { userId, isDeleted: false };
+    const query = { userId, isDeleted: false, status: { $ne: "PENDING" } };
     
     if (folderId !== undefined) {
       query.folderId = folderId === "null" || folderId === "" ? null : folderId;
@@ -96,6 +96,9 @@ export const saveFileInfo = async (req, res, next) => {
       tags,
       password,
       folderId,
+      isEncrypted,
+      wrappedKey,
+      keySalt,
     } = req.body;
 
     if (!fileName || !fileUrl) {
@@ -110,6 +113,7 @@ if (checksum) {
   const duplicateFile = await File.findOne({
     checksum,
     userId,
+    status: { $ne: "PENDING" },
   });
 
   if (duplicateFile) {
@@ -125,7 +129,57 @@ if (checksum) {
   }
 }
 
-    const existingFile = await File.findOne({ fileName, userId });
+    // Try to find a pending file to complete
+    const pendingFile = await File.findOne({
+      fileName,
+      userId,
+      status: "PENDING",
+    }).sort({ updatedAt: -1 });
+
+    if (pendingFile) {
+      let hashedPassword = null;
+      if (password) {
+        const salt = await bcrypt.genSalt(10);
+        hashedPassword = await bcrypt.hash(password, salt);
+      }
+
+      // Update the pending file with final completed info
+      pendingFile.fileUrl = fileUrl;
+      pendingFile.fileType = fileType || pendingFile.fileType;
+      pendingFile.fileSize = fileSize || pendingFile.fileSize;
+      pendingFile.fileSizeBytes = fileSizeBytes || pendingFile.fileSizeBytes;
+      pendingFile.checksum = checksum || pendingFile.checksum;
+      pendingFile.status = "COMPLETED";
+      pendingFile.folderId = folderId || pendingFile.folderId;
+      pendingFile.tags = Array.isArray(tags) ? tags : [];
+      pendingFile.password = hashedPassword;
+      if (isEncrypted !== undefined) pendingFile.isEncrypted = !!isEncrypted;
+      if (wrappedKey !== undefined) pendingFile.wrappedKey = wrappedKey;
+      if (keySalt !== undefined) pendingFile.keySalt = keySalt;
+
+      await pendingFile.save();
+
+      // Enqueue file for malware scanning and document indexing
+      try {
+        await enqueueScan(pendingFile._id);
+        await enqueueIndex(pendingFile._id);
+      } catch (queueErr) {
+        console.error("Failed to enqueue background jobs:", queueErr);
+      }
+
+      const io = req.app.get("io");
+      if (io) io.to(`user_${userId}`).emit("FILE_UPLOADED", pendingFile);
+
+      await invalidateDashboardStats(userId);
+
+      return res.status(201).json({
+        success: true,
+        message: "File info saved successfully",
+        file: pendingFile,
+      });
+    }
+
+    const existingFile = await File.findOne({ fileName, userId, status: { $ne: "PENDING" } });
 
     if (existingFile) {
       // Archive the current state into versions array
@@ -186,6 +240,9 @@ if (checksum) {
       currentVersion: 1,
       tags: Array.isArray(tags) ? tags : [],
       password: hashedPassword,
+      isEncrypted: !!isEncrypted,
+      wrappedKey: wrappedKey || null,
+      keySalt: keySalt || null,
       shareCount: 0,
       downloadCount: 0,
       viewCount: 0,
@@ -583,9 +640,9 @@ export const getFileStats = async (req, res, next) => {
       }
     }
 
-    const totalFiles = await File.countDocuments({ userId });
+    const totalFiles = await File.countDocuments({ userId, status: { $ne: "PENDING" } });
     const aggregations = await File.aggregate([
-      { $match: { userId } },
+      { $match: { userId, status: { $ne: "PENDING" } } },
       { 
         $group: { 
           _id: null, 
@@ -750,7 +807,7 @@ export const getFavoriteFiles = async (req, res, next) => {
     const { page = 1, limit = 50 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const query = { userId, isFavorite: true };
+    const query = { userId, isFavorite: true, status: { $ne: "PENDING" } };
     const files = await File.find(query)
       .sort({ updatedAt: -1 })
       .skip(skip)
@@ -816,6 +873,7 @@ export const getFilesByTag = async (req, res, next) => {
 
     const files = await File.find({
       userId,
+      status: { $ne: "PENDING" },
       tags: { $in: [tag] },
     }).sort({ createdAt: -1 });
 
@@ -1007,6 +1065,7 @@ export const searchFiles = async (req, res, next) => {
     const query = {
       userId,
       isDeleted: false,
+      status: { $ne: "PENDING" },
       fileName: { $regex: q, $options: "i" }
     };
 

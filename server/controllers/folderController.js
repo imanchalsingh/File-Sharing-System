@@ -83,7 +83,7 @@ export const getFolderContents = async (req, res, next) => {
     const subfolders = await Folder.find({ parentId: folderId, userId }).sort({ name: 1 });
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const query = { folderId: folderId, userId, isDeleted: false };
+    const query = { folderId: folderId, userId, isDeleted: false, status: { $ne: "PENDING" } };
     
     const files = await File.find(query)
       .sort({ createdAt: -1 })

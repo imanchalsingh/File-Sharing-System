@@ -54,6 +54,11 @@ const uploadSessionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    fileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "File",
+      default: null,
+    },
     fileUrl: {
       type: String,
       default: null,

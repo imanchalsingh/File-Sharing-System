@@ -21,6 +21,7 @@ import { startWebhookWorker } from "./jobs/webhookWorker.js";
 import webhookRoutes from "./routes/webhooks.js";
 import { startUploadSessionCleanupJob } from "./jobs/uploadSessionCleanup.js";
 import { initQuotaResetJob } from "./jobs/quotaResetJob.js";
+import { initUploadCleanupWorker } from "./jobs/uploadCleanupWorker.js";
 import { connectRedis } from "./config/redis.js";
 import { ensureUploadTempRoot } from "./utils/chunkStorage.js";
 import {
@@ -58,6 +59,7 @@ startIndexWorker();
 startWebhookWorker();
 startUploadSessionCleanupJob();
 initQuotaResetJob();
+initUploadCleanupWorker();
 ensureUploadTempRoot().catch(console.error);
 
 app.use(express.json());
