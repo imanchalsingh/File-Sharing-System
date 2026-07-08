@@ -23,6 +23,8 @@ const Register: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -52,13 +54,18 @@ const Register: React.FC = () => {
   const handleRegister = async () => {
     setErrorMsg(null);
 
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !confirmPassword) {
       setErrorMsg("All fields are required.");
       return;
     }
 
     if (password.length < 6) {
       setErrorMsg("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMsg("Passwords do not match.");
       return;
     }
 
@@ -69,6 +76,7 @@ const Register: React.FC = () => {
         username,
         email,
         password,
+        confirmPassword,
       });
 
       if (res.data.success) {
@@ -267,8 +275,8 @@ const Register: React.FC = () => {
                   <ul className="mt-3 space-y-1">
                     <li
                       className={`flex items-center text-sm ${password.length >= 6
-                          ? "text-[#2ecc71]"
-                          : "text-gray-500"
+                        ? "text-[#2ecc71]"
+                        : "text-gray-500"
                         }`}
                     >
                       <Check
@@ -280,6 +288,57 @@ const Register: React.FC = () => {
                   </ul>
                 </div>
 
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 mb-2 font-medium">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      autoComplete="new-password"
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className={`w-full px-4 py-3 bg-white dark:bg-gray-900/50 border rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:border-transparent outline-none pr-10 ${confirmPassword && password !== confirmPassword
+                          ? "border-[#e74c3c] focus:ring-[#e74c3c]"
+                          : confirmPassword && password === confirmPassword
+                            ? "border-[#2ecc71] focus:ring-[#2ecc71]"
+                            : "border-gray-300 dark:border-gray-600 focus:ring-[#3498db]"
+                        }`}
+                      placeholder="Re-enter your password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-3 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+
+                  {confirmPassword && (
+                    <p
+                      className={`mt-2 text-sm flex items-center ${password === confirmPassword
+                          ? "text-[#2ecc71]"
+                          : "text-[#e74c3c]"
+                        }`}
+                    >
+                      {password === confirmPassword ? (
+                        <>
+                          <Check className="w-4 h-4 mr-1" />
+                          Passwords match
+                        </>
+                      ) : (
+                        "Passwords do not match"
+                      )}
+                    </p>
+                  )}
+                </div>
+
                 {errorMsg && (
                   <div className="p-4 bg-[#e74c3c]/10 border border-[#e74c3c] rounded-lg">
                     <p className="text-[#e74c3c] text-sm">{errorMsg}</p>
@@ -288,7 +347,15 @@ const Register: React.FC = () => {
 
                 <button
                   onClick={handleRegister}
-                  disabled={loading}
+                  disabled={
+                    loading ||
+                    !username ||
+                    !email ||
+                    !password ||
+                    !confirmPassword ||
+                    password !== confirmPassword ||
+                    password.length < 6
+                  }
                   className="w-full py-4 bg-gradient-to-r from-[#3498db] to-[#2ecc71] text-white font-bold rounded-xl shadow-lg hover:shadow-xl duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
                 >
                   {loading ? (

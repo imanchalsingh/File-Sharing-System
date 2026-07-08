@@ -15,6 +15,8 @@ import {
   Upload,
   Trash2,
   Share2,
+  Check,
+  Link,
   Download,
   Copy,
   Search,
@@ -44,6 +46,11 @@ import {
   Play,
   AlertCircle,
   MoreVertical,
+  FileVideo,
+  FileAudio,
+  FileImage,
+  FileCode,
+  Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { notify as toast } from "@/services/toastService";
@@ -924,6 +931,15 @@ const MyFiles: React.FC = () => {
     toast.success("Share link copied to clipboard!");
   };
 
+  // ✅ Copy link directly without opening modal
+  const handleCopyLink = async (fileId: string, fileName: string) => {
+    const shareLink = `${window.location.origin}/share/${fileId}`;
+    await navigator.clipboard.writeText(shareLink);
+    await trackLinkCopy(fileId, fileName, shareLink);
+    setCopiedFileId(fileId);
+    setTimeout(() => setCopiedFileId(null), 2000);
+  };
+
   // ✅ Download file with tracking
   const handleDownload = async (
     fileId: string,
@@ -1111,26 +1127,64 @@ formatFileSize
   
 
   // ✅ Get file icon based on type
-  function getFileIcon(type: string) {
-      switch (type) {
-        case "image":
-          return <ImageIcon className="w-5 h-5" />;
-        case "application":
-          return <FileText className="w-5 h-5" />;
-        default:
-          return <File className="w-5 h-5" />;
-      }
+  function getFileIcon(type: string, fileName?: string) {
+    const ext = fileName?.split(".").pop()?.toLowerCase();
+
+    // Check by extension first for specificity
+    if (ext === "pdf") return <FileText className="w-5 h-5" />;
+    if (["doc", "docx"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["xls", "xlsx"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["ppt", "pptx"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["txt", "md", "csv"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["html", "css", "js", "ts", "jsx", "tsx", "json"].includes(ext || "")) return <FileCode className="w-5 h-5" />;
+    if (["mp3", "wav", "ogg", "flac", "aac"].includes(ext || "")) return <FileAudio className="w-5 h-5" />;
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext || "")) return <FileVideo className="w-5 h-5" />;
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext || "")) return <FileImage className="w-5 h-5" />;
+
+    // Fallback to MIME type category
+    switch (type) {
+      case "image":
+        return <FileImage className="w-5 h-5" />;
+      case "video":
+        return <FileVideo className="w-5 h-5" />;
+      case "audio":
+        return <FileAudio className="w-5 h-5" />;
+      case "text":
+        return <FileText className="w-5 h-5" />;
+      case "application":
+        return <FileText className="w-5 h-5" />;
+      default:
+        return <File className="w-5 h-5" />;
     }
+  }
 
   // ✅ Get file type color
-  const getFileTypeColor = (type: string) => {
+  const getFileTypeColor = (type: string, fileName?: string) => {
+    const ext = fileName?.split(".").pop()?.toLowerCase();
+
+    // Specific extension colors
+    if (ext === "pdf") return "#e74c3c";
+    if (["doc", "docx"].includes(ext || "")) return "#2980b9";
+    if (["xls", "xlsx"].includes(ext || "")) return "#27ae60";
+    if (["ppt", "pptx"].includes(ext || "")) return "#e67e22";
+    if (["txt", "md", "csv"].includes(ext || "")) return "#95a5a6";
+    if (["html", "css", "js", "ts", "jsx", "tsx", "json"].includes(ext || "")) return "#f39c12";
+    if (["mp3", "wav", "ogg", "flac", "aac"].includes(ext || "")) return "#9b59b6";
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext || "")) return "#e74c3c";
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext || "")) return "#3498db";
+
+    // Fallback to MIME type category
     switch (type) {
       case "image":
         return "#3498db";
-      case "application":
-        return "#2ecc71";
       case "video":
         return "#e74c3c";
+      case "audio":
+        return "#9b59b6";
+      case "text":
+        return "#95a5a6";
+      case "application":
+        return "#2ecc71";
       default:
         return "#9b59b6";
     }
@@ -1513,7 +1567,8 @@ formatFileSize
             </button>
 
             {/* Upload Button */}
-            <label className="relative cursor-pointer">
+            {/* Upload Button */}
+            <label className={`relative ${isUploading ? "cursor-not-allowed" : "cursor-pointer"}`}>
               <input
                 type="file"
                 multiple
@@ -1521,10 +1576,14 @@ formatFileSize
                 onChange={handleFileUpload}
                 disabled={isUploading}
               />
-              <div className="px-4 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] 
-              text-white font-medium rounded-lg hover:opacity-90 transition-opacity 
-              flex items-center disabled:opacity-50">
-                <Upload className="w-4 h-4 mr-2" />
+              <div className={`px-4 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] 
+              text-white font-medium rounded-lg transition-opacity 
+              flex items-center ${isUploading ? "opacity-60 pointer-events-none" : "hover:opacity-90"}`}>
+                {isUploading ? (
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
                 {isUploading ? "Uploading..." : "Upload Files"}
               </div>
             </label>
@@ -1795,11 +1854,11 @@ formatFileSize
                       <div
                         className="w-full h-full flex items-center justify-center"
                         style={{
-                          backgroundColor: `${getFileTypeColor(file.type)}20`,
+                          backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                         }}
                       >
-                        <div style={{ color: getFileTypeColor(file.type) }}>
-                          {getFileIcon(file.type)}
+                        <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                          {getFileIcon(file.type, file.name)}
                         </div>
                       </div>
                     )}
@@ -1838,6 +1897,26 @@ formatFileSize
                       >
                         <Share2 className="w-4 h-4" />
                       </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (file.scanStatus !== "safe") {
+                            toast.error(`Cannot copy link. Status: ${file.scanStatus}`);
+                            return;
+                          }
+                          handleCopyLink(file.id, file.name);
+                        }}
+                        className={`p-2 rounded-full text-white ${file.scanStatus === 'safe' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-500 cursor-not-allowed'}`}
+                        title={file.scanStatus === 'safe' ? "Copy Link" : "Scan in progress or failed"}
+                      >
+                        {copiedFileId === file.id ? (
+                          <Check className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <Link className="w-4 h-4" />
+                        )}
+                      </button>
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1893,11 +1972,11 @@ formatFileSize
                         <div
                           className="p-1.5 rounded-lg mr-2 shrink-0"
                           style={{
-                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                           }}
                         >
-                          <div style={{ color: getFileTypeColor(file.type) }}>
-                            {getFileIcon(file.type)}
+                          <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                            {getFileIcon(file.type, file.name)}
                           </div>
                         </div>
                         <h3 className="text-sm font-medium text-white truncate flex-1">
@@ -2001,8 +2080,9 @@ formatFileSize
             /* List View - keeping existing list view code */
             <div className="bg-gray-800/30 rounded-xl border border-gray-700 overflow-hidden">
               <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-700 text-gray-400 text-sm font-medium">
-                <div className="col-span-4">Name</div>
+                <div className="col-span-3">Name</div>
                 <div className="col-span-2">Type</div>
+                <div className="col-span-1">Size</div>
                 <div className="col-span-1">Copies</div>
                 <div className="col-span-1">Downloads</div>
                 <div className="col-span-2">Uploaded</div>
@@ -2077,7 +2157,7 @@ formatFileSize
                       selectedFiles.includes(file.id) ? "bg-[#3498db]/10" : ""
                     }`}
                   >
-                    <div className="col-span-4 flex items-center">
+                    <div className="col-span-3 flex items-center">
                       <button
                         onClick={() => toggleFileSelection(file.id)}
                         className="mr-3"
@@ -2092,11 +2172,11 @@ formatFileSize
                         <div
                           className="p-2 rounded-lg mr-3"
                           style={{
-                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                           }}
                         >
-                          <div style={{ color: getFileTypeColor(file.type) }}>
-                            {getFileIcon(file.type)}
+                          <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                            {getFileIcon(file.type, file.name)}
                           </div>
                         </div>
                         <div>
@@ -2152,12 +2232,15 @@ formatFileSize
                       <span
                         className="px-2 py-1 rounded text-xs font-medium"
                         style={{
-                          backgroundColor: `${getFileTypeColor(file.type)}20`,
-                          color: getFileTypeColor(file.type),
+                          backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
+                          color: getFileTypeColor(file.type, file.name),
                         }}
                       >
                         {file.type.toUpperCase()}
                       </span>
+                    </div>
+                    <div className="col-span-1 text-gray-400 text-sm">
+                      {file.size}
                     </div>
                     <div className="col-span-1 text-center">
                       <div className="text-white font-bold">
@@ -2203,6 +2286,25 @@ formatFileSize
                         >
                           <Share2 className={`w-4 h-4 ${file.scanStatus === 'safe' ? 'text-gray-400 hover:text-white' : 'text-gray-600'}`} />
                         </button>
+
+                        <button
+                          onClick={() => {
+                            if (file.scanStatus !== "safe") {
+                              toast.error(`Cannot copy link. Status: ${file.scanStatus}`);
+                              return;
+                            }
+                            handleCopyLink(file.id, file.name);
+                          }}
+                          className="p-1.5 hover:bg-gray-700 rounded"
+                          title="Copy Link"
+                        >
+                          {copiedFileId === file.id ? (
+                            <Check className="w-4 h-4 text-green-400" />
+                          ) : (
+                            <Link className="w-4 h-4 text-gray-400 hover:text-white" />
+                          )}
+                        </button>
+                        
                         <button
                           onClick={() => setShowFileStats(file.id)}
                           className="p-1.5 hover:bg-gray-700 rounded"
@@ -2345,11 +2447,11 @@ formatFileSize
                         <div
                           className="p-2 rounded-lg mr-3"
                           style={{
-                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                           }}
                         >
-                          <div style={{ color: getFileTypeColor(file.type) }}>
-                            {getFileIcon(file.type)}
+                          <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                            {getFileIcon(file.type, file.name)}
                           </div>
                         </div>
                         <div>
