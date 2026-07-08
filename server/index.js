@@ -30,6 +30,7 @@ import {
 } from "./middleware/errorHandler.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
+import helmetMiddleware from "./config/helmet.js";
 const app = express();
 
 app.use(
@@ -42,6 +43,10 @@ app.use(
     credentials: true,
   }),
 );
+
+
+// ==================== SECURITY MIDDLEWARE ====================
+app.use(helmetMiddleware);
 
 // Connect to database
 connectDB();

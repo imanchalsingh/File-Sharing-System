@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fileApi, analyticsApi } from "../../services/api";
+import { useOgMeta } from "../../hooks/useOgMeta";
 import {
   File,
   FileText,
@@ -44,6 +45,23 @@ const SharePage: React.FC = () => {
 
   // View tracking lock (ensure we only track view once per load/unlock)
   const viewTrackedRef = useRef(false);
+  // Update OG/Twitter meta tags once file metadata is loaded
+const APP_URL = import.meta.env.VITE_APP_URL || "https://file-sharing-system-lake.vercel.app";
+useOgMeta(
+  fileDetails
+    ? {
+        title: `${fileDetails.fileName} – Shared via ShareVault`,
+        description: `Download "${fileDetails.fileName}" securely shared by ${
+          fileDetails.owner?.username || "a ShareVault user"
+        }.`,
+        image: fileDetails.fileType?.toLowerCase() === "image" && fileUrl
+          ? fileUrl
+          : `${APP_URL}/vite.svg`,
+        url: `${APP_URL}/share/${id}`,
+        type: "website",
+      }
+    : {}
+);
 
   // Theme support
   const [theme, setTheme] = useState(

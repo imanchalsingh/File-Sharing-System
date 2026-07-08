@@ -41,7 +41,11 @@ const chunkUpload = multer({
   },
 });
 
+// Parse multipart form fields (sessionId, chunkIndex) before loadUploadSessionForChunk
+const fieldParser = multer().none();
+
 export const chunkUploadMiddleware = [
+  fieldParser,
   loadUploadSessionForChunk,
   chunkUpload.single("chunk"),
 ];

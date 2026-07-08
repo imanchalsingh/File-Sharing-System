@@ -15,6 +15,8 @@ import {
   Upload,
   Trash2,
   Share2,
+  Check,
+  Link,
   Download,
   Copy,
   Search,
@@ -134,6 +136,8 @@ const MyFiles: React.FC = () => {
 
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState<string>("");
   const [selectedFileForShare, setSelectedFileForShare] = useState<{
     _id: string;
     fileName: string;
@@ -838,7 +842,13 @@ const MyFiles: React.FC = () => {
   // ✅ Delete file
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this file?")) return;
+    const file = files.find((f) => f.id === id);
+    setDeleteConfirmName(file?.name || "this file");
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async (id: string) => {
+    setDeleteConfirmId(null);
 
     try {
       const token = localStorage.getItem("authToken");
@@ -935,6 +945,15 @@ const MyFiles: React.FC = () => {
 
     // Show success message
     toast.success("Share link copied to clipboard!");
+  };
+
+  // ✅ Copy link directly without opening modal
+  const handleCopyLink = async (fileId: string, fileName: string) => {
+    const shareLink = `${window.location.origin}/share/${fileId}`;
+    await navigator.clipboard.writeText(shareLink);
+    await trackLinkCopy(fileId, fileName, shareLink);
+    setCopiedFileId(fileId);
+    setTimeout(() => setCopiedFileId(null), 2000);
   };
 
   // ✅ Download file with tracking
@@ -1124,26 +1143,64 @@ formatFileSize
   
 
   // ✅ Get file icon based on type
-  function getFileIcon(type: string) {
-      switch (type) {
-        case "image":
-          return <ImageIcon className="w-5 h-5" />;
-        case "application":
-          return <FileText className="w-5 h-5" />;
-        default:
-          return <File className="w-5 h-5" />;
-      }
+  function getFileIcon(type: string, fileName?: string) {
+    const ext = fileName?.split(".").pop()?.toLowerCase();
+
+    // Check by extension first for specificity
+    if (ext === "pdf") return <FileText className="w-5 h-5" />;
+    if (["doc", "docx"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["xls", "xlsx"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["ppt", "pptx"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["txt", "md", "csv"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["html", "css", "js", "ts", "jsx", "tsx", "json"].includes(ext || "")) return <FileCode className="w-5 h-5" />;
+    if (["mp3", "wav", "ogg", "flac", "aac"].includes(ext || "")) return <FileAudio className="w-5 h-5" />;
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext || "")) return <FileVideo className="w-5 h-5" />;
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext || "")) return <FileImage className="w-5 h-5" />;
+
+    // Fallback to MIME type category
+    switch (type) {
+      case "image":
+        return <FileImage className="w-5 h-5" />;
+      case "video":
+        return <FileVideo className="w-5 h-5" />;
+      case "audio":
+        return <FileAudio className="w-5 h-5" />;
+      case "text":
+        return <FileText className="w-5 h-5" />;
+      case "application":
+        return <FileText className="w-5 h-5" />;
+      default:
+        return <File className="w-5 h-5" />;
     }
+  }
 
   // ✅ Get file type color
-  const getFileTypeColor = (type: string) => {
+  const getFileTypeColor = (type: string, fileName?: string) => {
+    const ext = fileName?.split(".").pop()?.toLowerCase();
+
+    // Specific extension colors
+    if (ext === "pdf") return "#e74c3c";
+    if (["doc", "docx"].includes(ext || "")) return "#2980b9";
+    if (["xls", "xlsx"].includes(ext || "")) return "#27ae60";
+    if (["ppt", "pptx"].includes(ext || "")) return "#e67e22";
+    if (["txt", "md", "csv"].includes(ext || "")) return "#95a5a6";
+    if (["html", "css", "js", "ts", "jsx", "tsx", "json"].includes(ext || "")) return "#f39c12";
+    if (["mp3", "wav", "ogg", "flac", "aac"].includes(ext || "")) return "#9b59b6";
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext || "")) return "#e74c3c";
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext || "")) return "#3498db";
+
+    // Fallback to MIME type category
     switch (type) {
       case "image":
         return "#3498db";
-      case "application":
-        return "#2ecc71";
       case "video":
         return "#e74c3c";
+      case "audio":
+        return "#9b59b6";
+      case "text":
+        return "#95a5a6";
+      case "application":
+        return "#2ecc71";
       default:
         return "#9b59b6";
     }
@@ -1526,7 +1583,8 @@ formatFileSize
             </button>
 
             {/* Upload Button */}
-            <label className="relative cursor-pointer">
+            {/* Upload Button */}
+            <label className={`relative ${isUploading ? "cursor-not-allowed" : "cursor-pointer"}`}>
               <input
                 type="file"
                 multiple
@@ -1534,10 +1592,14 @@ formatFileSize
                 onChange={handleFileUpload}
                 disabled={isUploading}
               />
-              <div className="px-4 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] 
-              text-white font-medium rounded-lg hover:opacity-90 transition-opacity 
-              flex items-center disabled:opacity-50">
-                <Upload className="w-4 h-4 mr-2" />
+              <div className={`px-4 py-2 bg-gradient-to-r from-[#3498db] to-[#2ecc71] 
+              text-white font-medium rounded-lg transition-opacity 
+              flex items-center ${isUploading ? "opacity-60 pointer-events-none" : "hover:opacity-90"}`}>
+                {isUploading ? (
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
                 {isUploading ? "Uploading..." : "Upload Files"}
               </div>
             </label>
@@ -1808,11 +1870,11 @@ formatFileSize
                       <div
                         className="w-full h-full flex items-center justify-center"
                         style={{
-                          backgroundColor: `${getFileTypeColor(file.type)}20`,
+                          backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                         }}
                       >
-                        <div style={{ color: getFileTypeColor(file.type) }}>
-                          {getFileIcon(file.type)}
+                        <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                          {getFileIcon(file.type, file.name)}
                         </div>
                       </div>
                     )}
@@ -1851,6 +1913,26 @@ formatFileSize
                       >
                         <Share2 className="w-4 h-4" />
                       </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (file.scanStatus !== "safe") {
+                            toast.error(`Cannot copy link. Status: ${file.scanStatus}`);
+                            return;
+                          }
+                          handleCopyLink(file.id, file.name);
+                        }}
+                        className={`p-2 rounded-full text-white ${file.scanStatus === 'safe' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-500 cursor-not-allowed'}`}
+                        title={file.scanStatus === 'safe' ? "Copy Link" : "Scan in progress or failed"}
+                      >
+                        {copiedFileId === file.id ? (
+                          <Check className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <Link className="w-4 h-4" />
+                        )}
+                      </button>
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1906,11 +1988,11 @@ formatFileSize
                         <div
                           className="p-1.5 rounded-lg mr-2 shrink-0"
                           style={{
-                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                           }}
                         >
-                          <div style={{ color: getFileTypeColor(file.type) }}>
-                            {getFileIcon(file.type)}
+                          <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                            {getFileIcon(file.type, file.name)}
                           </div>
                         </div>
                         <h3 className="text-sm font-medium text-white truncate flex-1">
@@ -2014,8 +2096,9 @@ formatFileSize
             /* List View - keeping existing list view code */
             <div className="bg-gray-800/30 rounded-xl border border-gray-700 overflow-hidden">
               <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-700 text-gray-400 text-sm font-medium">
-                <div className="col-span-4">Name</div>
+                <div className="col-span-3">Name</div>
                 <div className="col-span-2">Type</div>
+                <div className="col-span-1">Size</div>
                 <div className="col-span-1">Copies</div>
                 <div className="col-span-1">Downloads</div>
                 <div className="col-span-2">Uploaded</div>
@@ -2090,7 +2173,7 @@ formatFileSize
                       selectedFiles.includes(file.id) ? "bg-[#3498db]/10" : ""
                     }`}
                   >
-                    <div className="col-span-4 flex items-center">
+                    <div className="col-span-3 flex items-center">
                       <button
                         onClick={() => toggleFileSelection(file.id)}
                         className="mr-3"
@@ -2105,11 +2188,11 @@ formatFileSize
                         <div
                           className="p-2 rounded-lg mr-3"
                           style={{
-                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                           }}
                         >
-                          <div style={{ color: getFileTypeColor(file.type) }}>
-                            {getFileIcon(file.type)}
+                          <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                            {getFileIcon(file.type, file.name)}
                           </div>
                         </div>
                         <div>
@@ -2165,12 +2248,15 @@ formatFileSize
                       <span
                         className="px-2 py-1 rounded text-xs font-medium"
                         style={{
-                          backgroundColor: `${getFileTypeColor(file.type)}20`,
-                          color: getFileTypeColor(file.type),
+                          backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
+                          color: getFileTypeColor(file.type, file.name),
                         }}
                       >
                         {file.type.toUpperCase()}
                       </span>
+                    </div>
+                    <div className="col-span-1 text-gray-400 text-sm">
+                      {file.size}
                     </div>
                     <div className="col-span-1 text-center">
                       <div className="text-white font-bold">
@@ -2216,6 +2302,25 @@ formatFileSize
                         >
                           <Share2 className={`w-4 h-4 ${file.scanStatus === 'safe' ? 'text-gray-400 hover:text-white' : 'text-gray-600'}`} />
                         </button>
+
+                        <button
+                          onClick={() => {
+                            if (file.scanStatus !== "safe") {
+                              toast.error(`Cannot copy link. Status: ${file.scanStatus}`);
+                              return;
+                            }
+                            handleCopyLink(file.id, file.name);
+                          }}
+                          className="p-1.5 hover:bg-gray-700 rounded"
+                          title="Copy Link"
+                        >
+                          {copiedFileId === file.id ? (
+                            <Check className="w-4 h-4 text-green-400" />
+                          ) : (
+                            <Link className="w-4 h-4 text-gray-400 hover:text-white" />
+                          )}
+                        </button>
+                        
                         <button
                           onClick={() => setShowFileStats(file.id)}
                           className="p-1.5 hover:bg-gray-700 rounded"
@@ -2358,11 +2463,11 @@ formatFileSize
                         <div
                           className="p-2 rounded-lg mr-3"
                           style={{
-                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                           }}
                         >
-                          <div style={{ color: getFileTypeColor(file.type) }}>
-                            {getFileIcon(file.type)}
+                          <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                            {getFileIcon(file.type, file.name)}
                           </div>
                         </div>
                         <div>
@@ -2585,6 +2690,57 @@ formatFileSize
         )}
       </AnimatePresence>
 
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={() => setDeleteConfirmId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-200 dark:border-gray-700 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 bg-red-500/20 rounded-full">
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Delete File
+                </h3>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300 mb-2">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-white">"{deleteConfirmName}"</span>?
+              </p>
+              <p className="text-red-400 text-sm mb-6">
+                This action cannot be undone. All existing share links will be permanently invalidated.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => confirmDelete(deleteConfirmId)}
+                  className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       {/* Password Protection Modal */}
       <AnimatePresence>
         {showPasswordModal && (

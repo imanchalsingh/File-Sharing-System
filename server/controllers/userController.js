@@ -4,13 +4,22 @@ import jwt from "jsonwebtoken";
 import redisClient, { redisAvailable } from "../config/redis.js";
 
 // REGISTER
-export const registerUser = async (req, res) => {
-  const { username, email, password } = req.body;
+export const registerUser = async (req, res, next) => {
+  const { username, email, password, confirmPassword } = req.body;
 
   try {
     // Validate input (redundant since you have express-validator, but good for safety)
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !confirmPassword) {
       return res.status(400).json({ error: "All fields are required" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long" });
+    }
+
+    // Ensure password and confirmPassword match 
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match" });
     }
 
     // Check if user already exists by email or username
