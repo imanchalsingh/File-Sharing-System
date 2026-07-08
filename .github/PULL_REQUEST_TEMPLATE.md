@@ -2,6 +2,10 @@
 
 Please explain what this PR changes.
 
+## Related Issue
+
+Closes # [Issue number]
+
 ## Type of Change
 
 - [ ] Bug fix
