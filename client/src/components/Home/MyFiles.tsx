@@ -46,6 +46,11 @@ import {
   Play,
   AlertCircle,
   MoreVertical,
+  FileVideo,
+  FileAudio,
+  FileImage,
+  FileCode,
+  Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { notify as toast } from "@/services/toastService";
@@ -1115,26 +1120,64 @@ formatFileSize
   
 
   // ✅ Get file icon based on type
-  function getFileIcon(type: string) {
-      switch (type) {
-        case "image":
-          return <ImageIcon className="w-5 h-5" />;
-        case "application":
-          return <FileText className="w-5 h-5" />;
-        default:
-          return <File className="w-5 h-5" />;
-      }
+  function getFileIcon(type: string, fileName?: string) {
+    const ext = fileName?.split(".").pop()?.toLowerCase();
+
+    // Check by extension first for specificity
+    if (ext === "pdf") return <FileText className="w-5 h-5" />;
+    if (["doc", "docx"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["xls", "xlsx"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["ppt", "pptx"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["txt", "md", "csv"].includes(ext || "")) return <FileText className="w-5 h-5" />;
+    if (["html", "css", "js", "ts", "jsx", "tsx", "json"].includes(ext || "")) return <FileCode className="w-5 h-5" />;
+    if (["mp3", "wav", "ogg", "flac", "aac"].includes(ext || "")) return <FileAudio className="w-5 h-5" />;
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext || "")) return <FileVideo className="w-5 h-5" />;
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext || "")) return <FileImage className="w-5 h-5" />;
+
+    // Fallback to MIME type category
+    switch (type) {
+      case "image":
+        return <FileImage className="w-5 h-5" />;
+      case "video":
+        return <FileVideo className="w-5 h-5" />;
+      case "audio":
+        return <FileAudio className="w-5 h-5" />;
+      case "text":
+        return <FileText className="w-5 h-5" />;
+      case "application":
+        return <FileText className="w-5 h-5" />;
+      default:
+        return <File className="w-5 h-5" />;
     }
+  }
 
   // ✅ Get file type color
-  const getFileTypeColor = (type: string) => {
+  const getFileTypeColor = (type: string, fileName?: string) => {
+    const ext = fileName?.split(".").pop()?.toLowerCase();
+
+    // Specific extension colors
+    if (ext === "pdf") return "#e74c3c";
+    if (["doc", "docx"].includes(ext || "")) return "#2980b9";
+    if (["xls", "xlsx"].includes(ext || "")) return "#27ae60";
+    if (["ppt", "pptx"].includes(ext || "")) return "#e67e22";
+    if (["txt", "md", "csv"].includes(ext || "")) return "#95a5a6";
+    if (["html", "css", "js", "ts", "jsx", "tsx", "json"].includes(ext || "")) return "#f39c12";
+    if (["mp3", "wav", "ogg", "flac", "aac"].includes(ext || "")) return "#9b59b6";
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext || "")) return "#e74c3c";
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext || "")) return "#3498db";
+
+    // Fallback to MIME type category
     switch (type) {
       case "image":
         return "#3498db";
-      case "application":
-        return "#2ecc71";
       case "video":
         return "#e74c3c";
+      case "audio":
+        return "#9b59b6";
+      case "text":
+        return "#95a5a6";
+      case "application":
+        return "#2ecc71";
       default:
         return "#9b59b6";
     }
@@ -1804,11 +1847,11 @@ formatFileSize
                       <div
                         className="w-full h-full flex items-center justify-center"
                         style={{
-                          backgroundColor: `${getFileTypeColor(file.type)}20`,
+                          backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                         }}
                       >
-                        <div style={{ color: getFileTypeColor(file.type) }}>
-                          {getFileIcon(file.type)}
+                        <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                          {getFileIcon(file.type, file.name)}
                         </div>
                       </div>
                     )}
@@ -1922,11 +1965,11 @@ formatFileSize
                         <div
                           className="p-1.5 rounded-lg mr-2 shrink-0"
                           style={{
-                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                           }}
                         >
-                          <div style={{ color: getFileTypeColor(file.type) }}>
-                            {getFileIcon(file.type)}
+                          <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                            {getFileIcon(file.type, file.name)}
                           </div>
                         </div>
                         <h3 className="text-sm font-medium text-white truncate flex-1">
@@ -2122,11 +2165,11 @@ formatFileSize
                         <div
                           className="p-2 rounded-lg mr-3"
                           style={{
-                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                           }}
                         >
-                          <div style={{ color: getFileTypeColor(file.type) }}>
-                            {getFileIcon(file.type)}
+                          <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                            {getFileIcon(file.type, file.name)}
                           </div>
                         </div>
                         <div>
@@ -2182,8 +2225,8 @@ formatFileSize
                       <span
                         className="px-2 py-1 rounded text-xs font-medium"
                         style={{
-                          backgroundColor: `${getFileTypeColor(file.type)}20`,
-                          color: getFileTypeColor(file.type),
+                          backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
+                          color: getFileTypeColor(file.type, file.name),
                         }}
                       >
                         {file.type.toUpperCase()}
@@ -2397,11 +2440,11 @@ formatFileSize
                         <div
                           className="p-2 rounded-lg mr-3"
                           style={{
-                            backgroundColor: `${getFileTypeColor(file.type)}20`,
+                            backgroundColor: `${getFileTypeColor(file.type, file.name)}20`,
                           }}
                         >
-                          <div style={{ color: getFileTypeColor(file.type) }}>
-                            {getFileIcon(file.type)}
+                          <div style={{ color: getFileTypeColor(file.type, file.name) }}>
+                            {getFileIcon(file.type, file.name)}
                           </div>
                         </div>
                         <div>
