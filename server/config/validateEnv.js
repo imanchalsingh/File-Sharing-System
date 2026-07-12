@@ -123,4 +123,3 @@ export default function validateEnv() {
   return true;
 };
 
-export default validateEnv;
