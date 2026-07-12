@@ -19,6 +19,10 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import HomeContent from "./HomeContent";
 import NotificationBell from "./NotificationBell";
 import api from "../../services/api";
+import { AnimatePresence, motion } from "framer-motion";
+import { Command } from "lucide-react";
+import SessionTimeout from "../SessionTimeout";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
   initiateSocketConnection,
   disconnectSocket,
